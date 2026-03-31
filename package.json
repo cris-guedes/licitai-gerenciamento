@@ -14,6 +14,7 @@
     "generate:pncp-historico": "openapi --input src/server/shared/lib/docs/api.pncp.historico.yml --output src/server/shared/lib/pncp-historico --client fetch --useOptions --useUnionTypes --indent 2 && node -e \"const fs=require('fs'),f='src/server/shared/lib/pncp-historico/core/OpenAPI.ts';fs.writeFileSync(f,fs.readFileSync(f,'utf8').replace(\\\"BASE: 'https://pncp.gov.br/api/pncp'\\\",\\\"BASE: 'https://pncp.gov.br/api/pncp'\\\"))\""
   },
   "dependencies": {
+    "@contentsquare/tag-sdk": "^1.1.0",
     "@hookform/resolvers": "^5.2.2",
     "@prisma/adapter-pg": "^7.5.0",
     "@prisma/client": "^7.5.0",

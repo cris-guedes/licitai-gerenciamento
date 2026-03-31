@@ -29,7 +29,7 @@ export function Capabilities() {
           <div className="flex-1 space-y-12">
             <div>
               <h2 className="text-3xl font-bold text-brand-obsidian md:text-4xl mb-6">
-                Como o Licitare potencializa seus resultados
+                Como o Licitai Gerenciamento potencializa seus resultados
               </h2>
               <p className="text-lg text-muted-foreground">
                 Diga adeus às planilhas manuais e ao caos das certidões vencidas.

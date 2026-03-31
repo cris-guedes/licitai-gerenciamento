@@ -8,10 +8,10 @@ export function Hero() {
         <div className="flex flex-col items-center gap-12 text-center lg:flex-row lg:text-left lg:gap-16">
           <div className="flex-1 max-w-2xl">
             <h1 className="mb-6 text-4xl font-bold tracking-tight text-brand-obsidian md:text-6xl lg:leading-[1.1]">
-              Domine as Licitações Públicas com <span className="text-brand-obsidian underline decoration-brand-yellow decoration-4 underline-offset-4">Inteligência</span>
+              Extraia e Gerencie Editais com <span className="text-brand-obsidian underline decoration-brand-yellow decoration-4 underline-offset-4">Inteligência</span>
             </h1>
             <p className="mb-10 text-lg leading-relaxed text-foreground md:text-xl font-medium">
-              A plataforma definitiva para descobrir, organizar e vencer processos licitatórios. Gerencie documentos, prazos e contratos em um só lugar com design premium e fluxo simplificado.
+              O Licitai Gerenciamento extrai automaticamente as informações dos editais e centraliza tudo: documentos, prazos, propostas e contratos em uma única plataforma.
             </p>
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center lg:justify-start">
               <Button

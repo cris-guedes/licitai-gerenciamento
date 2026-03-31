@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/client/components/ui/card';
 export function Testimonials() {
   const testimonials = [
     {
-      quote: "O Licitare mudou nossa forma de trabalhar. Antes perdíamos metade das oportunidades por falta de tempo para triagem. Hoje focamos no que importa.",
+      quote: "O Licitai Gerenciamento mudou nossa forma de trabalhar. Antes perdíamos metade das oportunidades por falta de tempo para triagem. Hoje focamos no que importa.",
       author: "Ricardo Mendes",
       role: "Diretor Comercial @ GovTech",
       avatar: "RM"
@@ -12,7 +12,7 @@ export function Testimonials() {
     {
       quote: "A gestão de documentos é o ponto alto. Ter todas as certidões centralizadas e com lembretes salvou nossa empresa de várias inabilitações.",
       author: "Juliana Costa",
-      role: "Coordenadora Jurídica @ Licitare Consulting",
+      role: "Coordenadora Jurídica @ Gov Consulting",
       avatar: "JC"
     },
     {
@@ -31,7 +31,7 @@ export function Testimonials() {
       <div className="container px-4 mx-auto max-w-7xl relative z-10">
         <div className="text-center mb-16">
           <h2 className="text-3xl font-bold md:text-4xl mb-4">Aprovado por quem entende do negócio</h2>
-          <p className="text-brand-yellow/80 font-medium">Histórias de sucesso de quem utiliza o Licitare diariamente</p>
+          <p className="text-brand-yellow/80 font-medium">Histórias de sucesso de quem utiliza o Licitai Gerenciamento diariamente</p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

@@ -10,10 +10,10 @@ export function Footer() {
               <div className="size-8 bg-brand-yellow rounded-lg flex items-center justify-center">
                  <div className="size-4 bg-brand-obsidian rounded-sm rotate-45"></div>
               </div>
-              <span className="text-2xl font-black text-white tracking-tighter uppercase italic">Licitare</span>
+              <span className="text-2xl font-black text-white tracking-tighter uppercase italic">Licitai</span>
             </div>
             <p className="text-gray-400 leading-relaxed max-w-xs">
-              A maior inteligência em negócios públicos para empresas que buscam o próximo nível.
+              Inteligência de extração de editais e gestão completa de licitações públicas.
             </p>
           </div>
           
@@ -50,7 +50,7 @@ export function Footer() {
         
         <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-6">
           <p className="text-gray-500 text-sm">
-            © 2026 Licitare S.A. Todos os direitos reservados.
+            © 2026 Licitai Gerenciamento. Todos os direitos reservados.
           </p>
           <div className="flex gap-8">
              <div className="size-5 bg-white/10 rounded-full"></div>

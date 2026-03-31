@@ -15,7 +15,7 @@ export function CTA() {
               Pronto para escalar suas vendas para o governo?
             </h2>
             <p className="text-xl text-gray-300 mb-12">
-              Junte-se a centenas de empresas que já estão vencendo mais licitações com o Licitare.
+              Junte-se a centenas de empresas que já estão vencendo mais licitações com o Licitai Gerenciamento.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-6">
               <Button

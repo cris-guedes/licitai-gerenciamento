@@ -19,7 +19,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             <div className="size-4 bg-brand-obsidian rounded-sm rotate-45" />
           </div>
           <span className="text-xl font-black text-white tracking-tighter uppercase italic">
-            Licitare
+            Licitai
           </span>
         </div>
 
@@ -27,17 +27,17 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         <div className="relative z-10 space-y-8">
           <div className="space-y-4">
             <h1 className="text-5xl font-black text-white tracking-tight leading-[1.05]">
-              Vença<br />
-              <span className="text-brand-yellow">Licitações</span>
+              Extraia<br />
+              <span className="text-brand-yellow">Editais</span>
             </h1>
             <p className="text-base text-white/60 font-medium leading-relaxed max-w-sm">
-              A plataforma definitiva para descobrir, organizar e vencer processos licitatórios com inteligência.
+              Inteligência de extração de informações de editais para você gerenciar e vencer mais licitações.
             </p>
           </div>
 
           <div className="space-y-3">
             {[
-              "Monitoramento de licitações em tempo real",
+              "Extração automática de dados de editais",
               "Gestão de documentos e prazos",
               "Relatórios e análises estratégicas",
             ].map((item) => (
@@ -52,7 +52,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         {/* Footer */}
         <div className="relative z-10">
           <p className="text-white/30 text-xs">
-            © 2024 Licitare. Todos os direitos reservados.
+            © 2026 Licitai Gerenciamento. Todos os direitos reservados.
           </p>
         </div>
       </div>

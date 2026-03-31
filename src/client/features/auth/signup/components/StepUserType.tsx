@@ -19,7 +19,7 @@ const options = [
   {
     value: "team_member" as const,
     title: "Faço parte da equipe",
-    description: "Quero colaborar com uma empresa já cadastrada no Licitare.",
+    description: "Quero colaborar com uma empresa já cadastrada no Licitai Gerenciamento.",
     icon: Users,
   },
 ]

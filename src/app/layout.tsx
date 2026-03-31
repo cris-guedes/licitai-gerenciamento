@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import { QueryProvider } from "@/client/main/providers/QueryProvider";
+import { HotjarProvider } from "@/client/main/providers/HotjarProvider";
 import { Toaster } from "@/client/components/ui/sonner";
 
 const inter = Inter({
@@ -11,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Licitare — Gestão Inteligente de Licitações",
-  description: "Plataforma premium para descoberta e gestão de licitações públicas e contratos governamentais.",
+  title: "Licitai Gerenciamento — Gestão Inteligente de Licitações",
+  description: "Plataforma de inteligência para extração de informações de editais, descoberta e gestão de licitações públicas e contratos governamentais.",
 };
 
 export default function RootLayout({
@@ -25,14 +25,12 @@ export default function RootLayout({
       <body
         className={`${inter.variable} font-sans antialiased`}
       >
-        <Script
-          src="https://t.contentsquare.net/uxa/bb6d814f93bb3.js"
-          strategy="afterInteractive"
-        />
-        <QueryProvider>
-          {children}
-          <Toaster />
-        </QueryProvider>
+        <HotjarProvider>
+          <QueryProvider>
+            {children}
+            <Toaster />
+          </QueryProvider>
+        </HotjarProvider>
       </body>
     </html>
   );

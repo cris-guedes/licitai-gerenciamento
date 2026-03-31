@@ -28,7 +28,7 @@ export function UseCases() {
             Soluções para cada perfil de equipe
           </h2>
           <p className="text-lg text-muted-foreground">
-            O Licitare se adapta ao seu fluxo de trabalho, independente do tamanho da sua operação.
+            O Licitai Gerenciamento se adapta ao seu fluxo de trabalho, independente do tamanho da sua operação.
           </p>
         </div>
         

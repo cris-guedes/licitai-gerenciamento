@@ -9,7 +9,7 @@ export function Navbar() {
           <div className="size-8 bg-brand-obsidian rounded-lg flex items-center justify-center">
              <div className="size-4 bg-brand-yellow rounded-sm rotate-45"></div>
           </div>
-          <span className="text-2xl font-black text-brand-obsidian tracking-tighter uppercase italic">Licitare</span>
+          <span className="text-2xl font-black text-brand-obsidian tracking-tighter uppercase italic">Licitai</span>
         </div>
         
         <div className="hidden md:flex items-center gap-8 text-sm font-bold text-brand-obsidian uppercase tracking-wide">
