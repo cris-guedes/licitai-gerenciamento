@@ -1,0 +1,93 @@
+openapi: 3.1.0
+
+info:
+  title: PNCP Histórico API
+  version: 1.0.0
+  description: >
+    Endpoint não-oficial para consulta do histórico de manutenção (log de alterações)
+    de contratações no PNCP. Validado em produção (pncp.gov.br/api/pncp) em 2026-03-28.
+
+servers:
+  - url: https://pncp.gov.br/api/pncp
+    description: Produção PNCP
+
+paths:
+  /v1/orgaos/{cnpj}/compras/{ano}/{sequencial}/historico:
+    get:
+      summary: Consultar histórico de alterações de uma contratação
+      operationId: consultarHistoricoCompra
+      parameters:
+        - name: cnpj
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: ano
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: sequencial
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pagina
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: tamanhoPagina
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Histórico retornado com sucesso
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoricoCompraItem'
+
+components:
+  schemas:
+    HistoricoCompraItem:
+      type: object
+      properties:
+        justificativa:
+          type: string
+          nullable: true
+        tipoLogManutencao:
+          type: integer
+        categoriaLogManutencao:
+          type: integer
+        logManutencaoDataInclusao:
+          type: string
+          format: date-time
+        compraAno:
+          type: integer
+        usuarioNome:
+          type: string
+        compraOrgaoCnpj:
+          type: string
+        compraSequencial:
+          type: integer
+        itemNumero:
+          type: integer
+          nullable: true
+        documentoTipo:
+          type: string
+          nullable: true
+        documentoTitulo:
+          type: string
+          nullable: true
+        documentoSequencial:
+          type: integer
+          nullable: true
+        tipoLogManutencaoNome:
+          type: string
+        categoriaLogManutencaoNome:
+          type: string

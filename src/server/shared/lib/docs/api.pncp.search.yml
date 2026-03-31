@@ -1,0 +1,408 @@
+openapi: 3.1.0
+
+info:
+  title: PNCP Search API
+  version: 4.0.0
+  description: >
+    API completa de busca de documentos do Portal Nacional de Contratações Públicas (PNCP).
+    Modelagem baseada no comportamento real do endpoint /search validado em produção em 2026-03-27.
+
+    NOTAS DE COMPATIBILIDADE (validadas empiricamente):
+    - `tipos_documento` é OBRIGATÓRIO — a API retorna erro sem ele.
+    - Arrays usam separador "|" (pipe), NÃO repeated params (key=v1&key=v2 retorna 0 resultados).
+    - `valor_global` é frequentemente null em editais recém-publicados.
+    - `tam_pagina` aceita até 500 (documentação original dizia 100, erro).
+
+servers:
+  - url: https://pncp.gov.br/api
+    description: Produção PNCP
+
+paths:
+  /search/:
+    get:
+      summary: Busca avançada de documentos PNCP
+      operationId: searchDocuments
+
+      description: >
+        Permite buscar editais e outros documentos do PNCP utilizando
+        filtros combináveis como órgão, modalidade, UF, status, tipo,
+        margem de preferência e fonte orçamentária.
+
+        ATENÇÃO: `tipos_documento` é obrigatório. Arrays devem usar separação
+        por "|" (pipe), não repeated query params.
+
+      parameters:
+
+        - name: q
+          in: query
+          description: Texto livre para busca (título e descrição)
+          schema:
+            type: string
+          example: software gestão pública
+
+        - name: tipos_documento
+          in: query
+          required: true
+          description: >
+            Tipo de documento indexado. OBRIGATÓRIO — a API retorna erro sem este parâmetro.
+            Separar múltiplos valores com "|" (pipe). Ex: "edital|aviso_licitacao".
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - edital
+                - aviso_licitacao
+                - contrato
+                - ata_registro_preco
+                - resultado
+                - homologacao
+                - adjudicacao
+                - dispensa
+                - inexigibilidade
+          example: edital|aviso_licitacao|dispensa|inexigibilidade
+
+        - name: status
+          in: query
+          description: Status da contratação
+          schema:
+            type: string
+            enum:
+              - recebendo_proposta
+              - divulgada
+              - homologada
+              - revogada
+              - anulada
+              - suspensa
+              - encerrada
+              - fracassada
+              - deserta
+
+        - name: ordenacao
+          in: query
+          description: Campo para ordenação (prefixar com "-" para decrescente)
+          schema:
+            type: string
+            enum:
+              - data
+              - -data
+              - valor
+              - -valor
+          example: -data
+
+        - name: pagina
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+
+        - name: tam_pagina
+          in: query
+          description: Quantidade de itens por página. Máximo testado e confirmado em produção: 500.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+          example: 20
+
+        - name: orgaos
+          in: query
+          description: IDs dos órgãos (separados por "|")
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: integer
+
+        - name: unidades
+          in: query
+          description: IDs das unidades administrativas (UASGs), separados por "|"
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: integer
+
+        - name: esferas
+          in: query
+          description: >
+            Esfera administrativa (separar múltiplos com "|").
+            F=Federal, E=Estadual, M=Municipal, D=Distrital, N=Não informado.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - F  # Federal
+                - E  # Estadual
+                - M  # Municipal
+                - D  # Distrital
+                - N  # Não informado
+
+        - name: poderes
+          in: query
+          description: >
+            Poder da entidade (separar múltiplos com "|").
+            E=Executivo, L=Legislativo, J=Judiciário, N=Não se aplica.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - E  # Executivo
+                - L  # Legislativo
+                - J  # Judiciário
+                - N  # Não se aplica
+
+        - name: ufs
+          in: query
+          description: Unidade Federativa — siglas de 2 letras (separar com "|")
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+              pattern: '^[A-Z]{2}$'
+          example: SP|RJ
+
+        - name: municipios
+          in: query
+          description: Códigos IBGE dos municípios (separados por "|")
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: integer
+
+        - name: modalidades
+          in: query
+          description: >
+            Modalidade da licitação — código numérico (separar múltiplos com "|").
+            Valores validados em produção via GET /api/pncp/v1/modalidades em 2026-03-27.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: integer
+              enum:
+                - 1   # Leilão - Eletrônico
+                - 2   # Diálogo Competitivo
+                - 3   # Concurso
+                - 4   # Concorrência - Eletrônica
+                - 5   # Concorrência - Presencial
+                - 6   # Pregão - Eletrônico
+                - 7   # Pregão - Presencial
+                - 8   # Dispensa
+                - 9   # Inexigibilidade
+                - 10  # Manifestação de Interesse
+                - 11  # Pré-qualificação
+                - 12  # Credenciamento
+                - 13  # Leilão - Presencial
+                - 14  # Inaplicabilidade da Licitação
+                - 15  # Chamada pública
+                - 16  # Concorrência – Eletrônica Internacional
+                - 17  # Concorrência – Presencial Internacional
+                - 18  # Pregão – Eletrônico Internacional
+                - 19  # Pregão – Presencial Internacional
+          example: 6
+
+        - name: tipos
+          in: query
+          description: >
+            Tipo do objeto da contratação (separar múltiplos com "|"):
+            1=Bem, 2=Serviço, 3=Obra, 4=Serviço de Engenharia.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: integer
+              enum:
+                - 1  # Bem
+                - 2  # Serviço
+                - 3  # Obra
+                - 4  # Serviço de Engenharia
+
+        - name: fontes_orcamentarias
+          in: query
+          description: >
+            Fonte orçamentária (separar múltiplos com "|").
+            Valores string correspondentes aos IDs de GET /api/pncp/v1/fontes-orcamentarias:
+            nao_se_aplica=1, municipal=2, estadual=3, federal=4, organismo_internacional=5, distrital=6.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - nao_se_aplica
+                - municipal
+                - estadual
+                - federal
+                - organismo_internacional
+                - distrital
+
+        - name: tipos_margens_preferencia
+          in: query
+          description: Tipo de margem de preferência (separar múltiplos com "|")
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - resolucao_cics
+                - resolucao_ciia_pac
+
+        - name: exigencia_conteudo_nacional
+          in: query
+          description: Se true, filtra apenas licitações que exigem conteúdo de produção nacional
+          schema:
+            type: boolean
+
+      responses:
+        '200':
+          description: Resultado paginado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '400':
+          description: >
+            Parâmetro inválido ou obrigatório ausente.
+            Exemplo: { "mensagem": "O filtro tipos_documento é obrigatório" }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mensagem:
+                    type: string
+
+components:
+
+  schemas:
+
+    SearchResponse:
+      type: object
+      required:
+        - items
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchItem'
+        total:
+          type: integer
+          description: Total de registros encontrados
+
+    SearchItem:
+      type: object
+      description: Documento retornado pela busca
+      properties:
+
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        item_url:
+          type: string
+        document_type:
+          type: string
+          example: edital
+        createdAt:
+          type: string
+          format: date-time
+
+        ano:
+          type: string
+        numero_sequencial:
+          type: string
+        numero_controle_pncp:
+          type: string
+
+        orgao_id:
+          type: string
+        orgao_cnpj:
+          type: string
+        orgao_nome:
+          type: string
+
+        unidade_id:
+          type: string
+        unidade_nome:
+          type: string
+
+        esfera_id:
+          type: string
+          enum: [F, E, M, D, N]
+
+        poder_id:
+          type: string
+          enum: [E, L, J, N]
+
+        municipio_id:
+          type: string
+        municipio_nome:
+          type: string
+        uf:
+          type: string
+
+        modalidade_licitacao_id:
+          type: string
+        modalidade_licitacao_nome:
+          type: string
+
+        situacao_id:
+          type: string
+        situacao_nome:
+          type: string
+
+        data_publicacao_pncp:
+          type: string
+          format: date-time
+        data_atualizacao_pncp:
+          type: string
+          format: date-time
+
+        data_inicio_vigencia:
+          type: [string, "null"]
+          format: date-time
+        data_fim_vigencia:
+          type: [string, "null"]
+          format: date-time
+
+        cancelado:
+          type: boolean
+        valor_global:
+          type: [number, "null"]
+          description: >
+            Valor global estimado da contratação. Frequentemente null em editais
+            recém-publicados — o PNCP permite publicar sem informar o valor estimado.
+        tem_resultado:
+          type: boolean
+
+        tipo_id:
+          type: string
+        tipo_nome:
+          type: string
+
+        exigencia_conteudo_nacional:
+          type: boolean

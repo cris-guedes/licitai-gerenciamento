@@ -1,0 +1,33 @@
+"use client"
+
+import { useQuery }      from "@tanstack/react-query"
+import type { CoreApiClient } from "@/client/main/infra/apis/api-core/CoreApiClient"
+import type { LicitacaoItem } from "@/client/main/infra/apis/api-core/models/LicitacaoItem"
+
+export namespace useProcurementHistoryServiceParams {
+  export type Get = {
+    item: LicitacaoItem
+    enabled?: boolean
+  }
+}
+
+export function useProcurementHistoryService(api: CoreApiClient) {
+  const get = (params: useProcurementHistoryServiceParams.Get) => {
+    const { item, enabled = true } = params
+    const canFetch = enabled && !!item.orgao_cnpj && !!item.ano && !!item.numero_sequencial
+
+    return useQuery({
+      queryKey: ["procurement-history", item.orgao_cnpj, item.ano, item.numero_sequencial],
+      queryFn:  () => api.search.fetchExternalProcurementHistory({
+        cnpj:       item.orgao_cnpj!,
+        ano:        Number(item.ano!),
+        sequencial: Number(item.numero_sequencial!),
+      }),
+      enabled:   canFetch,
+      staleTime: 10 * 60 * 1000,
+      retry:     1,
+    })
+  }
+
+  return { get }
+}

@@ -1,0 +1,23 @@
+export type FetchExternalAtaFilesView = {
+    files: Array<{
+        url?:                string
+        titulo?:             string
+        tipoDocumentoNome?:  string
+        sequencialDocumento?: number
+        dataPublicacaoPncp?: string
+    }>
+}
+
+export class FetchExternalAtaFilesMapper {
+    static toView(data: any[]): FetchExternalAtaFilesView {
+        return {
+            files: (data ?? []).map((f: any) => ({
+                url:                 f.url,
+                titulo:              f.titulo,
+                tipoDocumentoNome:   f.tipoDocumentoNome,
+                sequencialDocumento: f.sequencialDocumento,
+                dataPublicacaoPncp:  f.dataPublicacaoPncp,
+            })),
+        }
+    }
+}

@@ -1,0 +1,216 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String?
+  name          String
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  memberships    Membership[]
+  sessions       Session[]
+  accounts       Account[]
+  createdInvites Invite[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Verification {
+  id         String    @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+}
+
+// ─── Tenant ───────────────────────────────────────────────────────────────────
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  companies   Company[]
+  invites     Invite[]
+}
+
+model Company {
+  id                      String   @id @default(cuid())
+  cnpj                    String   @unique
+  razao_social            String
+  nome_fantasia           String?
+  situacao_cadastral      String?
+  data_situacao_cadastral String?
+  data_abertura           String?
+  porte                   String?
+  natureza_juridica       String?
+  cnae_fiscal             Int?
+  cnae_fiscal_descricao   String?
+  cnaes_secundarios       Json?
+  logradouro              String?
+  numero                  String?
+  complemento             String?
+  bairro                  String?
+  municipio               String?
+  uf                      String?
+  cep                     String?
+  telefone_1              String?
+  email_empresa           String?
+  capital_social          Float?
+  opcao_pelo_simples      Boolean?
+  opcao_pelo_mei          Boolean?
+  organizationId          String
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  companyMemberships CompanyMembership[]
+  invites            Invite[]
+}
+
+// ─── Membership ───────────────────────────────────────────────────────────────
+
+model Membership {
+  id             String           @id @default(cuid())
+  role           OrganizationRole @default(MEMBER)
+  userId         String
+  organizationId String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  companyMemberships CompanyMembership[]
+
+  @@unique([userId, organizationId])
+}
+
+/// Vínculo opcional entre um membro e empresas específicas da organização.
+/// Se não houver registros, o acesso às empresas é definido pela lógica de negócio.
+model CompanyMembership {
+  id           String   @id @default(cuid())
+  membershipId String
+  companyId    String
+  createdAt    DateTime @default(now())
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, companyId])
+}
+
+// ─── Invite ───────────────────────────────────────────────────────────────────
+
+model Invite {
+  id             String           @id @default(cuid())
+  token          String           @unique
+  email          String
+  role           OrganizationRole
+  organizationId String
+  companyId      String
+  createdById    String
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdAt      DateTime         @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
+}
+
+// ─── Licitação ────────────────────────────────────────────────────────────────
+
+/// Processo licitatório oficial.
+/// Campos de domínio preenchidos via edital PDF ou PNCP.
+/// Campo `metadados` armazena dados exclusivos do PNCP para consultas em tempo real.
+/**
+ * model Licitacao {
+ * id String @id @default(cuid())
+ * // Órgão
+ * orgaoCnpj        String
+ * orgaoRazaoSocial String?
+ * orgaoEsfera      String?  // "Federal", "Estadual", "Municipal", "Distrital"
+ * orgaoPoder       String?  // "Executivo", "Legislativo", "Judiciário"
+ * // Unidade
+ * unidadeCodigo String?
+ * unidadeNome   String?
+ * municipio     String?
+ * uf            String?
+ * // Identificação
+ * numero    String   // ex: "001/2024"
+ * processo  String?  // ex: "00000.000123/2024-56"
+ * // Classificação
+ * modalidade      String?  // "Pregão Eletrônico", "Concorrência"
+ * tipoInstrumento String?  // "Edital", "Aviso de Contratação Direta"
+ * modoDisputa     String?  // "Aberto", "Fechado", "Aberto-Fechado"
+ * amparoLegal     String?
+ * srp             Boolean  @default(false)
+ * // Conteúdo
+ * objeto                 String
+ * informacaoComplementar String?
+ * // Datas
+ * dataAbertura     DateTime?
+ * dataEncerramento DateTime?
+ * // Valor
+ * valorEstimado Decimal? @db.Decimal(15, 2)
+ * /// Metadados exclusivos do PNCP.
+ * /// Presentes apenas quando o processo foi importado via API do PNCP.
+ * /// Habilitam consultas e sincronizações em tempo real com o portal.
+ * /// Estrutura: { ano, sequencial, numeroControle, situacao, dataPublicacao,
+ * ///              dataAtualizacao, linkSistema, linkProcesso, valorHomologado, syncedAt }
+ * metadados Json?
+ * createdAt DateTime @default(now())
+ * updatedAt DateTime @updatedAt
+ * }
+ */
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MEMBER
+}

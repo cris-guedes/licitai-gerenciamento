@@ -1,0 +1,1 @@
+export { SearchResultStack } from "./SearchResultStack"

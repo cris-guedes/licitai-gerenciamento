@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7fafc;
+  --foreground: #4a5568;
+
+  --primary: #2b2e35;
+  --primary-foreground: #ffffff;
+
+  --secondary: #edf2f7;
+  --secondary-foreground: #2b2e35;
+
+  --accent: #E2F32B;
+  --accent-foreground: #2b2e35;
+
+  --muted: #edf2f7;
+  --muted-foreground: #718096;
+
+  --card: #ffffff;
+  --card-foreground: #4a5568;
+
+  --popover: #ffffff;
+  --popover-foreground: #4a5568;
+
+  --destructive: #e53e3e;
+  --destructive-foreground: #ffffff;
+
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #2b2e35;
+
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-brand-obsidian: #2b2e35;
+  --color-brand-yellow: #E2F32B;
+  --color-neutral-soft: #f7fafc;
+
+  --font-sans: 'Inter', var(--font-geist-sans);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
