@@ -6,6 +6,12 @@ datasource db {
   provider = "postgresql"
 }
 
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 model User {
@@ -22,6 +28,8 @@ model User {
   sessions       Session[]
   accounts       Account[]
   createdInvites Invite[]
+
+  oportunidades Oportunidade[] @relation("ResponsavelOportunidade")
 }
 
 model Session {
@@ -162,55 +170,49 @@ model Invite {
   createdBy    User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
 }
 
-// ─── Licitação ────────────────────────────────────────────────────────────────
+model Edital {
+  id String @id @default(cuid())
 
-/// Processo licitatório oficial.
-/// Campos de domínio preenchidos via edital PDF ou PNCP.
-/// Campo `metadados` armazena dados exclusivos do PNCP para consultas em tempo real.
-/**
- * model Licitacao {
- * id String @id @default(cuid())
- * // Órgão
- * orgaoCnpj        String
- * orgaoRazaoSocial String?
- * orgaoEsfera      String?  // "Federal", "Estadual", "Municipal", "Distrital"
- * orgaoPoder       String?  // "Executivo", "Legislativo", "Judiciário"
- * // Unidade
- * unidadeCodigo String?
- * unidadeNome   String?
- * municipio     String?
- * uf            String?
- * // Identificação
- * numero    String   // ex: "001/2024"
- * processo  String?  // ex: "00000.000123/2024-56"
- * // Classificação
- * modalidade      String?  // "Pregão Eletrônico", "Concorrência"
- * tipoInstrumento String?  // "Edital", "Aviso de Contratação Direta"
- * modoDisputa     String?  // "Aberto", "Fechado", "Aberto-Fechado"
- * amparoLegal     String?
- * srp             Boolean  @default(false)
- * // Conteúdo
- * objeto                 String
- * informacaoComplementar String?
- * // Datas
- * dataAbertura     DateTime?
- * dataEncerramento DateTime?
- * // Valor
- * valorEstimado Decimal? @db.Decimal(15, 2)
- * /// Metadados exclusivos do PNCP.
- * /// Presentes apenas quando o processo foi importado via API do PNCP.
- * /// Habilitam consultas e sincronizações em tempo real com o portal.
- * /// Estrutura: { ano, sequencial, numeroControle, situacao, dataPublicacao,
- * ///              dataAtualizacao, linkSistema, linkProcesso, valorHomologado, syncedAt }
- * metadados Json?
- * createdAt DateTime @default(now())
- * updatedAt DateTime @updatedAt
- * }
- */
-// ─── Enums ────────────────────────────────────────────────────────────────────
+  objeto          String?
+  modalidade      String?
+  tipoContratacao String?
+  valorEstimado   Float?
 
-enum OrganizationRole {
-  OWNER
-  ADMIN
-  MEMBER
+  dataAberturaInicial DateTime?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  licitacao Licitacao?
+}
+
+model Licitacao {
+  status    String?
+  faseAtual String?
+  id        String  @id @default(cuid())
+
+  //historico LicitacaoHistorico[]
+  editalId String @unique
+  edital   Edital @relation(fields: [editalId], references: [id])
+
+  oportunidade Oportunidade[]
+}
+
+model Oportunidade {
+  id String @id @default(cuid())
+
+  licitacaoId String
+  licitacao   Licitacao @relation(fields: [licitacaoId], references: [id])
+
+  responsavelId String?
+  responsavel   User?   @relation("ResponsavelOportunidade", fields: [responsavelId], references: [id])
+
+  // 📊 controle interno (CRM)
+  statusInterno String // analisando | participar | proposta_enviada | ganho | perdido
+  prioridade    String? // baixa | media | alta
+
+  observacoes String?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
 }
