@@ -32,6 +32,13 @@ import { GetInviteControllerSchemas, GetInviteResponseSchema } from "../../domai
 import { AcceptInviteControllerSchemas, AcceptInviteResponseSchema } from "../../domain/use-cases/team/accept-invite/AcceptInviteControllerSchemas";
 import { UpdateMemberRoleControllerSchemas, UpdateMemberRoleResponseSchema } from "../../domain/use-cases/team/update-member-role/UpdateMemberRoleControllerSchemas";
 import { RemoveMemberControllerSchemas, RemoveMemberResponseSchema } from "../../domain/use-cases/team/remove-member/RemoveMemberControllerSchemas";
+import { CreateLicitacaoControllerSchemas, CreateLicitacaoResponseSchema, EditalSchema, TenderSchema } from "../../domain/use-cases/licitacao/create-licitacao/CreateLicitacaoControllerSchemas";
+import { ListLicitacoesControllerSchemas, ListLicitacoesResponseSchema, LicitacaoListItemSchema } from "../../domain/use-cases/licitacao/list-licitacoes/ListLicitacoesControllerSchemas";
+import { RegisterDocumentControllerSchemas, DocumentResponseSchema } from "../../domain/use-cases/document/register-document/RegisterDocumentControllerSchemas";
+import { RunDocumentSummaryControllerSchemas, AnalysisResponseSchema } from "../../domain/use-cases/document/run-document-summary/RunDocumentSummaryControllerSchemas";
+import { RunEditalAnalysisControllerSchemas, EditalAnalysisResponseSchema } from "../../domain/use-cases/edital-analysis/run-edital-analysis/RunEditalAnalysisControllerSchemas";
+import { ListEditalAnalysesControllerSchemas, ListEditalAnalysesResponseSchema } from "../../domain/use-cases/edital-analysis/list-edital-analyses/ListEditalAnalysesControllerSchemas";
+import { ApproveEditalAnalysisControllerSchemas } from "../../domain/use-cases/edital-analysis/approve-edital-analysis/ApproveEditalAnalysisControllerSchemas";
 import { ZodType } from "zod";
 
 export interface EndpointSchemas {
@@ -477,6 +484,35 @@ export const apiEndpoints: EndpointConfig[] = [
     extraSchemas: { UpdateMemberRoleResponse: UpdateMemberRoleResponseSchema },
   },
   {
+    path: "/licitacao/list-licitacoes",
+    operationId: "listLicitacoes",
+    tag: "Licitacao",
+    summary: "Lista licitações da empresa",
+    description: "Retorna todas as licitações (edital + tender) vinculadas à empresa.",
+    successDescription: "Lista retornada com sucesso",
+    method: "GET",
+    schemas: ListLicitacoesControllerSchemas,
+    extraSchemas: {
+      LicitacaoListItem:       LicitacaoListItemSchema,
+      ListLicitacoesResponse:  ListLicitacoesResponseSchema,
+    },
+  },
+  {
+    path: "/licitacao/create-licitacao",
+    operationId: "createLicitacao",
+    tag: "Licitacao",
+    summary: "Cria uma nova licitação",
+    description: "Cria um edital e uma licitação vinculada para a empresa especificada.",
+    successDescription: "Licitação criada com sucesso",
+    method: "POST",
+    schemas: CreateLicitacaoControllerSchemas,
+    extraSchemas: {
+      Edital: EditalSchema,
+      Tender: TenderSchema,
+      CreateLicitacaoResponse: CreateLicitacaoResponseSchema,
+    },
+  },
+  {
     path: "/team/remove-member",
     operationId: "removeMember",
     tag: "Team",
@@ -486,5 +522,63 @@ export const apiEndpoints: EndpointConfig[] = [
     method: "POST",
     schemas: RemoveMemberControllerSchemas,
     extraSchemas: { RemoveMemberResponse: RemoveMemberResponseSchema },
+  },
+  // ── Document ────────────────────────────────────────────────────────────────
+  {
+    path: "/document/register",
+    operationId: "registerDocument",
+    tag: "Document",
+    summary: "Registra um documento por URL",
+    description: "Cria um registro de documento usando uma URL pública de PDF já disponível (ex: link do PNCP).",
+    successDescription: "Documento registrado",
+    method: "POST",
+    schemas: RegisterDocumentControllerSchemas,
+    extraSchemas: { DocumentResponse: DocumentResponseSchema },
+  },
+  // NOTE: document/upload is omitted from OpenAPI spec (multipart/form-data with Buffer).
+  // The frontend calls POST /api/core/document/upload directly via fetch with FormData.
+  {
+    path: "/document/summarize",
+    operationId: "runDocumentSummary",
+    tag: "Document",
+    summary: "Gera resumo de um documento",
+    description: "Busca o PDF pelo URL do documento, extrai o texto e usa IA para gerar um resumo em português.",
+    successDescription: "Resumo gerado",
+    method: "POST",
+    schemas: RunDocumentSummaryControllerSchemas,
+    extraSchemas: { AnalysisResponse: AnalysisResponseSchema },
+  },
+  // ── EditalAnalysis ──────────────────────────────────────────────────────────
+  {
+    path: "/edital-analysis/run",
+    operationId: "runEditalAnalysis",
+    tag: "EditalAnalysis",
+    summary: "Executa análise estruturada de edital",
+    description: "Lê os documentos informados, extrai texto dos PDFs e usa IA para popular os campos de EditalAnalysis.",
+    successDescription: "Análise concluída",
+    method: "POST",
+    schemas: RunEditalAnalysisControllerSchemas,
+    extraSchemas: { EditalAnalysisResponse: EditalAnalysisResponseSchema },
+  },
+  {
+    path: "/edital-analysis/list",
+    operationId: "listEditalAnalyses",
+    tag: "EditalAnalysis",
+    summary: "Lista análises de um edital",
+    description: "Retorna o histórico de análises de um edital, ordenado da versão mais recente para a mais antiga.",
+    successDescription: "Lista de análises retornada",
+    method: "GET",
+    schemas: ListEditalAnalysesControllerSchemas,
+    extraSchemas: { ListEditalAnalysesResponse: ListEditalAnalysesResponseSchema },
+  },
+  {
+    path: "/edital-analysis/approve",
+    operationId: "approveEditalAnalysis",
+    tag: "EditalAnalysis",
+    summary: "Aprova uma análise de edital",
+    description: "Copia os campos extraídos da análise para o Edital canônico e marca a análise como aprovada.",
+    successDescription: "Análise aprovada e dados promovidos para o Edital",
+    method: "POST",
+    schemas: ApproveEditalAnalysisControllerSchemas,
   },
 ];

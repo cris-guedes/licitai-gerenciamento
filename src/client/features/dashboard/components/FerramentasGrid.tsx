@@ -4,8 +4,8 @@ import React from "react"
 import Link from "next/link"
 import {
   Search, Bell, Target, Users, FileText,
-  Bot, Scale, FileSearch, MessageSquare, Zap,
-  User, Lock, Radar, Building2, Settings
+  Bot, Scale, MessageSquare, Zap,
+  User, Lock, Radar, Building2, Settings, FileSearch
 } from "lucide-react"
 import { useAppContext } from "@/client/hooks/app"
 
@@ -122,6 +122,14 @@ export function FerramentasGrid() {
         { icon: Scale,        label: "Consultor Jurídico", badge: "em-breve" },
         { icon: FileText,     label: "Resumo do Edital",   badge: "em-breve" },
         { icon: MessageSquare, label: "Pergunte ao Edital", badge: "em-breve" },
+      ],
+    },
+    {
+      icon: Scale,
+      title: "Licitações",
+      ferramentas: [
+        { icon: FileSearch, label: "Gerenciar Licitações", href: `${base}/licitacoes` },
+        { icon: Bell,       label: "Alertas de Prazo",     badge: "em-breve" },
       ],
     },
     {

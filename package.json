@@ -14,6 +14,9 @@
     "generate:pncp-historico": "openapi --input src/server/shared/lib/docs/api.pncp.historico.yml --output src/server/shared/lib/pncp-historico --client fetch --useOptions --useUnionTypes --indent 2 && node -e \"const fs=require('fs'),f='src/server/shared/lib/pncp-historico/core/OpenAPI.ts';fs.writeFileSync(f,fs.readFileSync(f,'utf8').replace(\\\"BASE: 'https://pncp.gov.br/api/pncp'\\\",\\\"BASE: 'https://pncp.gov.br/api/pncp'\\\"))\""
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.82.0",
+    "@aws-sdk/client-s3": "^3.1023.0",
+    "@aws-sdk/s3-request-presigner": "^3.1023.0",
     "@contentsquare/tag-sdk": "^1.1.0",
     "@hookform/resolvers": "^5.2.2",
     "@prisma/adapter-pg": "^7.5.0",
@@ -34,7 +37,9 @@
     "lucide-react": "^0.575.0",
     "next": "16.1.6",
     "next-themes": "^0.4.6",
+    "openai": "^6.33.0",
     "openapi-typescript-codegen": "^0.30.0",
+    "pdf-parse": "^2.4.5",
     "pg": "^8.20.0",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
@@ -54,6 +59,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pdf-parse": "^1.1.5",
     "@types/pg": "^8.18.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",

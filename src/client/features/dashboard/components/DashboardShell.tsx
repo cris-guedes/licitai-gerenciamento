@@ -213,6 +213,18 @@ function NavMain() {
         <DisabledSubItem icon={Target} label="Licitações Estratégicas" badge="em-breve" />
       </NavCollapsible>
 
+      {/* Licitações */}
+      <NavCollapsible id="licitacoes" icon={Scale} label="Licitações" active={is("licitacoes")}>
+        <SidebarMenuSubItem>
+          <SidebarMenuSubButton asChild isActive={is("licitacoes")}>
+            <Link href={`${base}/licitacoes`}>
+              <FileText className="size-3.5" />
+              <span>Gerenciar Licitações</span>
+            </Link>
+          </SidebarMenuSubButton>
+        </SidebarMenuSubItem>
+      </NavCollapsible>
+
       {/* Minha Empresa */}
       <NavCollapsible id="empresa" icon={Building2} label="Minha Empresa" active={is("time") || is("empresa") || is("conta")}>
         <SidebarMenuSubItem>

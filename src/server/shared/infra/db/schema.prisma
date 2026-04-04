@@ -29,7 +29,10 @@ model User {
   accounts       Account[]
   createdInvites Invite[]
 
-  oportunidades Oportunidade[] @relation("ResponsavelOportunidade")
+  opportunities  Opportunity[]    @relation("ResponsavelOportunidade")
+  editalAnalyses EditalAnalysis[] @relation("EditalAnalysisApprovedBy")
+  editalHistory  EditalHistory[]  @relation("EditalHistoryChangedBy")
+  tenderHistory  TenderHistory[]  @relation("TenderHistoryChangedBy")
 }
 
 model Session {
@@ -81,9 +84,16 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships Membership[]
-  companies   Company[]
-  invites     Invite[]
+  memberships    Membership[]
+  companies      Company[]
+  invites        Invite[]
+  editals        Edital[]
+  tenders        Tender[]
+  opportunities  Opportunity[]
+  documents      Document[]
+  analyses       Analysis[]
+  editalAnalyses EditalAnalysis[]
+  agencies       Agency[]
 }
 
 model Company {
@@ -118,6 +128,13 @@ model Company {
   organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   companyMemberships CompanyMembership[]
   invites            Invite[]
+  editals            Edital[]
+  tenders            Tender[]
+  opportunities      Opportunity[]
+  documents          Document[]
+  analyses           Analysis[]
+  editalAnalyses     EditalAnalysis[]
+  agencies           Agency[]
 }
 
 // ─── Membership ───────────────────────────────────────────────────────────────
@@ -138,12 +155,12 @@ model Membership {
 }
 
 /// Vínculo opcional entre um membro e empresas específicas da organização.
-/// Se não houver registros, o acesso às empresas é definido pela lógica de negócio.
 model CompanyMembership {
   id           String   @id @default(cuid())
   membershipId String
   companyId    String
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
   company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -164,55 +181,470 @@ model Invite {
   expiresAt      DateTime
   usedAt         DateTime?
   createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdBy    User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
 }
 
+// ─── Edital ───────────────────────────────────────────────────────────────────
+//
+// Repositório canônico de todas as informações do edital.
+// A maioria dos campos é preenchida via EditalAnalysis (IA) e aprovada pelo usuário.
+// Campos dinâmicos do processo ficam no Tender.
+
 model Edital {
-  id String @id @default(cuid())
+  id        String @id @default(cuid())
+  orgId     String
+  companyId String
 
-  objeto          String?
-  modalidade      String?
-  tipoContratacao String?
-  valorEstimado   Float?
+  // ── Identificação ──────────────────────────────────────────────────────────
+  editalNumber String?   // Nº Edital (ex: PE 001/2024)
+  portal       String?   // Portal de publicação (ex: ComprasNet, BNC)
+  sphere       String?   // Esfera: federal | estadual | municipal
+  state        String?   // UF do órgão (ex: SP)
 
-  dataAberturaInicial DateTime?
+  // ── Conteúdo ───────────────────────────────────────────────────────────────
+  object       String?   // Objeto da licitação
+  modality     String?   // Modalidade (ex: Pregão Eletrônico)
+  contractType String?   // Tipo de contratação (ex: Compras, Serviços)
+  editalUrl    String?   // URL do edital publicado
 
-  criadoEm     DateTime @default(now())
-  atualizadoEm DateTime @updatedAt
+  // ── Valores e datas ────────────────────────────────────────────────────────
+  estimatedValue   Float?
+  publicationDate  DateTime?
+  openingDate      DateTime?
+  proposalDeadline DateTime?
 
-  licitacao Licitacao?
+  // ── Detalhes do processo (extraídos do documento) ──────────────────────────
+  processNumber          String?   // Nº do Processo
+  uasg                   String?   // UASG
+  proposalDeadlineTime   String?   // Hora limite da proposta (HH:mm)
+  bidInterval            Float?    // Intervalo mínimo entre lances (R$)
+  judgmentCriteria       String?   // Critério de julgamento (ex: Menor Preço)
+  disputeMode            String?   // Modo de disputa (ex: Aberto, Fechado)
+  proposalValidityDays   Int?      // Validade da proposta (dias)
+  clarificationDeadline  DateTime? // Prazo de esclarecimento/impugnação
+  regionality            String?   // Regionalidade
+  exclusiveSmallBusiness Boolean   @default(false) // Exclusividade EPP/ME
+  allowsAdhesion         Boolean   @default(false) // Permite adesão/carona
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org     Organization @relation(fields: [orgId], references: [id])
+  company Company      @relation(fields: [companyId], references: [id])
+
+  // 1:1 relations (dados extraídos organizados em tabelas auxiliares)
+  tender     Tender?
+  rules      EditalRules?
+  logistics  EditalLogistics?
+
+  // 1:N relations
+  requiredDocuments     EditalRequiredDocument[]
+  managingAgencies      EditalManagingAgency[]
+  participatingAgencies EditalParticipatingAgency[]
+  documents             Document[]
+  analyses              EditalAnalysis[]
+  history               EditalHistory[]
 }
 
-model Licitacao {
-  status    String?
-  faseAtual String?
-  id        String  @id @default(cuid())
+// ─── Edital auxiliary tables ──────────────────────────────────────────────────
 
-  //historico LicitacaoHistorico[]
+/// Regras contratuais extraídas do edital (prazos, garantia, instalação).
+model EditalRules {
+  id       String @id @default(cuid())
   editalId String @unique
-  edital   Edital @relation(fields: [editalId], references: [id])
 
-  oportunidade Oportunidade[]
+  deliveryDays    Int?    // Prazo de entrega (dias)
+  acceptanceDays  Int?    // Prazo de aceite (dias)
+  liquidationDays Int?    // Prazo de liquidação (dias)
+  paymentDays     Int?    // Prazo de pagamento (dias)
+  guaranteeType   String? // Tipo de garantia (ex: Sem Garantia, Caução)
+  guaranteeMonths Int?    // Prazo de garantia (meses)
+  installation    String? // Instalação (ex: Não Especificado, Obrigatória)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  edital Edital @relation(fields: [editalId], references: [id])
 }
 
-model Oportunidade {
-  id String @id @default(cuid())
+/// Logística de entrega e contatos extraídos do edital.
+model EditalLogistics {
+  id       String @id @default(cuid())
+  editalId String @unique
 
-  licitacaoId String
-  licitacao   Licitacao @relation(fields: [licitacaoId], references: [id])
+  // órgão
+  agencyCnpj              String?
+  agencyStateRegistration String?
 
-  responsavelId String?
-  responsavel   User?   @relation("ResponsavelOportunidade", fields: [responsavelId], references: [id])
+  // endereço de entrega
+  deliveryLocation String?
+  zipCode          String?
+  street           String?
+  number           String?
+  neighborhood     String?
+  city             String?
+  state            String?
+  complement       String?
 
-  // 📊 controle interno (CRM)
-  statusInterno String // analisando | participar | proposta_enviada | ganho | perdido
-  prioridade    String? // baixa | media | alta
+  // contatos
+  auctioneerName         String?
+  auctioneerContact      String?
+  contractManagerName    String?
+  contractManagerContact String?
 
-  observacoes String?
+  notes String?
 
-  criadoEm     DateTime @default(now())
-  atualizadoEm DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  edital Edital @relation(fields: [editalId], references: [id])
+}
+
+/// Documentos exigidos para habilitação, extraídos do edital.
+model EditalRequiredDocument {
+  id       String @id @default(cuid())
+  editalId String
+
+  // ex: cnpj | federalTax | laborTax | stateTax | municipalTax | fgts |
+  //     bankruptcy | balanceSheet | judicialRegistry | socialContract |
+  //     lastAmendment | juntaRegistration | proposalGuarantee | unified
+  documentType String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  edital Edital @relation(fields: [editalId], references: [id])
+
+  @@unique([editalId, documentType])
+}
+
+/// Órgão gerenciador do pregão (extraído do edital — pode haver mais de um em SRP).
+model EditalManagingAgency {
+  id       String @id @default(cuid())
+  editalId String
+  agencyId String
+
+  itemCount Int? // Quantidade de itens gerenciados
+  quantity  Int? // Quantidade total
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  edital Edital @relation(fields: [editalId], references: [id])
+  agency Agency @relation(fields: [agencyId], references: [id])
+
+  @@unique([editalId, agencyId])
+}
+
+/// Órgãos participantes/caronas do pregão (extraídos do edital).
+model EditalParticipatingAgency {
+  id       String @id @default(cuid())
+  editalId String
+  agencyId String
+
+  itemCount Int?
+  quantity  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  edital Edital @relation(fields: [editalId], references: [id])
+  agency Agency @relation(fields: [agencyId], references: [id])
+
+  @@unique([editalId, agencyId])
+}
+
+// ─── Agency ───────────────────────────────────────────────────────────────────
+
+/// Entidade reutilizável de órgão público.
+model Agency {
+  id        String @id @default(cuid())
+  orgId     String
+  companyId String
+
+  name              String
+  cnpj              String?
+  stateRegistration String?
+  sphere            String? // federal | estadual | municipal
+  state             String? // UF
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org     Organization @relation(fields: [orgId], references: [id])
+  company Company      @relation(fields: [companyId], references: [id])
+
+  managingFor     EditalManagingAgency[]
+  participatingIn EditalParticipatingAgency[]
+}
+
+// ─── Edital History ───────────────────────────────────────────────────────────
+
+/// Snapshot imutável gravado a cada atualização do Edital.
+model EditalHistory {
+  id          String  @id @default(cuid())
+  editalId    String
+  version     Int
+  changedById String?
+
+  // diff campo a campo: { field: { from, to } }
+  changes Json
+
+  // snapshot de todos os campos escalares do Edital nesta versão
+  editalNumber           String?
+  portal                 String?
+  sphere                 String?
+  state                  String?
+  object                 String?
+  modality               String?
+  contractType           String?
+  editalUrl              String?
+  estimatedValue         Float?
+  publicationDate        DateTime?
+  openingDate            DateTime?
+  proposalDeadline       DateTime?
+  processNumber          String?
+  uasg                   String?
+  proposalDeadlineTime   String?
+  bidInterval            Float?
+  judgmentCriteria       String?
+  disputeMode            String?
+  proposalValidityDays   Int?
+  clarificationDeadline  DateTime?
+  regionality            String?
+  exclusiveSmallBusiness Boolean?
+  allowsAdhesion         Boolean?
+
+  createdAt DateTime @default(now())
+
+  edital    Edital @relation(fields: [editalId], references: [id])
+  changedBy User?  @relation("EditalHistoryChangedBy", fields: [changedById], references: [id])
+
+  @@index([editalId, version])
+}
+
+// ─── Edital Analysis ──────────────────────────────────────────────────────────
+//
+// Cada análise é uma extração feita pela IA sobre um conjunto de documentos.
+// Os campos extraídos espelham o Edital (campos escalares) e as tabelas auxiliares
+// ficam como Json — é área de staging, não precisa de relações relacionais.
+// O usuário revisa e decide o que importar para o Edital canônico.
+
+model EditalAnalysis {
+  id        String @id @default(cuid())
+  orgId     String
+  companyId String
+  editalId  String
+  version   Int    @default(1)
+
+  // lifecycle
+  status       String    // pending | running | completed | approved | rejected
+  approvedAt   DateTime?
+  approvedById String?
+
+  // ── Campos extraídos — espelham Edital ────────────────────────────────────
+  editalNumber           String?
+  portal                 String?
+  sphere                 String?
+  state                  String?
+  object                 String?
+  modality               String?
+  contractType           String?
+  editalUrl              String?
+  estimatedValue         Float?
+  publicationDate        DateTime?
+  openingDate            DateTime?
+  proposalDeadline       DateTime?
+  processNumber          String?
+  uasg                   String?
+  proposalDeadlineTime   String?
+  bidInterval            Float?
+  judgmentCriteria       String?
+  disputeMode            String?
+  proposalValidityDays   Int?
+  clarificationDeadline  DateTime?
+  regionality            String?
+  exclusiveSmallBusiness Boolean?
+  allowsAdhesion         Boolean?
+
+  // ── Dados estruturados extraídos (staging como Json) ─────────────────────
+  extractedRules                Json? // mirrors EditalRules
+  extractedLogistics            Json? // mirrors EditalLogistics
+  extractedRequiredDocuments    Json? // string[] de documentType
+  extractedManagingAgencies     Json? // { name, cnpj, itemCount, quantity }[]
+  extractedParticipatingAgencies Json? // { name, cnpj, itemCount, quantity }[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  edital     Edital                   @relation(fields: [editalId], references: [id])
+  approvedBy User?                    @relation("EditalAnalysisApprovedBy", fields: [approvedById], references: [id])
+  org        Organization             @relation(fields: [orgId], references: [id])
+  company    Company                  @relation(fields: [companyId], references: [id])
+  documents  EditalAnalysisDocument[]
+
+  @@index([editalId, version])
+}
+
+/// Documentos usados como input em uma rodada de análise.
+model EditalAnalysisDocument {
+  id               String @id @default(cuid())
+  editalAnalysisId String
+  documentId       String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  editalAnalysis EditalAnalysis @relation(fields: [editalAnalysisId], references: [id])
+  document       Document       @relation(fields: [documentId], references: [id])
+
+  @@unique([editalAnalysisId, documentId])
+}
+
+// ─── Document / Analysis (document-level AI) ──────────────────────────────────
+
+model Document {
+  id        String @id @default(cuid())
+  orgId     String
+  companyId String
+  editalId  String
+
+  type        String    // edital | annex | minute | contract | other
+  url         String
+  publishedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  edital         Edital                   @relation(fields: [editalId], references: [id])
+  org            Organization             @relation(fields: [orgId], references: [id])
+  company        Company                  @relation(fields: [companyId], references: [id])
+  analyses       Analysis[]
+  editalAnalyses EditalAnalysisDocument[]
+}
+
+model Analysis {
+  id         String @id @default(cuid())
+  orgId      String
+  companyId  String
+  documentId String
+  version    Int    @default(1)
+
+  status  String  // pending | running | completed | failed
+  model   String? // AI model (ex: claude-sonnet-4-6)
+  result  Json?   // structured output from the AI
+  summary String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  document Document     @relation(fields: [documentId], references: [id])
+  org      Organization @relation(fields: [orgId], references: [id])
+  company  Company      @relation(fields: [companyId], references: [id])
+
+  @@index([documentId, version])
+}
+
+// ─── Tender ───────────────────────────────────────────────────────────────────
+//
+// Dados DINÂMICOS do processo licitatório.
+// Estado atual consultável via PNCP e atualizações em tempo real.
+// Informações estáticas (conteúdo do edital) ficam no Edital.
+
+model Tender {
+  id        String @id @default(cuid())
+  orgId     String
+  companyId String
+  editalId  String @unique
+
+  // estado atual do processo
+  status String? // open | suspended | cancelled | closed | awarded
+  phase  String? // edital | proposal | judgment | awarded | contract
+
+  // referência externa para consulta PNCP
+  pncpId      String?   // identificador único no PNCP
+  lastSyncedAt DateTime? // última vez que consultamos o PNCP
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  edital  Edital       @relation(fields: [editalId], references: [id])
+  org     Organization @relation(fields: [orgId], references: [id])
+  company Company      @relation(fields: [companyId], references: [id])
+
+  opportunities Opportunity[]
+  history       TenderHistory[]
+}
+
+/// Snapshot imutável gravado a cada atualização do Tender.
+model TenderHistory {
+  id          String  @id @default(cuid())
+  tenderId    String
+  version     Int
+  changedById String?
+
+  changes Json
+
+  // snapshot dos campos do Tender
+  status       String?
+  phase        String?
+  pncpId       String?
+  lastSyncedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  tender    Tender @relation(fields: [tenderId], references: [id])
+  changedBy User?  @relation("TenderHistoryChangedBy", fields: [changedById], references: [id])
+
+  @@index([tenderId, version])
+}
+
+// ─── Opportunity ──────────────────────────────────────────────────────────────
+
+model Opportunity {
+  id        String @id @default(cuid())
+  orgId     String
+  companyId String
+  tenderId  String
+
+  assignedToId String? // Responsável pela oportunidade
+  analystId    String? // Analista
+
+  // CRM interno
+  status   String  // analyzing | participate | proposal_sent | won | lost
+  priority String? // low | medium | high
+  notes    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tender     Tender       @relation(fields: [tenderId], references: [id])
+  assignedTo User?        @relation("ResponsavelOportunidade", fields: [assignedToId], references: [id])
+  org        Organization @relation(fields: [orgId], references: [id])
+  company    Company      @relation(fields: [companyId], references: [id])
+
+  items OpportunityItem[]
+}
+
+/// Itens que a empresa irá disputar nesta oportunidade.
+model OpportunityItem {
+  id            String @id @default(cuid())
+  opportunityId String
+
+  lot               String?
+  erpSku            String? // SKU interno ERP
+  brand             String?
+  model             String?
+  editalDescription String? // Descrição oficial do edital
+  quantity          Float?
+  unitValue         Float?  // Valor unitário estimado (R$)
+  minBidValue       Float?  // Valor mínimo de lance (R$)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
 }

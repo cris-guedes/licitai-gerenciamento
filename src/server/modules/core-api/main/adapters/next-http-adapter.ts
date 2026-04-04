@@ -27,10 +27,29 @@ function buildQueryParams(searchParams: URLSearchParams): Record<string, unknown
     return result;
 }
 
+async function parseBody(request: NextRequest): Promise<unknown> {
+    if (request.method !== "POST") return undefined;
+    const contentType = request.headers.get("content-type") ?? "";
+    if (contentType.includes("multipart/form-data")) {
+        const formData = await request.formData();
+        const obj: Record<string, unknown> = {};
+        for (const [key, value] of formData.entries()) {
+            if (value instanceof File) {
+                const buffer = Buffer.from(await value.arrayBuffer());
+                obj[key] = { name: value.name, type: value.type, size: value.size, buffer };
+            } else {
+                obj[key] = value;
+            }
+        }
+        return obj;
+    }
+    return request.json().catch(() => undefined);
+}
+
 export function adaptNextRoute(config: RouteConfig) {
     return async (request: NextRequest): Promise<NextResponse> => {
         let httpRequest: HttpRequest = {
-            body:    request.method === "POST" ? await request.json().catch(() => undefined) : undefined,
+            body:    await parseBody(request),
             query:   buildQueryParams(request.nextUrl.searchParams),
             params:  undefined,
             headers: Object.fromEntries(request.headers),

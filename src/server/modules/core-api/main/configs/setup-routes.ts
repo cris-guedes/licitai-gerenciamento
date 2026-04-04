@@ -6,6 +6,9 @@ import { companyRoutes }            from "../routes/company";
 import { onboardingRoutes }         from "../routes/onboarding";
 import { authRoutes }               from "../routes/auth";
 import { teamRoutes }               from "../routes/team";
+import { licitacaoRoutes }          from "../routes/licitacao";
+import { documentRoutes }           from "../routes/document";
+import { editalAnalysisRoutes }     from "../routes/edital-analysis";
 
 export const allRoutes: Record<string, RouteConfig> = {
 
@@ -15,6 +18,9 @@ export const allRoutes: Record<string, RouteConfig> = {
     ...onboardingRoutes,
     ...authRoutes,
     ...teamRoutes,
+    ...licitacaoRoutes,
+    ...documentRoutes,
+    ...editalAnalysisRoutes,
 
 };
 
