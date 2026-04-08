@@ -27,10 +27,15 @@ export class FileParsingProvider {
                 ],
                 options: {
                     to_formats: ["md"],
-                    do_ocr: true,
+                    image_export_mode: "placeholder",
+                    pipeline: "standard",
+                    do_ocr: false,
+                    force_ocr: false,
+                    ocr_engine: "easyocr",
+                    pdf_backend: "docling_parse",
+                    table_mode: "accurate",
                     do_table_structure: true,
-                    include_images: false,
-                    abort_on_error: true,
+                    abort_on_error: false,
                 },
             },
         });

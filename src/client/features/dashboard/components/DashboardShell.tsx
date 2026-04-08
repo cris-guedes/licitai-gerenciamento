@@ -360,7 +360,7 @@ export function DashboardShell({ companyName, children }: Props) {
             <Separator orientation="vertical" className="h-4" />
           </header>
 
-          <div className="flex flex-1 flex-col gap-4 p-6">
+          <div className="flex flex-1 flex-col gap-4 px-6 py-6 min-w-0">
             {children}
           </div>
         </SidebarInset>

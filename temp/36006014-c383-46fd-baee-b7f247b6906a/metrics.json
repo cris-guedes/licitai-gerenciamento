@@ -1,0 +1,18 @@
+{
+  "sessionId": "36006014-c383-46fd-baee-b7f247b6906a",
+  "timestamp": "2026-04-08T16:35:21.794Z",
+  "pdfUrl": "https://pncp.gov.br/pncp-api/v1/orgaos/87613014000169/compras/2024/121/arquivos/1",
+  "pdfFileSizeBytes": 44795,
+  "conversionTimeMs": 6008,
+  "extractionTimeMs": 51692,
+  "totalTimeMs": 60508,
+  "mdFileSizeBytes": 17735,
+  "mdWordCount": 1802,
+  "doclingFilename": "44395_1_43903_DFD.pdf",
+  "tempDir": "C:\\Users\\cristian\\Desktop\\licitai-gerenciamento\\temp\\36006014-c383-46fd-baee-b7f247b6906a",
+  "tokensUsed": {
+    "prompt": 4965,
+    "completion": 1567,
+    "total": 6532
+  }
+}
