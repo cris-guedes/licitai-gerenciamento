@@ -8,3 +8,6 @@ services:
       - "5001:5001"
     environment:
       DOCLING_SERVE_ENABLE_UI: "1"
+      DOCLING_SERVE_WORKER_TIMEOUT: "600"    # timeout do worker Gunicorn (segundos)
+      DOCLING_SERVE_TIMEOUT: "600"          # timeout geral do servidor
+      DOCLING_SERVE_MAX_SYNC_WAIT: "600"    # tempo máximo de espera para conversão síncrona

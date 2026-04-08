@@ -7,19 +7,19 @@ import type { ExtractEditalDataControllerSchemas } from "./ExtractEditalDataCont
 
 export class ExtractEditalData {
     constructor(
-        private readonly fileParser:   FileParsingProvider,
-        private readonly aiExtractor:  EditalExtractionProvider,
+        private readonly fileParser:  FileParsingProvider,
+        private readonly aiExtractor: EditalExtractionProvider,
     ) {}
 
     async execute(params: ExtractEditalData.Params): Promise<ExtractEditalData.Response> {
-        const { pdfUrl } = params;
+        const { pdfUrl, mode = "balanceado" } = params;
         const sessionId  = crypto.randomUUID();
         const startTime  = Date.now();
 
         console.log(`[ExtractEditalData] ===== INÍCIO DA SESSÃO ${sessionId} =====`);
-        console.log(`[ExtractEditalData] PDF URL: ${pdfUrl}`);
+        console.log(`[ExtractEditalData] PDF URL: ${pdfUrl} — modo: ${mode}`);
 
-        // ── 1. Download do PDF ────────────────────────────────────────────────────
+        // ── 1. Download do PDF ────────────────────────────────────────────────
         console.log(`[ExtractEditalData] [1/5] Baixando PDF ...`);
         const downloadStart = Date.now();
         const pdfRes = await fetch(pdfUrl);
@@ -29,57 +29,49 @@ export class ExtractEditalData {
         const pdfFileSizeBytes = pdfBuffer.byteLength;
         console.log(`[ExtractEditalData] [1/5] Download OK em ${downloadTimeMs}ms — ${(pdfFileSizeBytes / 1024).toFixed(1)} KB`);
 
-        // ── 2. Docling: PDF → Markdown ────────────────────────────────────────────
+        // ── 2. Docling: PDF → Markdown ────────────────────────────────────────
         console.log(`[ExtractEditalData] [2/5] Convertendo PDF → Markdown via Docling ...`);
         const { mdContent, filename: doclingFilename, processingTimeMs: conversionTimeMs } =
-            await this.fileParser.convertUrlToMarkdown({ pdfUrl });
+            await this.fileParser.convertUrlToMarkdown({ pdfUrl, mode });
         const mdFileSizeBytes = Buffer.byteLength(mdContent, "utf8");
         const mdWordCount     = mdContent.split(/\s+/).filter(Boolean).length;
         console.log(`[ExtractEditalData] [2/5] Docling OK em ${conversionTimeMs}ms — ${mdWordCount} palavras — ${(mdFileSizeBytes / 1024).toFixed(1)} KB`);
 
-        // ── 3. OpenAI: Markdown → AnaliseCriticaEdital ────────────────────────────
+        // ── 3. OpenAI: Markdown → Extraction ─────────────────────────────────
         console.log(`[ExtractEditalData] [3/5] Extraindo dados estruturados via OpenAI ...`);
-        const { analiseCritica, extractionTimeMs, tokensUsed } =
-            await this.aiExtractor.extractAnaliseCritica({ mdContent });
-        console.log(`[ExtractEditalData] [3/5] OpenAI OK em ${extractionTimeMs}ms — tokens: ${tokensUsed.total} — itens extraídos: ${analiseCritica.itens?.length ?? 0}`);
+        const { result: extraction, extractionTimeMs, tokensUsed } =
+            await this.aiExtractor.extractEdital({ mdContent });
+        console.log(`[ExtractEditalData] [3/5] OpenAI OK em ${extractionTimeMs}ms — tokens: ${tokensUsed.total} — itens: ${extraction.edital?.itens?.length ?? 0}`);
 
-        // ── 4. Salvar arquivos na pasta temp ──────────────────────────────────────
+        // ── 4. Salvar arquivos na pasta temp ──────────────────────────────────
         console.log(`[ExtractEditalData] [4/5] Salvando arquivos em temp/${sessionId}/ ...`);
-        const tempDir = path.join(process.cwd(), "temp", sessionId);
-        await fs.mkdir(tempDir, { recursive: true });
-
+        const tempDir     = path.join(process.cwd(), "temp", sessionId);
         const totalTimeMs = Date.now() - startTime;
         const timestamp   = new Date().toISOString();
 
+        await fs.mkdir(tempDir, { recursive: true });
+
         const metrics: ExtractEditalDataControllerSchemas.Metrics = {
-            sessionId,
-            timestamp,
-            pdfUrl,
-            pdfFileSizeBytes,
-            conversionTimeMs,
-            extractionTimeMs,
-            totalTimeMs,
-            mdFileSizeBytes,
-            mdWordCount,
-            doclingFilename,
-            tempDir,
-            tokensUsed,
+            sessionId, timestamp, pdfUrl,
+            pdfFileSizeBytes, conversionTimeMs, extractionTimeMs,
+            totalTimeMs, mdFileSizeBytes, mdWordCount,
+            doclingFilename, tempDir, tokensUsed,
         };
 
         await Promise.all([
-            fs.writeFile(path.join(tempDir, "original.pdf"),       pdfBuffer),
-            fs.writeFile(path.join(tempDir, "content.md"),         mdContent, "utf8"),
-            fs.writeFile(path.join(tempDir, "analise-critica.json"), JSON.stringify(analiseCritica, null, 2), "utf8"),
-            fs.writeFile(path.join(tempDir, "metrics.json"),       JSON.stringify(metrics, null, 2), "utf8"),
+            fs.writeFile(path.join(tempDir, "original.pdf"),    pdfBuffer),
+            fs.writeFile(path.join(tempDir, "content.md"),      mdContent, "utf8"),
+            fs.writeFile(path.join(tempDir, "extraction.json"), JSON.stringify(extraction, null, 2), "utf8"),
+            fs.writeFile(path.join(tempDir, "metrics.json"),    JSON.stringify(metrics, null, 2), "utf8"),
         ]);
 
         console.log(`[ExtractEditalData] [4/5] Arquivos salvos:`);
-        console.log(`[ExtractEditalData]   → original.pdf        : ${(pdfFileSizeBytes / 1024).toFixed(1)} KB`);
-        console.log(`[ExtractEditalData]   → content.md          : ${(mdFileSizeBytes / 1024).toFixed(1)} KB — ${mdWordCount} palavras`);
-        console.log(`[ExtractEditalData]   → analise-critica.json: ${analiseCritica.itens?.length ?? 0} itens`);
-        console.log(`[ExtractEditalData]   → metrics.json        : ✓`);
+        console.log(`[ExtractEditalData]   → original.pdf   : ${(pdfFileSizeBytes / 1024).toFixed(1)} KB`);
+        console.log(`[ExtractEditalData]   → content.md     : ${(mdFileSizeBytes / 1024).toFixed(1)} KB — ${mdWordCount} palavras`);
+        console.log(`[ExtractEditalData]   → extraction.json: ${extraction.edital?.itens?.length ?? 0} itens`);
+        console.log(`[ExtractEditalData]   → metrics.json   : ✓`);
 
-        // ── 5. Log de métricas finais ─────────────────────────────────────────────
+        // ── 5. Métricas finais ────────────────────────────────────────────────
         console.log(`[ExtractEditalData] [5/5] MÉTRICAS FINAIS:`);
         console.log(`[ExtractEditalData]   sessionId        : ${sessionId}`);
         console.log(`[ExtractEditalData]   downloadTimeMs   : ${downloadTimeMs}ms`);
@@ -89,7 +81,7 @@ export class ExtractEditalData {
         console.log(`[ExtractEditalData]   tokens total     : ${tokensUsed.total}`);
         console.log(`[ExtractEditalData] ===== FIM DA SESSÃO ${sessionId} =====`);
 
-        return { sessionId, mdContent, analiseCritica, metrics };
+        return { sessionId, mdContent, extraction, metrics };
     }
 }
 

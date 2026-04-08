@@ -1,4 +1,5 @@
 import { DoclingClient } from "@/server/shared/lib/docling";
+import { EXTRACTION_MODE_OPTIONS, type ExtractionMode } from "./extraction-modes";
 
 const DOCLING_BASE_URL = process.env.DOCLING_API_URL ?? "http://localhost:5001";
 
@@ -11,39 +12,26 @@ export class FileParsingProvider {
 
     async convertUrlToMarkdown({
         pdfUrl,
+        mode = "balanceado",
     }: FileParsingProvider.ConvertUrlToMarkdownParams): Promise<FileParsingProvider.ConvertUrlToMarkdownResponse> {
         const startTime = Date.now();
+        const options   = EXTRACTION_MODE_OPTIONS[mode];
 
-        console.log(`[FileParsingProvider] Iniciando conversão — url: ${pdfUrl}`);
+        console.log(`[FileParsingProvider] Iniciando conversão — url: ${pdfUrl} — modo: ${mode}`);
         console.log(`[FileParsingProvider] Docling base URL: ${DOCLING_BASE_URL}`);
 
         const response = await this.client.convert.processUrlV1ConvertSourcePost({
             requestBody: {
-                sources: [
-                    {
-                        url: pdfUrl,
-                        kind: "http",
-                    },
-                ],
+                sources: [{ url: pdfUrl, kind: "http" }],
                 options: {
                     to_formats: ["md"],
-                    image_export_mode: "placeholder",
-                    pipeline: "standard",
-                    do_ocr: false,
-                    force_ocr: false,
-                    ocr_engine: "easyocr",
-                    pdf_backend: "docling_parse",
-                    table_mode: "accurate",
-                    do_table_structure: true,
-                    abort_on_error: false,
+                    ...options,
                 },
             },
         });
 
         const processingTimeMs = Date.now() - startTime;
 
-        // A resposta do docling pode ser ConvertDocumentResponse ou PresignedUrlConvertDocumentResponse
-        // Quando to_formats = ["md"] e sem target S3/URL, retorna ConvertDocumentResponse com document.md_content
         const doc = (response as any).document as {
             filename: string;
             md_content?: string | null;
@@ -61,11 +49,12 @@ export class FileParsingProvider {
 export namespace FileParsingProvider {
     export type ConvertUrlToMarkdownParams = {
         pdfUrl: string;
+        mode?:  ExtractionMode;
     };
 
     export type ConvertUrlToMarkdownResponse = {
-        mdContent:      string;
-        filename:       string;
+        mdContent:        string;
+        filename:         string;
         processingTimeMs: number;
     };
 }

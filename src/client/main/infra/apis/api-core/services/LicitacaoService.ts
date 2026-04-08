@@ -2,24 +2,22 @@ import type { ExtractEditalDataResponse } from '../models/ExtractEditalDataRespo
 import type { CancelablePromise } from '../core/CancelablePromise';
 import type { BaseHttpRequest } from '../core/BaseHttpRequest';
 
+export type ExtractionMode = "velocidade" | "balanceado" | "qualidade" | "imagem";
+
 export class LicitacaoService {
     constructor(public readonly httpRequest: BaseHttpRequest) {}
 
-    /**
-     * Extrai dados de um edital a partir da URL do PDF
-     * Baixa o PDF, converte para Markdown via Docling e salva os arquivos na pasta temp.
-     * @returns ExtractEditalDataResponse Markdown extraído + métricas
-     * @throws ApiError
-     */
     public extractEditalData({
         pdfUrl,
+        mode = "balanceado",
     }: {
         pdfUrl: string;
+        mode?:  ExtractionMode;
     }): CancelablePromise<ExtractEditalDataResponse> {
         return this.httpRequest.request({
             method: 'POST',
             url: '/extract-edital-data',
-            body: { pdfUrl },
+            body: { pdfUrl, mode },
             mediaType: 'application/json',
         });
     }

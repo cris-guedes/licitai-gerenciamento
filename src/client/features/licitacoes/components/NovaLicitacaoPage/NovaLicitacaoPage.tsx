@@ -5,12 +5,57 @@ import { useCoreApi } from "@/client/hooks/use-core-api"
 import { useLicitacaoService } from "../../services/use-licitacao.service"
 import { Button } from "@/client/components/ui/button"
 import { Input } from "@/client/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/client/components/ui/card"
+import { Card, CardContent } from "@/client/components/ui/card"
 import { Badge } from "@/client/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/client/components/ui/tabs"
-import { FileText, Link, Loader2, CheckCircle2, AlertCircle } from "lucide-react"
+import { FileText, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronRight, Zap, Scale, Sparkles, ScanSearch } from "lucide-react"
 import { MarkdownViewer } from "../MarkdownViewer/MarkdownViewer"
-import type { AnaliseCriticaEdital, ExtractEditalDataResponse } from "@/client/main/infra/apis/api-core/models/ExtractEditalDataResponse"
+import type { ExtractEditalDataResponse } from "@/client/main/infra/apis/api-core/models/ExtractEditalDataResponse"
+import type { ExtractionMode } from "@/client/main/infra/apis/api-core/services/LicitacaoService"
+
+// ─── Definição dos modos ──────────────────────────────────────────────────────
+
+const MODES: Array<{
+    id:          ExtractionMode
+    label:       string
+    description: string
+    detail:      string
+    icon:        (props: { className?: string }) => React.ReactNode
+    slow?:       boolean
+}> = [
+    {
+        id:          "velocidade",
+        label:       "Velocidade",
+        description: "Parser leve com análise básica de tabelas",
+        detail:      "pypdfium2 · sem OCR · tabelas básicas",
+        icon:        Zap,
+    },
+    {
+        id:          "balanceado",
+        label:       "Balanceado",
+        description: "Análise de tabelas com parser padrão",
+        detail:      "docling_parse · sem OCR · tabelas precisas",
+        icon:        Scale,
+    },
+    {
+        id:          "qualidade",
+        label:       "Qualidade",
+        description: "Parser de última geração para documentos complexos",
+        detail:      "dlparse_v4 · sem OCR · tabelas precisas",
+        icon:        Sparkles,
+        slow:        true,
+    },
+    {
+        id:          "imagem",
+        label:       "Extração de Imagem",
+        description: "OCR forçado para PDFs escaneados (páginas como foto)",
+        detail:      "docling_parse · OCR easyocr · tabelas precisas",
+        icon:        ScanSearch,
+        slow:        true,
+    },
+]
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function NovaLicitacaoPage() {
     const api      = useCoreApi()
@@ -18,39 +63,84 @@ export function NovaLicitacaoPage() {
     const mutation = extractEditalData()
 
     const [pdfUrl, setPdfUrl] = useState("")
+    const [mode,   setMode]   = useState<ExtractionMode>("balanceado")
     const [result, setResult] = useState<ExtractEditalDataResponse | null>(null)
 
-    async function handleSubmit(e: React.FormEvent) {
+    async function handleSubmit(e: { preventDefault(): void }) {
         e.preventDefault()
         if (!pdfUrl.trim()) return
         setResult(null)
-        const data = await mutation.mutateAsync(pdfUrl.trim())
+        const data = await mutation.mutateAsync({ pdfUrl: pdfUrl.trim(), mode })
         setResult(data)
     }
 
-    const isLoading = mutation.isPending
-    const error     = mutation.error as Error | null
+    const isLoading  = mutation.isPending
+    const error      = mutation.error as Error | null
+    const activeMode = MODES.find(m => m.id === mode)!
 
     return (
         <div className="w-full space-y-6">
             <div>
                 <h1 className="text-2xl font-semibold">Nova Licitação</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                    Informe a URL do PDF do edital para extrair a Análise Crítica automaticamente.
+                    Informe a URL do PDF do edital para extrair os dados automaticamente.
                 </p>
             </div>
 
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                        <Link className="size-4" />
-                        URL do Edital (PDF)
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
+                <CardContent className="pt-6 space-y-5">
+                    {/* Seletor de modo */}
+                    <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                            Modo de extração
+                        </p>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {MODES.map((m) => {
+                                const Icon     = m.icon
+                                const selected = mode === m.id
+                                return (
+                                    <button
+                                        key={m.id}
+                                        type="button"
+                                        onClick={() => setMode(m.id)}
+                                        disabled={isLoading}
+                                        className={`
+                                            relative flex flex-col gap-2 rounded-lg border p-3 text-left transition-colors
+                                            ${selected
+                                                ? "border-primary bg-primary/5"
+                                                : "border-border hover:border-muted-foreground/40 hover:bg-muted/30"
+                                            }
+                                            disabled:opacity-50 disabled:cursor-not-allowed
+                                        `}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <Icon className={`size-4 ${selected ? "text-primary" : "text-muted-foreground"}`} />
+                                            {m.slow && (
+                                                <span className="text-[9px] uppercase tracking-wide text-amber-600 dark:text-amber-400 font-medium">
+                                                    lento
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <p className={`text-xs font-semibold ${selected ? "text-primary" : "text-foreground"}`}>
+                                                {m.label}
+                                            </p>
+                                            <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+                                                {m.description}
+                                            </p>
+                                        </div>
+                                        <p className="text-[10px] font-mono text-muted-foreground/60 leading-tight">
+                                            {m.detail}
+                                        </p>
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+
+                    {/* URL + botão */}
                     <form onSubmit={handleSubmit} className="flex gap-3">
                         <Input
-                            id="pdfUrl"
                             type="url"
                             placeholder="https://pncp.gov.br/.../edital.pdf"
                             value={pdfUrl}
@@ -67,8 +157,8 @@ export function NovaLicitacaoPage() {
                         </Button>
                     </form>
                     {isLoading && (
-                        <p className="text-xs text-muted-foreground mt-3">
-                            Baixando PDF → convertendo para Markdown (Docling) → extraindo dados (OpenAI)...
+                        <p className="text-xs text-muted-foreground">
+                            Baixando PDF → convertendo para Markdown via Docling ({activeMode.label}) → extraindo dados com OpenAI...
                         </p>
                     )}
                 </CardContent>
@@ -107,30 +197,24 @@ export function NovaLicitacaoPage() {
                                 <MetricBadge label="OpenAI"     value={formatSeconds(result.metrics.extractionTimeMs)} />
                                 <MetricBadge label="Total"      value={formatSeconds(result.metrics.totalTimeMs)} />
                                 <MetricBadge label="Tokens"     value={result.metrics.tokensUsed.total.toLocaleString("pt-BR")} />
-                                <MetricBadge label="Itens"      value={String(result.analiseCritica.itens?.length ?? 0)} />
+                                <MetricBadge label="Itens"      value={String(result.extraction.edital.itens?.length ?? 0)} />
                             </div>
                         </CardContent>
                     </Card>
 
                     {/* Resultado */}
-                    <Tabs defaultValue="analise">
+                    <Tabs defaultValue="edital">
                         <TabsList>
-                            <TabsTrigger value="analise">Análise Crítica</TabsTrigger>
-                            <TabsTrigger value="itens">Itens ({result.analiseCritica.itens?.length ?? 0})</TabsTrigger>
-                            <TabsTrigger value="documentos">Documentações</TabsTrigger>
+                            <TabsTrigger value="edital">Edital</TabsTrigger>
                             <TabsTrigger value="markdown">Markdown</TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="analise" className="mt-4">
-                            <AnaliseCriticaCard analise={result.analiseCritica} />
-                        </TabsContent>
-
-                        <TabsContent value="itens" className="mt-4">
-                            <ItensTable itens={result.analiseCritica.itens ?? []} />
-                        </TabsContent>
-
-                        <TabsContent value="documentos" className="mt-4">
-                            <DocumentacoesCard docs={result.analiseCritica.documentacoes} outros={result.analiseCritica.documentacoes.outrosDocumentos} />
+                        <TabsContent value="edital" className="mt-4">
+                            <Card>
+                                <CardContent className="pt-4">
+                                    <JsonViewer data={result.extraction.edital} />
+                                </CardContent>
+                            </Card>
                         </TabsContent>
 
                         <TabsContent value="markdown" className="mt-6">
@@ -149,148 +233,141 @@ export function NovaLicitacaoPage() {
     )
 }
 
-// ─── Sub-componentes ─────────────────────────────────────────────────────────
+// ─── Helpers de tipo ─────────────────────────────────────────────────────────
 
-function AnaliseCriticaCard({ analise }: { analise: AnaliseCriticaEdital }) {
-    const campos: Array<[string, string]> = [
-        ["Órgão",                    analise.orgao],
-        ["UASG",                     analise.uasg],
-        ["Nº Edital",                analise.numeroEdital],
-        ["Nº Processo",              analise.numeroProcesso],
-        ["Data de Abertura",         analise.dataAbertura],
-        ["Abertura",                 analise.abertura],
-        ["Modalidade",               analise.modalidade],
-        ["Modo de Disputa",          analise.modoDisputa],
-        ["Tipo de Lance",            analise.tipoDeLance],
-        ["Critério de Julgamento",   analise.criterioJulgamento],
-        ["Intervalo de Lances",      analise.intervaloLances],
-        ["Plataforma",               analise.plataforma],
-        ["UF",                       analise.uf],
-        ["Cidade",                   analise.cidade],
-        ["Âmbito",                   analise.ambito],
-        ["Regionalidade",            analise.regionalidade],
-        ["EPP/ME",                   analise.eppMe],
-        ["Adesão",                   analise.adesao],
-        ["DIFAL",                    analise.difal],
-        ["Cadastro",                 analise.cadastro],
-        ["Esclarecimento/Impugn.",   analise.esclarecimentoImpugnacao],
-        ["Prazo Envio Proposta",     analise.prazoEnvioProposta],
-        ["Prazo de Entrega",         analise.prazoEntrega],
-        ["Tipo de Entrega",          analise.tipoEntrega],
-        ["Tipo de Garantia",         analise.tipoGarantia],
-        ["Instalação",               analise.instalacao],
-        ["Validade da Proposta",     analise.validadeProposta],
-        ["Garantia",                 analise.garantia],
-        ["Prazo de Aceite",          analise.prazoAceite],
-        ["Prazo para Pagamento",     analise.prazoPagamento],
-    ]
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+    return v !== null && typeof v === "object" && !Array.isArray(v)
+}
+
+function formatKey(key: string): string {
+    return key.replace(/_/g, " ")
+}
+
+// ─── Viewer principal ─────────────────────────────────────────────────────────
+
+function JsonViewer({ data }: { data: unknown }) {
+    if (isPlainObject(data)) return <JsonSections obj={data} depth={0} />
+    return <div className="text-sm"><JsonScalar value={data} /></div>
+}
+
+// Separa os campos em: escalares (grid), objetos (seções), arrays (tabelas)
+function JsonSections({ obj, depth }: { obj: Record<string, unknown>; depth: number }) {
+    const entries = Object.entries(obj)
+    const scalars = entries.filter(([, v]) => !isPlainObject(v) && !Array.isArray(v))
+    const objects = entries.filter(([, v]) => isPlainObject(v))
+    const arrays  = entries.filter(([, v]) => Array.isArray(v))
 
     return (
-        <Card>
-            <CardContent className="pt-4">
-                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
-                    {campos.map(([label, value]) => value ? (
-                        <div key={label} className="flex flex-col gap-0.5 py-1 border-b border-border/50 last:border-0">
-                            <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</dt>
-                            <dd className="text-sm font-medium">{value}</dd>
+        <div className="space-y-5">
+            {scalars.length > 0 && (
+                <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-3">
+                    {scalars.map(([k, v]) => (
+                        <div key={k} className="min-w-0">
+                            <dt className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5 truncate">{formatKey(k)}</dt>
+                            <dd className="text-sm font-medium"><JsonScalar value={v} /></dd>
                         </div>
-                    ) : null)}
+                    ))}
                 </dl>
-                {analise.obs && (
-                    <div className="mt-4">
-                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">OBS</p>
-                        <p className="text-sm">{analise.obs}</p>
-                    </div>
-                )}
-                {analise.observacoes && (
-                    <div className="mt-4">
-                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Observações</p>
-                        <p className="text-sm">{analise.observacoes}</p>
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+            )}
+            {objects.map(([k, v]) => (
+                <div key={k}>
+                    <SectionLabel title={k} depth={depth} />
+                    <JsonSections obj={v as Record<string, unknown>} depth={depth + 1} />
+                </div>
+            ))}
+            {arrays.map(([k, v]) => (
+                <div key={k}>
+                    <SectionLabel title={k} depth={depth} />
+                    <JsonArrayTable items={v as unknown[]} />
+                </div>
+            ))}
+        </div>
     )
 }
 
-function ItensTable({ itens }: { itens: AnaliseCriticaEdital["itens"] }) {
-    if (!itens?.length) return (
-        <Card><CardContent className="pt-6 text-center text-muted-foreground text-sm">Nenhum item extraído.</CardContent></Card>
-    )
+function SectionLabel({ title, depth }: { title: string; depth: number }) {
     return (
-        <Card>
-            <CardContent className="pt-4 overflow-x-auto">
-                <table className="w-full text-xs">
-                    <thead>
-                        <tr className="border-b">
-                            {["Nº", "Produto", "Qtd", "NCM", "Marca", "Modelo", "R$ Ref.", "R$ Ref. Total"].map(h => (
-                                <th key={h} className="text-left py-2 pr-4 font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {itens.map((item) => (
-                            <tr key={item.numero} className="border-b last:border-0 hover:bg-muted/40">
-                                <td className="py-2 pr-4 font-mono">{item.numero}</td>
-                                <td className="py-2 pr-4 max-w-[240px] truncate" title={item.produto}>{item.produto || "—"}</td>
-                                <td className="py-2 pr-4 text-right font-mono">{item.quantidade}</td>
-                                <td className="py-2 pr-4 font-mono">{item.ncm || "—"}</td>
-                                <td className="py-2 pr-4">{item.marca || "—"}</td>
-                                <td className="py-2 pr-4">{item.modelo || "—"}</td>
-                                <td className="py-2 pr-4 text-right font-mono">{item.valorReferencia ? formatCurrency(item.valorReferencia) : "—"}</td>
-                                <td className="py-2 pr-4 text-right font-mono">{item.valorReferenciaTotal ? formatCurrency(item.valorReferenciaTotal) : "—"}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </CardContent>
-        </Card>
+        <p className={`uppercase tracking-wide text-muted-foreground border-b border-border/40 pb-1 mb-3 ${depth === 0 ? "text-[11px] font-semibold" : "text-[10px]"}`}>
+            {formatKey(title)}
+        </p>
     )
 }
 
-function DocumentacoesCard({ docs, outros }: { docs: AnaliseCriticaEdital["documentacoes"]; outros: string }) {
-    const labels: Record<string, string> = {
-        cnpj:                        "CNPJ",
-        inscricaoEstadual:           "Inscrição Estadual",
-        certidaoFgts:                "Certidão FGTS",
-        certidaoTributosFederais:    "Certidão Tributos Federais",
-        certidaoTributosEstaduais:   "Certidão Tributos Estaduais",
-        certidaoTributosMunicipais:  "Certidão Tributos Municipais",
-        certidaoTrabalhista:         "Certidão Trabalhista",
-        certidaoFalenciaRecuperacao: "Certidão Falência/Recuperação",
-        contratoSocial:              "Contrato Social",
-        docSocios:                   "Doc. Sócios",
-        balancos:                    "Balanços",
-        atestado:                    "Atestado",
-        alvara:                      "Alvará",
-        certidaoJunta:               "Certidão da Junta",
-        certidaoUnificadaCgu:        "Certidão Unificada CGU",
-        inscricaoMunicipal:          "Inscrição Municipal",
-        garantiaProposta:            "Garantia de Proposta",
+function JsonScalar({ value }: { value: unknown }) {
+    if (value === null || value === undefined || value === "") {
+        return <span className="text-muted-foreground/40 italic text-xs">—</span>
+    }
+    if (typeof value === "boolean") {
+        return (
+            <Badge variant={value ? "default" : "outline"} className="text-xs font-mono py-0 h-5">
+                {value ? "Sim" : "Não"}
+            </Badge>
+        )
+    }
+    if (typeof value === "number") {
+        return <span className="text-blue-600 dark:text-blue-400">{value.toLocaleString("pt-BR")}</span>
+    }
+    return <span>{String(value)}</span>
+}
+
+function JsonArrayTable({ items }: { items: unknown[] }) {
+    const [collapsed, setCollapsed] = useState(false)
+
+    if (items.length === 0) {
+        return <span className="text-muted-foreground/40 italic text-xs text-sm">—</span>
     }
 
+    // Array de primitivos → badges
+    if (!items.every(isPlainObject)) {
+        return (
+            <div className="flex flex-wrap gap-1.5">
+                {items.map((item, i) => (
+                    <Badge key={i} variant="secondary" className="text-xs font-mono">{String(item)}</Badge>
+                ))}
+            </div>
+        )
+    }
+
+    // Array de objetos → tabela
+    const rows = items as Record<string, unknown>[]
+    const keys = Array.from(new Set(rows.flatMap(r => Object.keys(r))))
+
     return (
-        <Card>
-            <CardContent className="pt-4">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {Object.entries(labels).map(([key, label]) => {
-                        const required = (docs as any)[key] as boolean
-                        return (
-                            <div key={key} className="flex items-center gap-2 py-1">
-                                <span className={`size-2 rounded-full shrink-0 ${required ? "bg-emerald-500" : "bg-muted-foreground/30"}`} />
-                                <span className={`text-xs ${required ? "font-medium" : "text-muted-foreground"}`}>{label}</span>
-                            </div>
-                        )
-                    })}
+        <div>
+            <button
+                onClick={() => setCollapsed(c => !c)}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-2"
+            >
+                {collapsed ? <ChevronRight className="size-3" /> : <ChevronDown className="size-3" />}
+                {items.length} {items.length === 1 ? "registro" : "registros"}
+            </button>
+            {!collapsed && (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                        <thead>
+                            <tr className="border-b border-border/60">
+                                {keys.map(k => (
+                                    <th key={k} className="text-left py-1.5 pr-4 font-medium text-[10px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+                                        {formatKey(k)}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((row, i) => (
+                                <tr key={i} className="border-b border-border/30 last:border-0 hover:bg-muted/30">
+                                    {keys.map(k => (
+                                        <td key={k} className="py-1.5 pr-4 align-top max-w-xs">
+                                            <JsonScalar value={row[k] ?? null} />
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
-                {outros && (
-                    <div className="mt-4 pt-4 border-t">
-                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Outros documentos</p>
-                        <p className="text-sm">{outros}</p>
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+            )}
+        </div>
     )
 }
 
@@ -317,8 +394,4 @@ function formatBytes(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function formatCurrency(value: number): string {
-    return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
 }
