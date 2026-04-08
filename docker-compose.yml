@@ -1,0 +1,10 @@
+services:
+
+  docling:
+    image: quay.io/docling-project/docling-serve-cpu
+    container_name: licitai-docling
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    environment:
+      DOCLING_SERVE_ENABLE_UI: "1"
