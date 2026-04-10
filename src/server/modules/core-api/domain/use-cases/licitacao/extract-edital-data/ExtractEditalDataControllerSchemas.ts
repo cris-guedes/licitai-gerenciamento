@@ -20,10 +20,14 @@ const MetricsSchema = z.object({
     pdfUrl:           z.string(),
     pdfFileSizeBytes: z.number(),
     conversionTimeMs: z.number(),
-    extractionTimeMs: z.number(),
-    totalTimeMs:      z.number(),
-    mdFileSizeBytes:  z.number(),
-    mdWordCount:      z.number(),
+    chunkingTimeMs:     z.number(),
+    scoringTimeMs:      z.number(),
+    filteredChunkCount: z.number(),
+    extractionTimeMs:   z.number(),
+    totalTimeMs:        z.number(),
+    mdFileSizeBytes:    z.number(),
+    mdWordCount:        z.number(),
+    chunkCount:         z.number(),
     doclingFilename:  z.string(),
     tempDir:          z.string(),
     tokensUsed: z.object({
@@ -31,6 +35,23 @@ const MetricsSchema = z.object({
         completion: z.number(),
         total:      z.number(),
     }),
+    topChunks: z.array(z.object({
+        id:        z.string(),
+        score:     z.number(),
+        headings:  z.array(z.string()),
+        charCount: z.number(),
+        preview:   z.string(),
+    })),
+    config: z.object({
+        chunkSize:         z.number(),
+        chunkOverlap:      z.number(),
+        embeddingModel:    z.string(),
+        aiModel:           z.string(),
+        fileParser:        z.string(),
+        extractionMode:    z.string(),
+        topKPorIntent:     z.record(z.string(), z.number()),
+        queriesPorIntent:  z.record(z.string(), z.array(z.string())),
+    }).optional(),
 });
 
 // ─── Extraction schemas ───────────────────────────────────────────────────────

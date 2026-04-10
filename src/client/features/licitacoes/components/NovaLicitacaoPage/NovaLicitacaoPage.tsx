@@ -307,6 +307,43 @@ function JsonScalar({ value }: { value: unknown }) {
     if (typeof value === "number") {
         return <span className="text-blue-600 dark:text-blue-400">{value.toLocaleString("pt-BR")}</span>
     }
+    
+    // Lista de objetos ou primitivos
+    if (Array.isArray(value)) {
+        if (value.length === 0) return <span className="text-muted-foreground/40 italic text-xs">—</span>
+        return (
+            <div className="flex flex-wrap gap-1">
+                {value.map((v, i) => (
+                    <Badge key={i} variant="secondary" className="text-[10px] px-1.5 py-0 min-h-4 h-auto font-normal">
+                        {isPlainObject(v) 
+                            ? Object.entries(v).map(([k, val]) => `${formatKey(k)}: ${isPlainObject(val) || Array.isArray(val) ? "..." : String(val)}`).join(", ")
+                            : String(v)
+                        }
+                    </Badge>
+                ))}
+            </div>
+        )
+    }
+
+    // Objeto único (Tratamento recursivo simples para evitar [object Object])
+    if (isPlainObject(value)) {
+        return (
+            <div className="text-[10px] text-muted-foreground leading-tight space-y-0.5">
+                {Object.entries(value).map(([k, v]) => (
+                    <div key={k} className="flex gap-1">
+                        <span className="font-semibold uppercase tracking-tighter opacity-70">{formatKey(k)}:</span>
+                        <span className="text-foreground">
+                            {isPlainObject(v) || Array.isArray(v) 
+                                ? <JsonScalar value={v} /> // Chamada recursiva controlada
+                                : String(v)
+                            }
+                        </span>
+                    </div>
+                ))}
+            </div>
+        )
+    }
+
     return <span>{String(value)}</span>
 }
 

@@ -12,7 +12,7 @@ export const EXTRACTION_MODE_OPTIONS: Record<ExtractionMode, Partial<ConvertDocu
         do_ocr:             false,
         force_ocr:          false,
         table_mode:         "fast",
-        do_table_structure: true,
+        do_table_structure: false, // desabilita TableFormer → corta ~35% do tempo
         image_export_mode:  "placeholder",
         document_timeout:   120,
         abort_on_error:     false,

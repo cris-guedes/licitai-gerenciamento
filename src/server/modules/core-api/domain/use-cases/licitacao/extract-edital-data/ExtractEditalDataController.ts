@@ -29,6 +29,7 @@ export class ExtractEditalDataController
             const result = await this.useCase.execute(body);
             return ok(result);
         } catch (error: any) {
+            console.error(error?.stack ?? error);
             if (error instanceof z.ZodError) return serverError(new Error(error.message));
             return serverError(error);
         }

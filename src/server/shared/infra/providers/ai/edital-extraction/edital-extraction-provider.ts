@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { EDITAL_EXTRACTION_PROMPT } from "./edital-extraction-prompt";
+import { EDITAL_INTENTS } from "./edital-extraction-prompt";
 
 const OPENAI_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 
@@ -10,36 +10,89 @@ export class EditalExtractionProvider {
         this.client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     }
 
-    async extractEdital({
-        mdContent,
-    }: EditalExtractionProvider.ExtractParams): Promise<EditalExtractionProvider.ExtractResponse> {
+    identificacao() {
+        return {
+            query:   EDITAL_INTENTS.IDENTIFICACAO.query,
+            execute: (chunks: string) => this.performExtraction<any>(EDITAL_INTENTS.IDENTIFICACAO.prompt, chunks),
+        };
+    }
+
+    datasDisputa() {
+        return {
+            query:   EDITAL_INTENTS.DATAS_DISPUTA.query,
+            execute: (chunks: string) => this.performExtraction<any>(EDITAL_INTENTS.DATAS_DISPUTA.prompt, chunks),
+        };
+    }
+
+    prazosLogistica() {
+        return {
+            query:   EDITAL_INTENTS.PRAZOS_LOGISTICA.query,
+            execute: (chunks: string) => this.performExtraction<any>(EDITAL_INTENTS.PRAZOS_LOGISTICA.prompt, chunks),
+        };
+    }
+
+    itens() {
+        return {
+            query:   EDITAL_INTENTS.ITENS.query,
+            // 3 min — lotes de itens podem gerar centenas de objetos JSON
+            execute: (chunks: string) => this.performExtraction<any>(EDITAL_INTENTS.ITENS.prompt, chunks, 180_000),
+        };
+    }
+
+    documentos() {
+        return {
+            query:   EDITAL_INTENTS.DOCUMENTOS.query,
+            execute: (chunks: string) => this.performExtraction<any>(EDITAL_INTENTS.DOCUMENTOS.prompt, chunks),
+        };
+    }
+
+    regras() {
+        return {
+            query:   EDITAL_INTENTS.REGRAS.query,
+            execute: (chunks: string) => this.performExtraction<any>(EDITAL_INTENTS.REGRAS.prompt, chunks),
+        };
+    }
+
+    garantia() {
+        return {
+            query:   EDITAL_INTENTS.GARANTIA.query,
+            execute: (chunks: string) => this.performExtraction<any>(EDITAL_INTENTS.GARANTIA.prompt, chunks),
+        };
+    }
+
+    full() {
+        return {
+            query:   EDITAL_INTENTS.FULL_EXTRACTION.query,
+            execute: (chunks: string) => this.performExtraction<EditalExtractionProvider.ExtractionResult>(EDITAL_INTENTS.FULL_EXTRACTION.prompt, chunks),
+        };
+    }
+
+    private async performExtraction<T>(promptTemplate: string, content: string, timeoutMs = 60_000): Promise<EditalExtractionProvider.ExtractResponse<T>> {
         const startTime = Date.now();
-
-        console.log(`[EditalExtractionProvider] Iniciando extração — modelo: ${OPENAI_MODEL}`);
-        console.log(`[EditalExtractionProvider] Tamanho do markdown: ${mdContent.length} chars`);
-
-        const prompt = EDITAL_EXTRACTION_PROMPT.replace("{{MARKDOWN_AQUI}}", mdContent);
+        const prompt    = promptTemplate.includes("{{MARKDOWN_AQUI}}")
+            ? promptTemplate.replace("{{MARKDOWN_AQUI}}", content)
+            : promptTemplate.replace("{{CHUNKS}}", content);
 
         const completion = await this.client.chat.completions.create({
-            model: OPENAI_MODEL,
+            model:           OPENAI_MODEL,
             response_format: { type: "json_object" },
-            temperature: 0,
-            messages: [{ role: "user", content: prompt }],
-        });
+            temperature:     0,
+            messages:        [{ role: "user", content: prompt }],
+        }, { timeout: timeoutMs });
 
         const extractionTimeMs = Date.now() - startTime;
         const rawJson          = completion.choices[0]?.message?.content ?? "{}";
         const usage            = completion.usage;
 
-        console.log(`[EditalExtractionProvider] Extração concluída em ${extractionTimeMs}ms`);
-        console.log(`[EditalExtractionProvider] Tokens — prompt: ${usage?.prompt_tokens} | completion: ${usage?.completion_tokens} | total: ${usage?.total_tokens}`);
-
-        let result: EditalExtractionProvider.ExtractionResult;
+        let result: T;
         try {
             result = JSON.parse(rawJson);
         } catch {
             throw new Error(`[EditalExtractionProvider] Falha ao parsear JSON da OpenAI: ${rawJson.slice(0, 200)}`);
         }
+
+        console.log(`[EditalExtractionProvider] Extração concluída em ${extractionTimeMs}ms`);
+        console.log(`[EditalExtractionProvider] Tokens — prompt: ${usage?.prompt_tokens} | completion: ${usage?.completion_tokens} | total: ${usage?.total_tokens}`);
 
         return {
             result,
@@ -142,8 +195,8 @@ export namespace EditalExtractionProvider {
         mdContent: string
     }
 
-    export type ExtractResponse = {
-        result:           ExtractionResult
+    export type ExtractResponse<T = ExtractionResult> = {
+        result:           T
         extractionTimeMs: number
         tokensUsed: {
             prompt:     number
