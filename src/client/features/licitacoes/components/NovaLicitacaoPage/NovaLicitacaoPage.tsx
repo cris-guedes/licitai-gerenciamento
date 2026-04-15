@@ -8,7 +8,7 @@ import { Input } from "@/client/components/ui/input"
 import { Card, CardContent } from "@/client/components/ui/card"
 import { Badge } from "@/client/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/client/components/ui/tabs"
-import { FileText, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronRight, Zap, Scale, Sparkles, ScanSearch } from "lucide-react"
+import { FileText, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronRight, Zap, Scale, Sparkles, ScanSearch, BrainCircuit } from "lucide-react"
 import { MarkdownViewer } from "../MarkdownViewer/MarkdownViewer"
 import type { ExtractEditalDataResponse } from "@/client/main/infra/apis/api-core/models/ExtractEditalDataResponse"
 import type { ExtractionMode } from "@/client/main/infra/apis/api-core/services/LicitacaoService"
@@ -53,6 +53,14 @@ const MODES: Array<{
         icon:        ScanSearch,
         slow:        true,
     },
+    {
+        id:          "agente",
+        label:       "Agente IA",
+        description: "Agente com busca vetorial que reconstrói contexto antes de extrair",
+        detail:      "vector search · multi-query · AI SDK",
+        icon:        BrainCircuit,
+        slow:        true,
+    },
 ]
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -94,7 +102,7 @@ export function NovaLicitacaoPage() {
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
                             Modo de extração
                         </p>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
                             {MODES.map((m) => {
                                 const Icon     = m.icon
                                 const selected = mode === m.id
@@ -158,7 +166,10 @@ export function NovaLicitacaoPage() {
                     </form>
                     {isLoading && (
                         <p className="text-xs text-muted-foreground">
-                            Baixando PDF → convertendo para Markdown via Docling ({activeMode.label}) → extraindo dados com OpenAI...
+                            {mode === "agente"
+                                ? "Baixando PDF → convertendo para Markdown → indexando chunks → agente realizando buscas vetoriais → extraindo dados..."
+                                : `Baixando PDF → convertendo para Markdown via Docling (${activeMode.label}) → extraindo dados com OpenAI...`
+                            }
                         </p>
                     )}
                 </CardContent>

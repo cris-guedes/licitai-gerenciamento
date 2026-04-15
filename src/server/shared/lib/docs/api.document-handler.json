@@ -1,0 +1,341 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "Document Processing API",
+        "description": "Extração de texto e tabelas de PDFs",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/process-pdf": {
+            "post": {
+                "summary": "Processa um PDF",
+                "description": "Extrai texto (por página) e tabelas (em markdown) de um arquivo PDF, removendo headers, footers e tabelas template.",
+                "operationId": "process_pdf_process_pdf_post",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_process_pdf_process_pdf_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProcessPdfResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Body_process_pdf_process_pdf_post": {
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "contentMediaType": "application/octet-stream",
+                        "title": "File",
+                        "description": "Arquivo PDF para processar"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "file"
+                ],
+                "title": "Body_process_pdf_process_pdf_post"
+            },
+            "HTTPValidationError": {
+                "properties": {
+                    "detail": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        },
+                        "type": "array",
+                        "title": "Detail"
+                    }
+                },
+                "type": "object",
+                "title": "HTTPValidationError"
+            },
+            "PageSchema": {
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "title": "Page",
+                        "description": "Número da página"
+                    },
+                    "chars": {
+                        "type": "integer",
+                        "title": "Chars",
+                        "description": "Total de caracteres na página"
+                    },
+                    "words": {
+                        "type": "integer",
+                        "title": "Words",
+                        "description": "Total de palavras na página"
+                    },
+                    "chunks": {
+                        "items": {
+                            "$ref": "#/components/schemas/TextChunkSchema"
+                        },
+                        "type": "array",
+                        "title": "Chunks",
+                        "description": "Parágrafos da página prontos para embedding"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "page",
+                    "chars",
+                    "words",
+                    "chunks"
+                ],
+                "title": "PageSchema"
+            },
+            "ProcessPdfResponse": {
+                "properties": {
+                    "filename": {
+                        "type": "string",
+                        "title": "Filename",
+                        "description": "Nome do arquivo processado"
+                    },
+                    "processed_at": {
+                        "type": "string",
+                        "title": "Processed At",
+                        "description": "Timestamp do processamento"
+                    },
+                    "processing_time_ms": {
+                        "type": "number",
+                        "title": "Processing Time Ms",
+                        "description": "Tempo de processamento em milissegundos"
+                    },
+                    "file_size_bytes": {
+                        "type": "integer",
+                        "title": "File Size Bytes",
+                        "description": "Tamanho do arquivo em bytes"
+                    },
+                    "total_pages": {
+                        "type": "integer",
+                        "title": "Total Pages",
+                        "description": "Total de páginas do PDF"
+                    },
+                    "pages_with_text": {
+                        "type": "integer",
+                        "title": "Pages With Text",
+                        "description": "Páginas com texto extraído"
+                    },
+                    "pages_empty": {
+                        "type": "integer",
+                        "title": "Pages Empty",
+                        "description": "Páginas sem texto"
+                    },
+                    "total_chars": {
+                        "type": "integer",
+                        "title": "Total Chars",
+                        "description": "Total de caracteres extraídos"
+                    },
+                    "total_words": {
+                        "type": "integer",
+                        "title": "Total Words",
+                        "description": "Total de palavras extraídas"
+                    },
+                    "total_tables": {
+                        "type": "integer",
+                        "title": "Total Tables",
+                        "description": "Total de tabelas extraídas"
+                    },
+                    "pages": {
+                        "items": {
+                            "$ref": "#/components/schemas/PageSchema"
+                        },
+                        "type": "array",
+                        "title": "Pages",
+                        "description": "Páginas com seus chunks de texto"
+                    },
+                    "tables": {
+                        "items": {
+                            "$ref": "#/components/schemas/TableSchema"
+                        },
+                        "type": "array",
+                        "title": "Tables",
+                        "description": "Tabelas com seus chunks de linha"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "filename",
+                    "processed_at",
+                    "processing_time_ms",
+                    "file_size_bytes",
+                    "total_pages",
+                    "pages_with_text",
+                    "pages_empty",
+                    "total_chars",
+                    "total_words",
+                    "total_tables",
+                    "pages",
+                    "tables"
+                ],
+                "title": "ProcessPdfResponse"
+            },
+            "TableChunkSchema": {
+                "properties": {
+                    "row_index": {
+                        "type": "integer",
+                        "title": "Row Index",
+                        "description": "Índice da linha na tabela"
+                    },
+                    "data": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object",
+                        "title": "Data",
+                        "description": "Par índice_coluna→valor (0, 1, 2...) — unidade para embedding"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "row_index",
+                    "data"
+                ],
+                "title": "TableChunkSchema"
+            },
+            "TableSchema": {
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "title": "Page",
+                        "description": "Página onde a tabela foi encontrada"
+                    },
+                    "index": {
+                        "type": "integer",
+                        "title": "Index",
+                        "description": "Índice da tabela dentro da página"
+                    },
+                    "markdown": {
+                        "type": "string",
+                        "title": "Markdown",
+                        "description": "Tabela completa em markdown"
+                    },
+                    "rows": {
+                        "type": "integer",
+                        "title": "Rows",
+                        "description": "Número de linhas"
+                    },
+                    "cols": {
+                        "type": "integer",
+                        "title": "Cols",
+                        "description": "Número de colunas"
+                    },
+                    "headers": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Headers",
+                        "description": "Cabeçalhos da tabela"
+                    },
+                    "chunks": {
+                        "items": {
+                            "$ref": "#/components/schemas/TableChunkSchema"
+                        },
+                        "type": "array",
+                        "title": "Chunks",
+                        "description": "Linhas da tabela prontas para embedding"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "page",
+                    "index",
+                    "markdown",
+                    "rows",
+                    "cols",
+                    "headers",
+                    "chunks"
+                ],
+                "title": "TableSchema"
+            },
+            "TextChunkSchema": {
+                "properties": {
+                    "order": {
+                        "type": "integer",
+                        "title": "Order",
+                        "description": "Ordem do parágrafo dentro da página"
+                    },
+                    "text": {
+                        "type": "string",
+                        "title": "Text",
+                        "description": "Texto do parágrafo — unidade para embedding"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "order",
+                    "text"
+                ],
+                "title": "TextChunkSchema"
+            },
+            "ValidationError": {
+                "properties": {
+                    "loc": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Location"
+                    },
+                    "msg": {
+                        "type": "string",
+                        "title": "Message"
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Error Type"
+                    },
+                    "input": {
+                        "title": "Input"
+                    },
+                    "ctx": {
+                        "type": "object",
+                        "title": "Context"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "loc",
+                    "msg",
+                    "type"
+                ],
+                "title": "ValidationError"
+            }
+        }
+    }
+}

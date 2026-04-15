@@ -17,20 +17,6 @@ export class EditalExtractionProvider {
         };
     }
 
-    datasDisputa() {
-        return {
-            query:   EDITAL_INTENTS.DATAS_DISPUTA.query,
-            execute: (chunks: string) => this.performExtraction<any>(EDITAL_INTENTS.DATAS_DISPUTA.prompt, chunks),
-        };
-    }
-
-    prazosLogistica() {
-        return {
-            query:   EDITAL_INTENTS.PRAZOS_LOGISTICA.query,
-            execute: (chunks: string) => this.performExtraction<any>(EDITAL_INTENTS.PRAZOS_LOGISTICA.prompt, chunks),
-        };
-    }
-
     itens() {
         return {
             query:   EDITAL_INTENTS.ITENS.query,
@@ -39,24 +25,10 @@ export class EditalExtractionProvider {
         };
     }
 
-    documentos() {
+    regras_execucao_habilitacao() {
         return {
-            query:   EDITAL_INTENTS.DOCUMENTOS.query,
-            execute: (chunks: string) => this.performExtraction<any>(EDITAL_INTENTS.DOCUMENTOS.prompt, chunks),
-        };
-    }
-
-    regras() {
-        return {
-            query:   EDITAL_INTENTS.REGRAS.query,
-            execute: (chunks: string) => this.performExtraction<any>(EDITAL_INTENTS.REGRAS.prompt, chunks),
-        };
-    }
-
-    garantia() {
-        return {
-            query:   EDITAL_INTENTS.GARANTIA.query,
-            execute: (chunks: string) => this.performExtraction<any>(EDITAL_INTENTS.GARANTIA.prompt, chunks),
+            query:   EDITAL_INTENTS.REGRAS_EXECUCAO_HABILITACAO.query,
+            execute: (chunks: string) => this.performExtraction<any>(EDITAL_INTENTS.REGRAS_EXECUCAO_HABILITACAO.prompt, chunks),
         };
     }
 
@@ -69,9 +41,10 @@ export class EditalExtractionProvider {
 
     private async performExtraction<T>(promptTemplate: string, content: string, timeoutMs = 60_000): Promise<EditalExtractionProvider.ExtractResponse<T>> {
         const startTime = Date.now();
-        const prompt    = promptTemplate.includes("{{MARKDOWN_AQUI}}")
-            ? promptTemplate.replace("{{MARKDOWN_AQUI}}", content)
-            : promptTemplate.replace("{{CHUNKS}}", content);
+        const prompt    = promptTemplate
+            .replace("{{MARKDOWN_AQUI}}", content)
+            .replace("{{CHUNKS}}",        content)
+            .replace("{{CONTEUDO}}",      content);
 
         const completion = await this.client.chat.completions.create({
             model:           OPENAI_MODEL,

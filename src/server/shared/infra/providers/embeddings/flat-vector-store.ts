@@ -14,12 +14,6 @@ type SearchResult = {
 
 /**
  * FlatVectorStore — busca vetorial em memória com dot-product puro.
- *
- * Para vetores normalizados (normalize: true no Xenova), dot-product
- * equivale a cosine similarity e é matematicamente exato — sem
- * approximation errors de índices HNSW ou problemas de schema (Orama).
- *
- * Para ~200 chunks × 384 dims: ~77k ops por busca, << 1ms.
  */
 export class FlatVectorStore {
     private entries: Entry[] = [];
@@ -37,9 +31,23 @@ export class FlatVectorStore {
     }
 
     /**
+     * Retorna TODAS as entradas que satisfaçam o filtro de metadados.
+     */
+    listByMetadata(predicate: (metadata: Record<string, any>) => boolean): SearchResult[] {
+        return this.entries
+            .filter(e => predicate(e.metadata ?? {}))
+            .map(e => ({
+                id: e.id,
+                score: 1.0, // Score máximo para listagem direta
+                text: e.text,
+                metadata: e.metadata ?? {},
+            }));
+    }
+
+    /**
      * Busca single-query: retorna os topK mais similares.
      */
-    similaritySearch(queryEmbedding: Float32Array, topK = 5): SearchResult[] {
+    similaritySearch(queryEmbedding: Float32Array, topK = 5, minScore = 0): SearchResult[] {
         if (this.entries.length === 0) return [];
 
         const scored = this.entries.map(entry => ({
@@ -47,7 +55,8 @@ export class FlatVectorStore {
             score:    this.dotProduct(queryEmbedding, entry.embedding),
             text:     entry.text,
             metadata: entry.metadata ?? {},
-        }));
+        }))
+        .filter(e => e.score >= minScore);
 
         scored.sort((a, b) => b.score - a.score);
         return scored.slice(0, topK);
@@ -56,9 +65,9 @@ export class FlatVectorStore {
     /**
      * Multi-query search: embeda cada query separadamente e combina
      * os resultados mantendo o MAIOR score por chunk (max-fusion).
-     * Retorna topK chunks únicos ordenados por score decrescente.
+     * Retorna topK chunks únicos que atingiram o minScore.
      */
-    multiQuerySearch(queryEmbeddings: Float32Array[], topK = 15): SearchResult[] {
+    multiQuerySearch(queryEmbeddings: Float32Array[], topK = 15, minScore = 0): SearchResult[] {
         if (this.entries.length === 0) return [];
 
         const scoreMap = new Map<string, SearchResult>();
@@ -66,6 +75,8 @@ export class FlatVectorStore {
         for (const qEmb of queryEmbeddings) {
             for (const entry of this.entries) {
                 const score = this.dotProduct(qEmb, entry.embedding);
+                if (score < minScore) continue;
+
                 const existing = scoreMap.get(entry.id);
                 if (!existing || score > existing.score) {
                     scoreMap.set(entry.id, {

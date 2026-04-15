@@ -2,7 +2,7 @@ import type { ExtractEditalDataResponse } from '../models/ExtractEditalDataRespo
 import type { CancelablePromise } from '../core/CancelablePromise';
 import type { BaseHttpRequest } from '../core/BaseHttpRequest';
 
-export type ExtractionMode = "velocidade" | "balanceado" | "qualidade" | "imagem";
+export type ExtractionMode = "velocidade" | "balanceado" | "qualidade" | "imagem" | "agente";
 
 export class LicitacaoService {
     constructor(public readonly httpRequest: BaseHttpRequest) {}

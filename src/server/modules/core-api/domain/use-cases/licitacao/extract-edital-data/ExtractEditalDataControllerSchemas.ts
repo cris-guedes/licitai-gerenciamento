@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // ─── Input ────────────────────────────────────────────────────────────────────
 
-const ExtractionModeSchema = z.enum(["velocidade", "balanceado", "qualidade", "imagem"]);
+const ExtractionModeSchema = z.enum(["velocidade", "balanceado", "qualidade", "imagem", "agente"]);
 
 const ExtractEditalDataBodySchema = z.object({
     pdfUrl: z
@@ -28,6 +28,7 @@ const MetricsSchema = z.object({
     mdFileSizeBytes:    z.number(),
     mdWordCount:        z.number(),
     chunkCount:         z.number(),
+    totalTablesInPdf:   z.number().optional(),
     doclingFilename:  z.string(),
     tempDir:          z.string(),
     tokensUsed: z.object({
