@@ -63,6 +63,44 @@
                 ],
                 "title": "Body_process_pdf_process_pdf_post"
             },
+            "ChunkMetadataSchema": {
+                "properties": {
+                    "bold": {
+                        "$ref": "#/components/schemas/MetadataFieldSchema",
+                        "description": "Trechos em negrito"
+                    },
+                    "italic": {
+                        "$ref": "#/components/schemas/MetadataFieldSchema",
+                        "description": "Trechos em itálico"
+                    },
+                    "code": {
+                        "$ref": "#/components/schemas/MetadataFieldSchema",
+                        "description": "Trechos de código inline"
+                    },
+                    "links": {
+                        "$ref": "#/components/schemas/MetadataFieldSchema",
+                        "description": "URLs de links"
+                    },
+                    "lists": {
+                        "$ref": "#/components/schemas/MetadataFieldSchema",
+                        "description": "Itens de lista"
+                    },
+                    "tables": {
+                        "$ref": "#/components/schemas/MetadataFieldSchema",
+                        "description": "Cabeçalhos de tabelas"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "bold",
+                    "italic",
+                    "code",
+                    "links",
+                    "lists",
+                    "tables"
+                ],
+                "title": "ChunkMetadataSchema"
+            },
             "HTTPValidationError": {
                 "properties": {
                     "detail": {
@@ -76,40 +114,28 @@
                 "type": "object",
                 "title": "HTTPValidationError"
             },
-            "PageSchema": {
+            "MetadataFieldSchema": {
                 "properties": {
-                    "page": {
+                    "quantity": {
                         "type": "integer",
-                        "title": "Page",
-                        "description": "Número da página"
+                        "title": "Quantity",
+                        "description": "Quantidade de ocorrências"
                     },
-                    "chars": {
-                        "type": "integer",
-                        "title": "Chars",
-                        "description": "Total de caracteres na página"
-                    },
-                    "words": {
-                        "type": "integer",
-                        "title": "Words",
-                        "description": "Total de palavras na página"
-                    },
-                    "chunks": {
+                    "fragments": {
                         "items": {
-                            "$ref": "#/components/schemas/TextChunkSchema"
+                            "type": "string"
                         },
                         "type": "array",
-                        "title": "Chunks",
-                        "description": "Parágrafos da página prontos para embedding"
+                        "title": "Fragments",
+                        "description": "Fragmentos encontrados"
                     }
                 },
                 "type": "object",
                 "required": [
-                    "page",
-                    "chars",
-                    "words",
-                    "chunks"
+                    "quantity",
+                    "fragments"
                 ],
-                "title": "PageSchema"
+                "title": "MetadataFieldSchema"
             },
             "ProcessPdfResponse": {
                 "properties": {
@@ -138,16 +164,6 @@
                         "title": "Total Pages",
                         "description": "Total de páginas do PDF"
                     },
-                    "pages_with_text": {
-                        "type": "integer",
-                        "title": "Pages With Text",
-                        "description": "Páginas com texto extraído"
-                    },
-                    "pages_empty": {
-                        "type": "integer",
-                        "title": "Pages Empty",
-                        "description": "Páginas sem texto"
-                    },
                     "total_chars": {
                         "type": "integer",
                         "title": "Total Chars",
@@ -163,13 +179,10 @@
                         "title": "Total Tables",
                         "description": "Total de tabelas extraídas"
                     },
-                    "pages": {
-                        "items": {
-                            "$ref": "#/components/schemas/PageSchema"
-                        },
-                        "type": "array",
-                        "title": "Pages",
-                        "description": "Páginas com seus chunks de texto"
+                    "total_sections": {
+                        "type": "integer",
+                        "title": "Total Sections",
+                        "description": "Total de seções detectadas"
                     },
                     "tables": {
                         "items": {
@@ -178,6 +191,14 @@
                         "type": "array",
                         "title": "Tables",
                         "description": "Tabelas com seus chunks de linha"
+                    },
+                    "sections": {
+                        "items": {
+                            "$ref": "#/components/schemas/SectionSchema"
+                        },
+                        "type": "array",
+                        "title": "Sections",
+                        "description": "Seções do documento com chunks e metadados AST"
                     }
                 },
                 "type": "object",
@@ -187,15 +208,80 @@
                     "processing_time_ms",
                     "file_size_bytes",
                     "total_pages",
-                    "pages_with_text",
-                    "pages_empty",
                     "total_chars",
                     "total_words",
                     "total_tables",
-                    "pages",
-                    "tables"
+                    "total_sections",
+                    "tables",
+                    "sections"
                 ],
                 "title": "ProcessPdfResponse"
+            },
+            "SectionChunkSchema": {
+                "properties": {
+                    "order": {
+                        "type": "integer",
+                        "title": "Order",
+                        "description": "Ordem do chunk dentro da seção"
+                    },
+                    "header": {
+                        "type": "string",
+                        "title": "Header",
+                        "description": "Header da seção — contexto do chunk para embedding"
+                    },
+                    "text": {
+                        "type": "string",
+                        "title": "Text",
+                        "description": "Texto do chunk"
+                    },
+                    "metadata": {
+                        "$ref": "#/components/schemas/ChunkMetadataSchema",
+                        "description": "Metadados extraídos via AST"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "order",
+                    "header",
+                    "text",
+                    "metadata"
+                ],
+                "title": "SectionChunkSchema"
+            },
+            "SectionSchema": {
+                "properties": {
+                    "header": {
+                        "type": "string",
+                        "title": "Header",
+                        "description": "Título da seção"
+                    },
+                    "level": {
+                        "type": "integer",
+                        "title": "Level",
+                        "description": "Profundidade do header (1=#, 2=##, etc.)"
+                    },
+                    "page_start": {
+                        "type": "integer",
+                        "title": "Page Start",
+                        "description": "Página onde a seção começa"
+                    },
+                    "chunks": {
+                        "items": {
+                            "$ref": "#/components/schemas/SectionChunkSchema"
+                        },
+                        "type": "array",
+                        "title": "Chunks",
+                        "description": "Chunks da seção prontos para embedding"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "header",
+                    "level",
+                    "page_start",
+                    "chunks"
+                ],
+                "title": "SectionSchema"
             },
             "TableChunkSchema": {
                 "properties": {
@@ -275,26 +361,6 @@
                     "chunks"
                 ],
                 "title": "TableSchema"
-            },
-            "TextChunkSchema": {
-                "properties": {
-                    "order": {
-                        "type": "integer",
-                        "title": "Order",
-                        "description": "Ordem do parágrafo dentro da página"
-                    },
-                    "text": {
-                        "type": "string",
-                        "title": "Text",
-                        "description": "Texto do parágrafo — unidade para embedding"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "order",
-                    "text"
-                ],
-                "title": "TextChunkSchema"
             },
             "ValidationError": {
                 "properties": {

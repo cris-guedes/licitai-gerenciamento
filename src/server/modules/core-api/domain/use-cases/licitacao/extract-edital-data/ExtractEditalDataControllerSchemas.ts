@@ -67,7 +67,7 @@ const EditalItemSchema = z.object({
     unidade:                 z.string(),
     valor_unitario_estimado: nullable(z.number()),
     valor_total_estimado:    nullable(z.number()),
-    ncm:                     nullable(z.string()),
+    catmat_catser:           nullable(z.string()),
 });
 
 const EditalSchema = z.object({

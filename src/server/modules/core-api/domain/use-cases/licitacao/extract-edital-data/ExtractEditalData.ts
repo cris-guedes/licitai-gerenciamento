@@ -8,10 +8,12 @@ import { ExtractionSessionProvider } from "@/server/shared/infra/providers/sessi
 import { HttpDownloadProvider } from "@/server/shared/infra/providers/download/download-provider";
 import { ExtractEditalDataControllerSchemas } from "./ExtractEditalDataControllerSchemas";
 import { VectorSearchAgent } from "@/server/shared/infra/providers/ai/edital-extraction/vector-search-agent";
+import { TableItemExtractorAgent } from "@/server/shared/infra/providers/ai/edital-extraction/table-item-extractor";
 import type { ProcessPdfResponse } from "@/server/shared/lib/document-handler";
 
 export class ExtractEditalData {
     private readonly agent: VectorSearchAgent;
+    private readonly itemsAgent: TableItemExtractorAgent;
 
     constructor(
         private readonly documentParser: DocumentHandlerFileParsingProvider.Contract,
@@ -23,6 +25,7 @@ export class ExtractEditalData {
         private readonly downloadProvider: HttpDownloadProvider.Contract,
     ) {
         this.agent = new VectorSearchAgent(this.embeddingProvider, this.vectorStore);
+        this.itemsAgent = new TableItemExtractorAgent(this.embeddingProvider, this.vectorStore);
     }
 
     async execute(request: ExtractEditalData.Params): Promise<ExtractEditalData.Response> {
@@ -45,6 +48,13 @@ export class ExtractEditalData {
         const { response, wallTimeMs: apiTimeMs } = await this.documentParser.process(pdfBuffer, pdfUrl);
         const conversionTimeMs = tConvert({ sessionId, apiMs: apiTimeMs });
 
+        // DEBUG: Inspecionar seções do DocumentHandler
+        console.log(`[ExtractEditalData] 📋 Seções retornadas pelo DocumentHandler (${response.sections.length}):`);
+        for (const [i, section] of response.sections.entries()) {
+            const firstChunkPreview = section.chunks[0]?.text?.slice(0, 120) ?? "(sem chunks)";
+            console.log(`  [${i}] header="${section.header}" | level=${section.level} | page=${section.page_start} | chunks=${section.chunks.length} | preview: ${firstChunkPreview}`);
+        }
+
         // 3. Embedding & Indexing
         const vectorEntries = this.buildVectorEntries(response, sessionId);
         if (vectorEntries.length > 0) {
@@ -56,19 +66,33 @@ export class ExtractEditalData {
             console.log(`[ExtractEditalData] Embedding/Indexing concluído em ${Date.now() - tEmbed}ms`);
         }
 
-        // 4. Extração via agente
-        console.log(`[ExtractEditalData] Iniciando extração via agente...`);
+        // 4. Extração via agentes paralelos
+        console.log(`[ExtractEditalData] Iniciando extração via agentes (Principal + Tabelas ITENS)...`);
         const tExtract = Date.now();
 
-        await this.agent.warmupEmbeddings();
-        const agentResult = await this.agent.extract();
+        await Promise.all([this.agent.warmupEmbeddings(), this.itemsAgent.warmupEmbeddings()]);
+        
+        const [agentResult, itemsResult] = await Promise.all([
+            this.agent.extract(),
+            this.itemsAgent.extract()
+        ]);
 
         console.log(`[ExtractEditalData] Extração IA concluída em ${Date.now() - tExtract}ms`);
 
         const extraction = this.mapAgentResultToSchema(agentResult.extraction);
-        if (extraction?.edital) extraction.edital.itens = [];
+        if (extraction?.edital && itemsResult.itens) {
+            extraction.edital.itens = itemsResult.itens;
+        }
 
         // 5. Métricas e Resposta
+        const topChunks = agentResult.hits.slice(0, 20).map(hit => ({
+            id: hit.id,
+            score: hit.score,
+            headings: [hit.metadata.section as string, hit.metadata.header as string].filter(Boolean),
+            charCount: hit.text?.length ?? 0,
+            preview: hit.text?.slice(0, 500) ?? ""
+        }));
+
         const metrics: ExtractEditalDataControllerSchemas.Metrics = {
             sessionId,
             timestamp: new Date().toISOString(),
@@ -86,7 +110,11 @@ export class ExtractEditalData {
             totalTablesInPdf: response.total_tables,
             doclingFilename: response.filename,
             tempDir: this.sessionStorage.tempDirFor(sessionId),
-            tokensUsed: agentResult.tokensUsed,
+            tokensUsed: {
+                prompt: agentResult.tokensUsed.prompt + itemsResult.tokensUsed.prompt,
+                completion: agentResult.tokensUsed.completion + itemsResult.tokensUsed.completion,
+                total: agentResult.tokensUsed.total + itemsResult.tokensUsed.total
+            },
             config: {
                 chunkSize: 0, chunkOverlap: 0,
                 embeddingModel: this.embeddingProvider.MODEL_NAME,
@@ -96,12 +124,12 @@ export class ExtractEditalData {
                 topKPorIntent: {},
                 queriesPorIntent: { "agent_searches": agentResult.searchesPerformed as any },
             },
-            topChunks: [],
+            topChunks,
         };
 
-        const mdContent = response.pages.flatMap(p => p.chunks.map(c => c.text)).join("\n\n---\n\n");
+        const mdContent = response.sections.flatMap(s => s.chunks.map(c => c.text)).join("\n\n---\n\n");
         const finalExtraction = extraction as ExtractEditalData.Response["extraction"];
-        await this.sessionStorage.save({ sessionId, pdfBuffer, mdContent, filteredMd: mdContent, chunks: [], topChunks: [], extraction: finalExtraction, metrics });
+        await this.sessionStorage.save({ sessionId, pdfBuffer, mdContent, filteredMd: mdContent, chunks: [], topChunks, extraction: finalExtraction, metrics });
         return { sessionId, mdContent, extraction: finalExtraction, metrics };
     }
 
@@ -132,7 +160,7 @@ export class ExtractEditalData {
                     ambito: e.orgao_gerenciador?.esfera ?? "Não identificado",
                 },
                 datas,
-                itens: [],
+                itens: e.itens ?? [],
             }
         };
     }
@@ -141,14 +169,45 @@ export class ExtractEditalData {
         const entries: ExtractEditalData.VectorEntry[] = [];
         let idx = 0;
 
-        // Chunks de texto
-        for (const page of doc.pages) {
-            for (const chunk of page.chunks) {
+        // Chunks de texto (Seções)
+        for (const section of doc.sections) {
+            for (const chunk of section.chunks) {
                 if (!chunk.text.trim()) continue;
+
+                // Enriquecimento semântico otimizado (redução de ruído)
+                const headerContext = `# ${section.header}${chunk.header && chunk.header !== section.header ? `\n## ${chunk.header}` : ""}`;
+                
+                const meta = chunk.metadata;
+                const chunkTextLower = chunk.text.toLowerCase();
+                
+                // Extração cirúrgica de termos de alta relevância (evita repetir o que já está no texto e frases longas)
+                const relevantTerms = [
+                    ...meta.bold.fragments,
+                    ...meta.italic.fragments,
+                    ...meta.code.fragments
+                ]
+                .filter(term => term.length >= 3 && term.length <= 35) // Apenas palavras-chave, não frases completas
+                .filter(term => !chunkTextLower.includes(term.toLowerCase())) // Evita redundância
+                .filter((v, i, a) => a.indexOf(v) === i); // Unicidade
+
+                const footer = relevantTerms.length > 0 
+                    ? `\n\nTAGS: ${relevantTerms.join(", ")}` 
+                    : "";
+                
+                const augmentedText = `${headerContext}\n\n${chunk.text}${footer}`;
+
                 entries.push({
-                    id: `${sessionId}-txt-${page.page}-${chunk.order}`,
-                    text: chunk.text,
-                    metadata: { type: "text", page: page.page, order: chunk.order, chunk_index: idx++ },
+                    id: `${sessionId}-chunk-${idx}`,
+                    text: augmentedText,
+                    metadata: { 
+                        type: "text", 
+                        section: section.header,
+                        header: chunk.header,
+                        page: section.page_start, 
+                        order: chunk.order, 
+                        chunk_index: idx++,
+                        ast_metadata: chunk.metadata
+                    },
                 });
             }
         }

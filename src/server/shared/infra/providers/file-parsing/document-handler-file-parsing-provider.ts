@@ -15,7 +15,7 @@ export class DocumentHandlerFileParsingProvider {
         const response = await this.client.processPdf(pdfBuffer, filename);
         const wallTimeMs = Date.now() - t0;
 
-        console.log(`[DocumentHandlerFileParsingProvider] páginas: ${response.total_pages} | tabelas: ${response.total_tables} | chars: ${response.total_chars} | ${wallTimeMs}ms`);
+        console.log(`[DocumentHandlerFileParsingProvider] pág: ${response.total_pages} | seções: ${response.total_sections} | tab: ${response.total_tables} | chars: ${response.total_chars} | ${wallTimeMs}ms`);
         return { response, wallTimeMs };
     }
 }

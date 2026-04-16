@@ -1,11 +1,11 @@
-type Entry = {
+export type Entry = {
     id:        string;
     embedding: Float32Array;
     text?:     string;
     metadata?: Record<string, unknown>;
 };
 
-type SearchResult = {
+export type SearchResult = {
     id:       string;
     score:    number;
     text:     string | undefined;

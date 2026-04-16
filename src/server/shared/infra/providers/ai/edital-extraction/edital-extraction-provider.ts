@@ -89,7 +89,7 @@ export namespace EditalExtractionProvider {
         unidade:                 string
         valor_unitario_estimado: number | null
         valor_total_estimado:    number | null
-        ncm:                     string | null
+        catmat_catser:           string | null
     }
 
     export type Edital = {
