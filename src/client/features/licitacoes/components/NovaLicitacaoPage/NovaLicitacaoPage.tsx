@@ -4,184 +4,130 @@ import { useState } from "react"
 import { useCoreApi } from "@/client/hooks/use-core-api"
 import { useLicitacaoService } from "../../services/use-licitacao.service"
 import { Button } from "@/client/components/ui/button"
-import { Input } from "@/client/components/ui/input"
 import { Card, CardContent } from "@/client/components/ui/card"
 import { Badge } from "@/client/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/client/components/ui/tabs"
-import { FileText, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronRight, Zap, Scale, Sparkles, ScanSearch, BrainCircuit } from "lucide-react"
+import {
+    FileText, Loader2, CheckCircle2, AlertCircle,
+    Building2, CalendarClock, Gavel, Truck, Info, Users2, ClipboardCheck,
+    ListOrdered, Upload, X
+} from "lucide-react"
 import { MarkdownViewer } from "../MarkdownViewer/MarkdownViewer"
+import { Separator } from "@/client/components/ui/separator"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/client/components/ui/table"
 import type { ExtractEditalDataResponse } from "@/client/main/infra/apis/api-core/models/ExtractEditalDataResponse"
-import type { ExtractionMode } from "@/client/main/infra/apis/api-core/services/LicitacaoService"
-
-// ─── Definição dos modos ──────────────────────────────────────────────────────
-
-const MODES: Array<{
-    id:          ExtractionMode
-    label:       string
-    description: string
-    detail:      string
-    icon:        (props: { className?: string }) => React.ReactNode
-    slow?:       boolean
-}> = [
-    {
-        id:          "velocidade",
-        label:       "Velocidade",
-        description: "Parser leve com análise básica de tabelas",
-        detail:      "pypdfium2 · sem OCR · tabelas básicas",
-        icon:        Zap,
-    },
-    {
-        id:          "balanceado",
-        label:       "Balanceado",
-        description: "Análise de tabelas com parser padrão",
-        detail:      "docling_parse · sem OCR · tabelas precisas",
-        icon:        Scale,
-    },
-    {
-        id:          "qualidade",
-        label:       "Qualidade",
-        description: "Parser de última geração para documentos complexos",
-        detail:      "dlparse_v4 · sem OCR · tabelas precisas",
-        icon:        Sparkles,
-        slow:        true,
-    },
-    {
-        id:          "imagem",
-        label:       "Extração de Imagem",
-        description: "OCR forçado para PDFs escaneados (páginas como foto)",
-        detail:      "docling_parse · OCR easyocr · tabelas precisas",
-        icon:        ScanSearch,
-        slow:        true,
-    },
-    {
-        id:          "agente",
-        label:       "Agente IA",
-        description: "Agente com busca vetorial que reconstrói contexto antes de extrair",
-        detail:      "vector search · multi-query · AI SDK",
-        icon:        BrainCircuit,
-        slow:        true,
-    },
-]
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function NovaLicitacaoPage() {
-    const api      = useCoreApi()
-    const { extractEditalData } = useLicitacaoService(api)
-    const mutation = extractEditalData()
+    const api    = useCoreApi()
+    const { extractEditalDataStream } = useLicitacaoService(api)
+    const stream = extractEditalDataStream()
 
-    const [pdfUrl, setPdfUrl] = useState("")
-    const [mode,   setMode]   = useState<ExtractionMode>("balanceado")
-    const [result, setResult] = useState<ExtractEditalDataResponse | null>(null)
+    const [pdfFile, setPdfFile] = useState<File | null>(null)
+    const [result,  setResult]  = useState<ExtractEditalDataResponse | null>(null)
 
     async function handleSubmit(e: { preventDefault(): void }) {
         e.preventDefault()
-        if (!pdfUrl.trim()) return
+        if (!pdfFile) return
         setResult(null)
-        const data = await mutation.mutateAsync({ pdfUrl: pdfUrl.trim(), mode })
-        setResult(data)
+        stream.reset()
+        try {
+            const data = await stream.mutateAsync({ file: pdfFile })
+            setResult(data)
+        } catch { /* error já está em stream.error */ }
     }
 
-    const isLoading  = mutation.isPending
-    const error      = mutation.error as Error | null
-    const activeMode = MODES.find(m => m.id === mode)!
+    function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+        setPdfFile(e.target.files?.[0] ?? null)
+    }
+
+    function clearFile() {
+        setPdfFile(null)
+        const input = document.getElementById("edital-file-input") as HTMLInputElement | null
+        if (input) input.value = ""
+    }
 
     return (
         <div className="w-full space-y-6">
             <div>
                 <h1 className="text-2xl font-semibold">Nova Licitação</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                    Informe a URL do PDF do edital para extrair os dados automaticamente.
+                    Faça o upload do PDF do edital para extrair os dados automaticamente.
                 </p>
             </div>
 
             <Card>
-                <CardContent className="pt-6 space-y-5">
-                    {/* Seletor de modo */}
-                    <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-                            Modo de extração
-                        </p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                            {MODES.map((m) => {
-                                const Icon     = m.icon
-                                const selected = mode === m.id
-                                return (
-                                    <button
-                                        key={m.id}
-                                        type="button"
-                                        onClick={() => setMode(m.id)}
-                                        disabled={isLoading}
-                                        className={`
-                                            relative flex flex-col gap-2 rounded-lg border p-3 text-left transition-colors
-                                            ${selected
-                                                ? "border-primary bg-primary/5"
-                                                : "border-border hover:border-muted-foreground/40 hover:bg-muted/30"
-                                            }
-                                            disabled:opacity-50 disabled:cursor-not-allowed
-                                        `}
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <Icon className={`size-4 ${selected ? "text-primary" : "text-muted-foreground"}`} />
-                                            {m.slow && (
-                                                <span className="text-[9px] uppercase tracking-wide text-amber-600 dark:text-amber-400 font-medium">
-                                                    lento
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <p className={`text-xs font-semibold ${selected ? "text-primary" : "text-foreground"}`}>
-                                                {m.label}
-                                            </p>
-                                            <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
-                                                {m.description}
-                                            </p>
-                                        </div>
-                                        <p className="text-[10px] font-mono text-muted-foreground/60 leading-tight">
-                                            {m.detail}
-                                        </p>
-                                    </button>
-                                )
-                            })}
-                        </div>
-                    </div>
-
-                    {/* URL + botão */}
+                <CardContent className="pt-6 space-y-4">
                     <form onSubmit={handleSubmit} className="flex gap-3">
-                        <Input
-                            type="url"
-                            placeholder="https://pncp.gov.br/.../edital.pdf"
-                            value={pdfUrl}
-                            onChange={(e) => setPdfUrl(e.target.value)}
-                            disabled={isLoading}
-                            className="flex-1"
-                        />
-                        <Button type="submit" disabled={isLoading || !pdfUrl.trim()}>
-                            {isLoading ? (
+                        <div className="flex-1">
+                            {pdfFile ? (
+                                <div className="flex items-center gap-2 h-9 px-3 rounded-md border bg-muted/30 text-sm">
+                                    <FileText className="size-4 text-primary shrink-0" />
+                                    <span className="flex-1 truncate font-medium">{pdfFile.name}</span>
+                                    <span className="text-xs text-muted-foreground shrink-0">
+                                        {formatBytes(pdfFile.size)}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={clearFile}
+                                        disabled={stream.isPending}
+                                        className="text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-50"
+                                    >
+                                        <X className="size-3.5" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <label
+                                    htmlFor="edital-file-input"
+                                    className="flex items-center gap-2 h-9 px-3 rounded-md border border-dashed cursor-pointer hover:bg-muted/30 transition-colors text-sm text-muted-foreground"
+                                >
+                                    <Upload className="size-4 shrink-0" />
+                                    <span>Clique para selecionar o PDF do edital</span>
+                                </label>
+                            )}
+                            <input
+                                id="edital-file-input"
+                                type="file"
+                                accept=".pdf,application/pdf"
+                                onChange={handleFileChange}
+                                disabled={stream.isPending}
+                                className="sr-only"
+                            />
+                        </div>
+                        <Button type="submit" disabled={stream.isPending || !pdfFile}>
+                            {stream.isPending ? (
                                 <><Loader2 className="size-4 mr-2 animate-spin" />Processando...</>
                             ) : (
                                 <><FileText className="size-4 mr-2" />Extrair Edital</>
                             )}
                         </Button>
                     </form>
-                    {isLoading && (
-                        <p className="text-xs text-muted-foreground">
-                            {mode === "agente"
-                                ? "Baixando PDF → convertendo para Markdown → indexando chunks → agente realizando buscas vetoriais → extraindo dados..."
-                                : `Baixando PDF → convertendo para Markdown via Docling (${activeMode.label}) → extraindo dados com OpenAI...`
-                            }
-                        </p>
+
+                    {stream.isPending && stream.progress && (
+                        <ExtractionProgress
+                            message={stream.progress.message}
+                            percent={stream.progress.percent}
+                        />
+                    )}
+
+                    {(stream.isPending || stream.highWaterPct > 0) && !result && (
+                        <ExtractionChecklist
+                            highWater={stream.highWaterPct}
+                            currentMessage={stream.progress?.message ?? null}
+                            isPending={stream.isPending}
+                        />
                     )}
                 </CardContent>
             </Card>
 
-            {error && (
+            {stream.error && (
                 <Card className="border-destructive">
                     <CardContent className="pt-4 flex items-start gap-3">
                         <AlertCircle className="size-5 text-destructive shrink-0 mt-0.5" />
                         <div>
                             <p className="font-medium text-sm text-destructive">Erro na extração</p>
-                            <p className="text-sm text-muted-foreground mt-0.5">{error.message}</p>
+                            <p className="text-sm text-muted-foreground mt-0.5">{stream.error.message}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -189,41 +135,37 @@ export function NovaLicitacaoPage() {
 
             {result && (
                 <div className="space-y-4">
-                    {/* Métricas */}
-                    <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20">
-                        <CardContent className="pt-4">
-                            <div className="flex items-center gap-3 mb-4">
-                                <CheckCircle2 className="size-5 text-emerald-600 shrink-0" />
-                                <div>
-                                    <p className="font-medium text-sm">Extração concluída</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        Sessão: <code className="font-mono">{result.sessionId}</code>
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-3 gap-3 sm:grid-cols-7">
-                                <MetricBadge label="PDF"        value={formatBytes(result.metrics.pdfFileSizeBytes)} />
-                                <MetricBadge label="Páginas"    value={`~${estimatePages(result.metrics.mdWordCount)}`} />
-                                <MetricBadge label="Conversão"  value={formatSeconds(result.metrics.conversionTimeMs)} />
-                                <MetricBadge label="OpenAI"     value={formatSeconds(result.metrics.extractionTimeMs)} />
-                                <MetricBadge label="Total"      value={formatSeconds(result.metrics.totalTimeMs)} />
-                                <MetricBadge label="Tokens"     value={result.metrics.tokensUsed.total.toLocaleString("pt-BR")} />
-                                <MetricBadge label="Itens"      value={String(result.extraction.edital.itens?.length ?? 0)} />
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <ExtractionMetrics result={result} />
 
-                    {/* Resultado */}
-                    <Tabs defaultValue="edital">
+                    <Tabs defaultValue="licitacao">
                         <TabsList>
-                            <TabsTrigger value="edital">Edital</TabsTrigger>
+                            <TabsTrigger value="licitacao">Licitação</TabsTrigger>
+                            <TabsTrigger value="json">Dados (JSON)</TabsTrigger>
+                            <TabsTrigger value="json-readable">JSON (Legível)</TabsTrigger>
                             <TabsTrigger value="markdown">Markdown</TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="edital" className="mt-4">
-                            <Card>
-                                <CardContent className="pt-4">
-                                    <JsonViewer data={result.extraction.edital} />
+                        <TabsContent value="licitacao" className="mt-4">
+                            <LicitacaoDetailView data={result.licitacao} />
+                        </TabsContent>
+
+                        <TabsContent value="json" className="mt-4">
+                            <Card className="bg-slate-950 border-slate-800">
+                                <CardContent className="p-0">
+                                    <pre className="p-6 text-emerald-400 font-mono text-xs overflow-auto max-h-[600px] leading-relaxed">
+                                        {JSON.stringify(result.licitacao, null, 2)}
+                                    </pre>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        <TabsContent value="json-readable" className="mt-4">
+                            <Card className="border-border/50 bg-muted/5">
+                                <CardContent className="p-6">
+                                    <div className="font-mono text-sm space-y-2">
+                                        <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest mb-4">Estrutura de Dados Extraída</p>
+                                        <JsonView data={result.licitacao} />
+                                    </div>
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -232,8 +174,8 @@ export function NovaLicitacaoPage() {
                             <Card className="overflow-hidden border-none shadow-none bg-transparent">
                                 <MarkdownViewer
                                     content={result.mdContent}
-                                    wordCount={result.metrics.mdWordCount}
-                                    fileSizeKb={result.metrics.mdFileSizeBytes / 1024}
+                                    wordCount={result.metrics.totalWords}
+                                    fileSizeKb={result.metrics.totalChars / 1024}
                                 />
                             </Card>
                         </TabsContent>
@@ -244,179 +186,498 @@ export function NovaLicitacaoPage() {
     )
 }
 
-// ─── Helpers de tipo ─────────────────────────────────────────────────────────
+// ─── Progress bar ─────────────────────────────────────────────────────────────
 
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-    return v !== null && typeof v === "object" && !Array.isArray(v)
-}
-
-function formatKey(key: string): string {
-    return key.replace(/_/g, " ")
-}
-
-// ─── Viewer principal ─────────────────────────────────────────────────────────
-
-function JsonViewer({ data }: { data: unknown }) {
-    if (isPlainObject(data)) return <JsonSections obj={data} depth={0} />
-    return <div className="text-sm"><JsonScalar value={data} /></div>
-}
-
-// Separa os campos em: escalares (grid), objetos (seções), arrays (tabelas)
-function JsonSections({ obj, depth }: { obj: Record<string, unknown>; depth: number }) {
-    const entries = Object.entries(obj)
-    const scalars = entries.filter(([, v]) => !isPlainObject(v) && !Array.isArray(v))
-    const objects = entries.filter(([, v]) => isPlainObject(v))
-    const arrays  = entries.filter(([, v]) => Array.isArray(v))
-
+function ExtractionProgress({ message, percent }: { message: string; percent: number }) {
     return (
-        <div className="space-y-5">
-            {scalars.length > 0 && (
-                <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-3">
-                    {scalars.map(([k, v]) => (
-                        <div key={k} className="min-w-0">
-                            <dt className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5 truncate">{formatKey(k)}</dt>
-                            <dd className="text-sm font-medium"><JsonScalar value={v} /></dd>
-                        </div>
-                    ))}
-                </dl>
-            )}
-            {objects.map(([k, v]) => (
-                <div key={k}>
-                    <SectionLabel title={k} depth={depth} />
-                    <JsonSections obj={v as Record<string, unknown>} depth={depth + 1} />
-                </div>
-            ))}
-            {arrays.map(([k, v]) => (
-                <div key={k}>
-                    <SectionLabel title={k} depth={depth} />
-                    <JsonArrayTable items={v as unknown[]} />
-                </div>
-            ))}
+        <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{message}</span>
+                <span className="font-mono">{percent}%</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                    className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+                    style={{ width: `${percent}%` }}
+                />
+            </div>
         </div>
     )
 }
 
-function SectionLabel({ title, depth }: { title: string; depth: number }) {
+// ─── Checklist de etapas ─────────────────────────────────────────────────────
+
+const CHECKLIST_STEPS = [
+    { label: "Arquivo recebido",           doneAt: 9  },
+    { label: "PDF convertido para texto",  doneAt: 31 },
+    { label: "Conteúdo indexado",          doneAt: 51 },
+    { label: "Campos do edital extraídos", doneAt: 71 },
+    { label: "Itens licitados extraídos",  doneAt: 83 },
+    { label: "Licitação estruturada",      doneAt: 100 },
+] as const
+
+function ExtractionChecklist({
+    highWater,
+    currentMessage,
+    isPending,
+}: {
+    highWater:      number
+    currentMessage: string | null
+    isPending:      boolean
+}) {
+    const currentIdx = CHECKLIST_STEPS.findIndex(s => highWater < s.doneAt)
+
     return (
-        <p className={`uppercase tracking-wide text-muted-foreground border-b border-border/40 pb-1 mb-3 ${depth === 0 ? "text-[11px] font-semibold" : "text-[10px]"}`}>
-            {formatKey(title)}
-        </p>
+        <div className="pt-1 space-y-1.5">
+            {CHECKLIST_STEPS.map((step, i) => {
+                const done    = highWater >= step.doneAt
+                const current = !done && isPending && i === currentIdx
+
+                return (
+                    <div key={i} className="flex items-start gap-2.5">
+                        <div className="mt-0.5 size-4 shrink-0 flex items-center justify-center">
+                            {done ? (
+                                <CheckCircle2 className="size-4 text-emerald-500" />
+                            ) : current ? (
+                                <Loader2 className="size-3.5 text-primary animate-spin" />
+                            ) : (
+                                <div className="size-2 rounded-full bg-border mt-1" />
+                            )}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                            <span className={`text-sm leading-tight ${done ? "text-foreground font-medium" : current ? "text-foreground" : "text-muted-foreground/40"}`}>
+                                {step.label}
+                            </span>
+                            {current && currentMessage && (
+                                <span className="text-xs text-muted-foreground mt-0.5 truncate">
+                                    {currentMessage}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                )
+            })}
+        </div>
     )
 }
 
-function JsonScalar({ value }: { value: unknown }) {
-    if (value === null || value === undefined || value === "") {
-        return <span className="text-muted-foreground/40 italic text-xs">—</span>
-    }
-    if (typeof value === "boolean") {
-        return (
-            <Badge variant={value ? "default" : "outline"} className="text-xs font-mono py-0 h-5">
+// ─── Métricas ─────────────────────────────────────────────────────────────────
+
+function ExtractionMetrics({ result }: { result: ExtractEditalDataResponse }) {
+    const { metrics, licitacao } = result
+    const totalItens = licitacao.edital?.itens?.length ?? 0
+
+    return (
+        <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20">
+            <CardContent className="pt-4">
+                <div className="flex items-center gap-3 mb-4">
+                    <CheckCircle2 className="size-5 text-emerald-600 shrink-0" />
+                    <div>
+                        <p className="font-medium text-sm">Extração concluída</p>
+                        <p className="text-xs text-muted-foreground">
+                            Sessão: <code className="font-mono">{result.sessionId}</code>
+                        </p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-4 gap-3 sm:grid-cols-8">
+                    <MetricBadge label="PDF"         value={formatBytes(metrics.pdfFileSizeBytes)} />
+                    <MetricBadge label="Palavras"     value={metrics.totalWords.toLocaleString("pt-BR")} />
+                    <MetricBadge label="Chunks"       value={String(metrics.entriesIndexed)} />
+                    <MetricBadge label="Conversão"    value={formatSeconds(metrics.conversionTimeMs)} />
+                    <MetricBadge label="Indexação"    value={formatSeconds(metrics.indexingTimeMs)} />
+                    <MetricBadge label="Extração IA"  value={formatSeconds(metrics.extractionTimeMs)} />
+                    <MetricBadge label="Total"        value={formatSeconds(metrics.totalTimeMs)} />
+                    <MetricBadge label="Tokens"       value={metrics.tokensUsed.total.toLocaleString("pt-BR")} />
+                </div>
+                {totalItens > 0 && (
+                    <p className="text-xs text-muted-foreground mt-3">
+                        {totalItens} {totalItens === 1 ? "item extraído" : "itens extraídos"}
+                    </p>
+                )}
+            </CardContent>
+        </Card>
+    )
+}
+
+// ─── Licitacao Detail View ───────────────────────────────────────────────────
+
+function LicitacaoDetailView({ data }: { data: ExtractEditalDataResponse["licitacao"] }) {
+    if (!data) return null;
+
+    return (
+        <div className="space-y-6">
+            {/* 1. Header / Capa */}
+            <Card className="overflow-hidden border-l-4 border-l-primary">
+                <CardContent className="p-6">
+                    <div className="flex flex-col md:flex-row justify-between gap-4">
+                        <div className="space-y-1 flex-1">
+                             <div className="flex items-center gap-8 mb-4">
+                                <InfoField 
+                                    label="Modalidade" 
+                                    value={
+                                        <Badge variant="outline" className="font-mono text-[10px] uppercase h-5">
+                                            {data.modalidade?.replace("_", " ") ?? "N/A"}
+                                        </Badge>
+                                    } 
+                                />
+                                <InfoField 
+                                    label="Registro de Preços" 
+                                    value={
+                                        <Badge 
+                                            className={`${data.srp ? "bg-amber-100 text-amber-800 border-amber-200" : "bg-slate-100 text-slate-800 border-slate-200"} hover:opacity-100 h-5 text-[10px] uppercase font-bold`}
+                                        >
+                                            {data.srp ? "Sim (SRP)" : "Não"}
+                                        </Badge>
+                                    } 
+                                />
+                            </div>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6 mt-4">
+                                <div className="space-y-4">
+                                    <div>
+                                        <p className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider font-mono mb-0.5">Número / Ano</p>
+                                        <h2 className="text-xl font-bold tracking-tight text-foreground">
+                                            {data.numeroLicitacao} / {data.ano}
+                                        </h2>
+                                    </div>
+                                    <div className="flex gap-8">
+                                        <InfoField label="Processo" value={data.processo} />
+                                        <InfoField label="Situação" value={data.situacao} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider font-mono mb-0.5">Objeto</p>
+                                        <p className="text-sm text-muted-foreground leading-relaxed">
+                                            {data.objeto}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="space-y-4">
+                                     <div className="flex flex-row md:flex-col gap-4 md:items-end justify-between md:justify-start">
+                             <div className="text-right">
+                                 <p className="text-[10px] uppercase font-semibold text-muted-foreground">Valor Estimado</p>
+                                 <p className="text-lg font-bold text-primary">
+                                     {data.valorTotalEstimado ? `R$ ${data.valorTotalEstimado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
+                                 </p>
+                             </div>
+                             <div className="text-right">
+                                 <p className="text-[10px] uppercase font-semibold text-muted-foreground">Valor Homologado</p>
+                                 <p className="text-lg font-bold text-emerald-600">
+                                     {data.valorTotalHomologado ? `R$ ${data.valorTotalHomologado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
+                                 </p>
+                             </div>
+                             {data.dataPublicacao && (
+                                 <div className="text-right">
+                                     <p className="text-[10px] uppercase font-semibold text-muted-foreground">Publicação</p>
+                                     <p className="text-sm font-medium">{formatDate(data.dataPublicacao)}</p>
+                                 </div>
+                             )}
+                         </div>
+                                    <InfoField label="Amparo Legal" value={data.edital?.amparoLegal} fullWidth />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <InfoField label="ID Externo" value={data.identificadorExterno} />
+                                        <InfoField label="Link Processo" value={data.linkProcesso} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* 2. Órgão Gerenciador */}
+                 <SectionCard title="Órgão Gerenciador" icon={Building2} evidence={data.orgaoGerenciador?.textoOriginal}>
+                     <div className="grid grid-cols-2 gap-4">
+                         <InfoField label="Nome do Órgão" value={data.orgaoGerenciador?.nome} fullWidth />
+                         <InfoField label="CNPJ" value={data.orgaoGerenciador?.cnpj} />
+                         <InfoField label="Esfera" value={data.orgaoGerenciador?.esfera} isEnum />
+                         <InfoField label="Unidade (UASG/Cód)" value={data.orgaoGerenciador?.codigoUnidade ? `${data.orgaoGerenciador.codigoUnidade} - ${data.orgaoGerenciador.nomeUnidade}` : null} fullWidth />
+                         <InfoField label="Cidade/UF" value={data.orgaoGerenciador?.municipio ? `${data.orgaoGerenciador.municipio} / ${data.orgaoGerenciador.uf}` : null} />
+                         <InfoField label="Poder" value={data.orgaoGerenciador?.poder} isEnum />
+                     </div>
+                 </SectionCard>
+
+                {/* 3. Cronograma */}
+                <SectionCard title="Cronograma" icon={CalendarClock} evidence={data.edital?.cronograma.textoOriginal}>
+                    <div className="grid grid-cols-2 gap-4">
+                        <InfoField label="Abertura Propostas" value={data.edital?.cronograma.acolhimentoInicio} isDate />
+                        <InfoField label="Limite Propostas" value={data.edital?.cronograma.acolhimentoFim} isDate />
+                        <InfoField label="Hora Limite" value={data.edital?.cronograma.horaLimite} />
+                        <InfoField label="Sessão Pública" value={data.edital?.cronograma.sessaoPublica} isDate />
+                        <InfoField label="Esclarecimentos Até" value={data.edital?.cronograma.esclarecimentosAte} isDate fullWidth />
+                    </div>
+                </SectionCard>
+
+                {/* 4. Regras do Certame */}
+                 <SectionCard title="Regras e Disputa" icon={Gavel} evidence={data.edital?.certame.textoOriginal}>
+                     <div className="grid grid-cols-2 gap-4">
+                         <InfoField label="Modo de Disputa" value={data.edital?.certame.modoDisputa} />
+                         <InfoField label="Critério Julgamento" value={data.edital?.certame.criterioJulgamento} />
+                         <InfoField label="Tipo Instrumento" value={data.edital?.certame.tipoInstrumento} />
+                         <InfoField label="Intervalo Lances" value={data.edital?.certame.intervaloLances} />
+                         <InfoField label="Exclusivo ME/EPP" value={data.edital?.certame.exclusivoMeEpp} isBoolean />
+                         <InfoField label="Permite Adesão (Carona)" value={data.edital?.certame.permiteAdesao} isBoolean />
+                         <InfoField label="Máx. Adesão (%)" value={data.edital?.certame.percentualAdesao ? `${data.edital.certame.percentualAdesao}%` : null} />
+                         <InfoField label="DIFAL" value={data.edital?.certame.difal} isBoolean />
+                         <InfoField label="Regionalidade" value={data.edital?.certame.regionalidade} />
+                     </div>
+                 </SectionCard>
+
+                {/* 5. Execução e Logística */}
+                <SectionCard title="Logística e Prazos" icon={Truck}>
+                    <div className="grid grid-cols-2 gap-4">
+                        <InfoField 
+                            label="Prazo de Entrega" 
+                            value={data.edital?.execucao.entrega.prazoEmDias ? `${data.edital.execucao.entrega.prazoEmDias} dias` : null} 
+                            subValue={data.edital?.execucao.entrega.textoOriginal}
+                        />
+                        <InfoField label="Tipo Entrega" value={data.edital?.execucao.entrega.tipoEntrega} isEnum />
+                        <InfoField label="Instalação por" value={data.edital?.execucao.entrega.responsavelInstalacao} isEnum />
+                        <div className="grid grid-cols-2 gap-2">
+                             <InfoField label="Validade Proposta" value={data.edital?.execucao.validadeProposta ? `${data.edital.execucao.validadeProposta} dias` : null} />
+                             <InfoField 
+                                label="Prazo Aceite" 
+                                value={data.edital?.execucao.aceite.prazoEmDias ? `${data.edital.execucao.aceite.prazoEmDias} dias` : null} 
+                                subValue={data.edital?.execucao.aceite.textoOriginal}
+                            />
+                        </div>
+                        <InfoField 
+                            label="Prazo de Pagamento" 
+                            value={data.edital?.execucao.pagamento.prazoEmDias ? `${data.edital.execucao.pagamento.prazoEmDias} dias` : null} 
+                            subValue={data.edital?.execucao.pagamento.textoOriginal}
+                        />
+                         <InfoField label="Garantia (Tipo)" value={data.edital?.execucao.garantia.tipo} isEnum subValue={data.edital?.execucao.garantia.textoOriginal} />
+                        <div className="grid grid-cols-2 gap-2">
+                            <InfoField label="Meses" value={data.edital?.execucao.garantia.meses} />
+                            <InfoField label="SLA Atend." value={data.edital?.execucao.garantia.tempoAtendimentoHoras ? `${data.edital.execucao.garantia.tempoAtendimentoHoras}h` : null} />
+                        </div>
+                        <InfoField label="Local de Entrega" value={data.edital?.execucao.entrega.localEntrega} fullWidth />
+                    </div>
+                </SectionCard>
+            </div>
+
+            {/* 6. Órgãos Participantes e Info Complementar */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {(data.edital?.orgaosParticipantes ?? []).length > 0 && (
+                    <SectionCard title="Órgãos Participantes" icon={Users2}>
+                        <div className="space-y-4">
+                            {data.edital?.orgaosParticipantes.map((org, i) => (
+                                <div key={i} className="text-xs p-3 rounded-lg bg-muted/30 border border-border/50">
+                                    <p className="font-bold text-primary mb-1">{org.nome}</p>
+                                    <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+                                        <span>CNPJ: {org.cnpj || "—"}</span>
+                                        <span>{org.municipio}/{org.uf}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </SectionCard>
+                )}
+
+                <SectionCard title="Informações Adicionais" icon={Info} evidence={data.edital?.textoOriginal}>
+                    <p className="text-sm text-muted-foreground leading-relaxed italic">
+                        {data.edital?.informacaoComplementar ? `"${data.edital.informacaoComplementar}"` : "Nenhuma informação complementar extraída."}
+                    </p>
+                </SectionCard>
+            </div>
+
+            {/* 7. Documentos de Habilitação */}
+            {data.edital?.habilitacao && data.edital.habilitacao.length > 0 && (
+                <SectionCard title="Documentos de Habilitação" icon={ClipboardCheck}>
+                    <div className="space-y-6">
+                        {Object.entries(
+                            (data.edital.habilitacao).reduce((acc, h) => {
+                                const cat = h.categoria || "Outros";
+                                if (!acc[cat]) acc[cat] = [];
+                                acc[cat].push(h);
+                                return acc;
+                            }, {} as Record<string, typeof data.edital.habilitacao>)
+                        ).map(([categoria, itens], idx) => (
+                            <div key={idx} className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[11px] font-bold uppercase text-primary/70 tracking-tight">{categoria}</span>
+                                    <Separator className="flex-1 opacity-50" />
+                                </div>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {(itens as typeof data.edital.habilitacao).map((h, i) => (
+                                        <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border/40 hover:bg-muted/60 transition-colors">
+                                            <span className="text-sm font-medium pr-4 leading-tight">{h.tipo}</span>
+                                            {h.obrigatorio && (
+                                                <Badge className="shrink-0 bg-blue-100/80 text-blue-800 hover:bg-blue-100/80 border-blue-200 text-[10px] h-5">Obrigatório</Badge>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </SectionCard>
+            )}
+
+            {/* 8. Itens */}
+            {data.edital?.itens && data.edital.itens.length > 0 && (
+                <SectionCard title="Itens da Licitação" icon={ListOrdered}>
+                    <div className="rounded-md border overflow-hidden">
+                        <Table>
+                            <TableHeader className="bg-muted/50">
+                                <TableRow>
+                                    <TableHead className="w-[60px]">Nº</TableHead>
+                                    <TableHead className="w-[80px]">Tipo</TableHead>
+                                    <TableHead>Descrição</TableHead>
+                                    <TableHead>Lote</TableHead>
+                                    <TableHead className="text-right">Qtd</TableHead>
+                                    <TableHead>Unid.</TableHead>
+                                    <TableHead className="text-right">Estimado</TableHead>
+                                    <TableHead className="text-right">Total</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {data.edital.itens.map((item, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell className="font-mono text-xs">{item.numero}</TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline" className="text-[10px] scale-90">{item.tipo || "—"}</Badge>
+                                        </TableCell>
+                                        <TableCell className="max-w-md">
+                                            <div className="space-y-1">
+                                                <p className="font-medium text-xs leading-tight">{item.descricao}</p>
+                                                {item.codigoNcmNbs && (
+                                                    <div className="space-y-0.5">
+                                                        <p className="text-[9px] text-muted-foreground font-mono">NCM: {item.codigoNcmNbs}</p>
+                                                        {item.descricaoNcmNbs && (
+                                                            <p className="text-[8px] text-muted-foreground/60 italic leading-none max-w-xs">{item.descricaoNcmNbs}</p>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                {item.codigoCatmatCatser && (
+                                                    <p className="text-[9px] text-primary/70 font-mono font-bold">CATMAT/SER: {item.codigoCatmatCatser}</p>
+                                                )}
+                                                {item.beneficioTributario && (
+                                                    <Badge variant="secondary" className="text-[9px] h-4 py-0 px-1 bg-amber-50 text-amber-700 border-amber-200">
+                                                        {item.beneficioTributario}
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">{item.lote || "—"}</TableCell>
+                                        <TableCell className="text-right text-xs">{item.quantidade}</TableCell>
+                                        <TableCell className="text-xs font-mono">{item.unidadeMedida}</TableCell>
+                                        <TableCell className="text-right text-xs font-semibold text-primary">
+                                            {item.valorUnitarioEstimado ? `R$ ${item.valorUnitarioEstimado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
+                                        </TableCell>
+                                        <TableCell className="text-right text-xs font-bold text-primary">
+                                            {item.valorTotal ? `R$ ${item.valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </SectionCard>
+            )}
+        </div>
+    );
+}
+
+// ─── Componentes de Apoio ───────────────────────────────────────────────────
+
+ function SectionCard({ title, icon: Icon, children, evidence }: { title: string, icon: any, children: React.ReactNode, evidence?: string | null }) {
+    const [showEvidence, setShowEvidence] = useState(false);
+
+    return (
+        <Card className="h-full flex flex-col">
+            <CardContent className="p-5 flex-1 flex flex-col">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                            <Icon className="size-4" />
+                        </div>
+                        <h3 className="font-semibold text-sm uppercase tracking-wider">{title}</h3>
+                    </div>
+                    {evidence && (
+                        <button 
+                            onClick={() => setShowEvidence(!showEvidence)}
+                            className="text-[10px] text-primary font-bold uppercase hover:underline flex items-center gap-1"
+                        >
+                            {showEvidence ? "Ocultar Fonte" : "Ver Fonte"}
+                        </button>
+                    )}
+                </div>
+                
+                <div className="flex-1">
+                    {children}
+                </div>
+
+                {evidence && showEvidence && (
+                    <div className="mt-4 pt-4 border-t border-dashed">
+                        <p className="text-[9px] uppercase font-bold text-muted-foreground/60 tracking-wider font-mono mb-2">Evidência Textual (Edital)</p>
+                        <div className="p-3 rounded-md bg-slate-50 border border-slate-100 italic text-[11px] text-muted-foreground leading-relaxed">
+                            "{evidence}"
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function InfoField({ label, value, subValue, fullWidth, isBoolean, isDate, isEnum }: { 
+    label: string, 
+    value: any, 
+    subValue?: string | null,
+    fullWidth?: boolean, 
+    isBoolean?: boolean, 
+    isDate?: boolean,
+    isEnum?: boolean 
+}) {
+    const hasValue = value !== null && value !== undefined && value !== "";
+
+    let content: React.ReactNode = value;
+
+    if (!hasValue) {
+        content = <span className="text-muted-foreground/30 italic">—</span>;
+    } else if (isBoolean) {
+        content = (
+            <Badge 
+                variant={value ? "default" : "secondary"} 
+                className={value ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-emerald-200" : "bg-slate-100 text-slate-800 hover:bg-slate-100 border-slate-200"}
+            >
                 {value ? "Sim" : "Não"}
             </Badge>
-        )
+        );
+    } else if (isDate) {
+        content = formatDate(String(value));
+    } else if (isEnum) {
+        content = <span className="capitalize">{String(value).replace(/_/g, " ")}</span>;
+    } else if (typeof value === "string" || typeof value === "number") {
+        content = <span>{value}</span>;
     }
-    if (typeof value === "number") {
-        return <span className="text-blue-600 dark:text-blue-400">{value.toLocaleString("pt-BR")}</span>
-    }
-    
-    // Lista de objetos ou primitivos
-    if (Array.isArray(value)) {
-        if (value.length === 0) return <span className="text-muted-foreground/40 italic text-xs">—</span>
-        return (
-            <div className="flex flex-wrap gap-1">
-                {value.map((v, i) => (
-                    <Badge key={i} variant="secondary" className="text-[10px] px-1.5 py-0 min-h-4 h-auto font-normal">
-                        {isPlainObject(v) 
-                            ? Object.entries(v).map(([k, val]) => `${formatKey(k)}: ${isPlainObject(val) || Array.isArray(val) ? "..." : String(val)}`).join(", ")
-                            : String(v)
-                        }
-                    </Badge>
-                ))}
-            </div>
-        )
-    }
-
-    // Objeto único (Tratamento recursivo simples para evitar [object Object])
-    if (isPlainObject(value)) {
-        return (
-            <div className="text-[10px] text-muted-foreground leading-tight space-y-0.5">
-                {Object.entries(value).map(([k, v]) => (
-                    <div key={k} className="flex gap-1">
-                        <span className="font-semibold uppercase tracking-tighter opacity-70">{formatKey(k)}:</span>
-                        <span className="text-foreground">
-                            {isPlainObject(v) || Array.isArray(v) 
-                                ? <JsonScalar value={v} /> // Chamada recursiva controlada
-                                : String(v)
-                            }
-                        </span>
-                    </div>
-                ))}
-            </div>
-        )
-    }
-
-    return <span>{String(value)}</span>
-}
-
-function JsonArrayTable({ items }: { items: unknown[] }) {
-    const [collapsed, setCollapsed] = useState(false)
-
-    if (items.length === 0) {
-        return <span className="text-muted-foreground/40 italic text-xs text-sm">—</span>
-    }
-
-    // Array de primitivos → badges
-    if (!items.every(isPlainObject)) {
-        return (
-            <div className="flex flex-wrap gap-1.5">
-                {items.map((item, i) => (
-                    <Badge key={i} variant="secondary" className="text-xs font-mono">{String(item)}</Badge>
-                ))}
-            </div>
-        )
-    }
-
-    // Array de objetos → tabela
-    const rows = items as Record<string, unknown>[]
-    const keys = Array.from(new Set(rows.flatMap(r => Object.keys(r))))
 
     return (
-        <div>
-            <button
-                onClick={() => setCollapsed(c => !c)}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-2"
-            >
-                {collapsed ? <ChevronRight className="size-3" /> : <ChevronDown className="size-3" />}
-                {items.length} {items.length === 1 ? "registro" : "registros"}
-            </button>
-            {!collapsed && (
-                <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                        <thead>
-                            <tr className="border-b border-border/60">
-                                {keys.map(k => (
-                                    <th key={k} className="text-left py-1.5 pr-4 font-medium text-[10px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
-                                        {formatKey(k)}
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {rows.map((row, i) => (
-                                <tr key={i} className="border-b border-border/30 last:border-0 hover:bg-muted/30">
-                                    {keys.map(k => (
-                                        <td key={k} className="py-1.5 pr-4 align-top max-w-xs">
-                                            <JsonScalar value={row[k] ?? null} />
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+        <div className={`space-y-0.5 ${fullWidth ? "col-span-2" : ""}`}>
+            <p className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider font-mono">{label}</p>
+            <div className="flex flex-col gap-0.5">
+                <div className="text-sm font-medium leading-tight">
+                    {content}
                 </div>
-            )}
+                {subValue && (
+                    <p className="text-[9px] text-muted-foreground/50 leading-tight italic line-clamp-2" title={subValue}>
+                        "{subValue}"
+                    </p>
+                )}
+            </div>
         </div>
-    )
+    );
+}
+
+function formatDate(dateStr: string) {
+    if (!dateStr) return "—"
+    try {
+        const date = new Date(dateStr)
+        if (isNaN(date.getTime())) return dateStr
+        return new Intl.DateTimeFormat("pt-BR").format(date)
+    } catch {
+        return dateStr
+    }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -434,12 +695,50 @@ function formatSeconds(ms: number): string {
     return `${(ms / 1000).toFixed(1)}s`
 }
 
-function estimatePages(wordCount: number): number {
-    return Math.max(1, Math.round(wordCount / 250))
+function formatBytes(bytes: number): string {
+    if (bytes < 1024)           return `${bytes} B`
+    if (bytes < 1024 * 1024)    return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function formatBytes(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+// ─── JsonView ───────────────────────────────────────────────────────────────
+
+function JsonView({ data }: { data: any }) {
+    if (typeof data !== "object" || data === null) {
+        return <span className="text-blue-600">{JSON.stringify(data)}</span>;
+    }
+
+    if (Array.isArray(data)) {
+        return (
+            <div className="pl-4 border-l-2 border-slate-200/50 space-y-1">
+                <span className="text-xs text-muted-foreground/50 font-mono">[</span>
+                {data.map((item, i) => (
+                    <div key={i} className="flex gap-2">
+                        <span className="text-xs text-muted-foreground/40 font-mono">{i}:</span>
+                        <JsonView data={item} />
+                    </div>
+                ))}
+                <span className="text-xs text-muted-foreground/50 font-mono">]</span>
+            </div>
+        );
+    }
+
+    return (
+        <div className="pl-4 border-l-2 border-emerald-500/20 space-y-1.5 py-1">
+            {Object.entries(data).map(([key, value]) => (
+                <div key={key} className="flex flex-col sm:flex-row sm:items-baseline gap-x-2">
+                    <span className="text-[11px] font-bold text-slate-500 font-mono uppercase tracking-tighter shrink-0">{key}:</span>
+                    <div className="flex-1 min-w-0">
+                        {typeof value === "object" && value !== null ? (
+                            <JsonView data={value} />
+                        ) : (
+                            <span className={`text-sm break-words ${typeof value === "number" ? "text-amber-600 font-bold" : typeof value === "boolean" ? "text-indigo-600 font-bold" : "text-slate-700"}`}>
+                                {value === null ? <span className="text-muted-foreground/30 italic">null</span> : String(value)}
+                            </span>
+                        )}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
 }

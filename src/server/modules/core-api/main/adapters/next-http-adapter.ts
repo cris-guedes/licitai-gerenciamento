@@ -27,10 +27,35 @@ function buildQueryParams(searchParams: URLSearchParams): Record<string, unknown
     return result;
 }
 
+async function parsePostBody(request: NextRequest): Promise<unknown> {
+    const contentType = request.headers.get("content-type") ?? "";
+    if (contentType.includes("multipart/form-data")) {
+        const formData = await request.formData().catch(() => null);
+        if (!formData) return undefined;
+        const result: Record<string, unknown> = {};
+        for (const [key, value] of formData.entries()) {
+            if (value instanceof File) {
+                result[`${key}Buffer`]   = Buffer.from(await value.arrayBuffer());
+                result[`${key}Filename`] = value.name;
+                result[`${key}Size`]     = value.size;
+            } else {
+                result[key] = value;
+            }
+        }
+        return result;
+    }
+    return request.json().catch(() => undefined);
+}
+
 export function adaptNextRoute(config: RouteConfig) {
     return async (request: NextRequest): Promise<NextResponse> => {
+        // Controllers de streaming retornam Response diretamente (ex: SSE)
+        if (config.makeStream) {
+            return config.makeStream().handleStream(request) as Promise<NextResponse>;
+        }
+
         let httpRequest: HttpRequest = {
-            body:    request.method === "POST" ? await request.json().catch(() => undefined) : undefined,
+            body:    request.method === "POST" ? await parsePostBody(request) : undefined,
             query:   buildQueryParams(request.nextUrl.searchParams),
             params:  undefined,
             headers: Object.fromEntries(request.headers),
@@ -40,7 +65,7 @@ export function adaptNextRoute(config: RouteConfig) {
             httpRequest = await handler(httpRequest);
         }
 
-        const { statusCode, data } = await config.make().handle(httpRequest);
+        const { statusCode, data } = await config.make!().handle(httpRequest);
         return NextResponse.json(data, { status: statusCode });
     };
 }

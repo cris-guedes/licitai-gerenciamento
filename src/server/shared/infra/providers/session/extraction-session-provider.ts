@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
 // scoredChunks are optional in simplified flow
@@ -7,6 +8,10 @@ const TEMP_BASE_DIR  = path.join(process.cwd(), "temp");
 const DATASET_FILE   = path.join(TEMP_BASE_DIR, "dataset.json");
 
 export class ExtractionSessionProvider {
+    newSessionId(): string {
+        return crypto.randomUUID();
+    }
+
     tempDirFor(sessionId: string): string {
         return path.join(TEMP_BASE_DIR, sessionId);
     }
@@ -22,6 +27,8 @@ export class ExtractionSessionProvider {
             fs.writeFile(path.join(tempDir, "chunks.json"),        JSON.stringify(data.chunks, null, 2),     "utf8"),
             fs.writeFile(path.join(tempDir, "scored-chunks.json"), JSON.stringify(scoredSummary, null, 2),   "utf8"),
             fs.writeFile(path.join(tempDir, "extraction.json"),    JSON.stringify(data.extraction, null, 2), "utf8"),
+            fs.writeFile(path.join(tempDir, "raw-fields.json"),    JSON.stringify(data.rawFields ?? {}, null, 2), "utf8"),
+            fs.writeFile(path.join(tempDir, "raw-items.json"),     JSON.stringify(data.rawItems ?? [], null, 2),  "utf8"),
             fs.writeFile(path.join(tempDir, "metrics.json"),       JSON.stringify(data.metrics, null, 2),    "utf8"),
             this.appendToDataset(data),
         ]);
@@ -105,6 +112,8 @@ export namespace ExtractionSessionProvider {
         filteredMd:   string;
         chunks:       ChunkedDocumentResultItem[];
         topChunks?:   any[];
+        rawFields?:   any;
+        rawItems?:    any[];
         extraction:   unknown;
         metrics:      object;
     };

@@ -87,4 +87,9 @@ export type Edital = {
      * extraídas do edital que não se enquadram nas demais categorias.
      */
     informacaoComplementar: string | null;
+
+    /**
+     * Trecho original do edital referente às informações gerais e amparo legal.
+     */
+    textoOriginal: string | null;
 };

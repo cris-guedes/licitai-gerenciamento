@@ -63,4 +63,9 @@ export type RegrasCertame = {
      * nas aquisições deste processo.
      */
     difal: boolean | null;
+
+    /**
+     * Trecho original do edital de onde as regras de disputa foram extraídas.
+     */
+    textoOriginal: string | null;
 };

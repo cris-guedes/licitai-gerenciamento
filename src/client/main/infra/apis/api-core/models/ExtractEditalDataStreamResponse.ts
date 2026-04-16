@@ -2,7 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type ExtractEditalDataResponse = {
+export type ExtractEditalDataStreamResponse = {
   sessionId: string;
   mdContent: string;
   licitacao: {

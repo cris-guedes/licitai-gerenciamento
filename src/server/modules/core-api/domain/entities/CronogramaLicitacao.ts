@@ -36,4 +36,9 @@ export type CronogramaLicitacao = {
      * esclarecimento ou impugnação ao edital.
      */
     esclarecimentosAte: string | null;
+
+    /**
+     * Trecho original do edital de onde o cronograma foi extraído.
+     */
+    textoOriginal: string | null;
 };

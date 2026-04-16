@@ -2,7 +2,7 @@ import { PrismaInviteRepository }    from "@/server/shared/infra/repositories/in
 import { PrismaUserRepository }       from "@/server/shared/infra/repositories/user.repository";
 import { PrismaMembershipRepository } from "@/server/shared/infra/repositories/membership.repository";
 import { PrismaAccountRepository }    from "@/server/shared/infra/repositories/account.repository";
-import { BetterAuthHashProvider }         from "@/server/shared/infra/providers/hash/hash-provider";
+import { BetterAuthHashProvider }         from "@/server/shared/infra/providers/auth/hash-provider";
 import { AcceptInvite }               from "./AcceptInvite";
 import { AcceptInviteController }     from "./AcceptInviteController";
 

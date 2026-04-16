@@ -91,8 +91,13 @@ export class EmbeddingProvider {
 
     /**
      * Processamento em BATCH eficiente de múltiplos chunks, fazendo uma única chamada.
+     * onBatch(completed, total) é chamado após cada lote concluído.
      */
-    async embedMany(inputs: EmbedInput[], isQuery = false): Promise<Float32Array[]> {
+    async embedMany(
+        inputs:    EmbedInput[],
+        isQuery =  false,
+        onBatch?: (completed: number, total: number) => void,
+    ): Promise<Float32Array[]> {
         await this.init();
 
         if (inputs.length === 0) return [];

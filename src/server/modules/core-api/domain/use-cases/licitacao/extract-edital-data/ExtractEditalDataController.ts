@@ -1,19 +1,25 @@
-import { z } from "zod";
 import {
     Controller,
     HttpRequest,
     HttpResponse,
+    badRequest,
     ok,
     serverError,
 } from "@/server/modules/core-api/main/adapters/http-adapter";
-import { ExtractEditalDataControllerSchemas } from "./ExtractEditalDataControllerSchemas";
 import { ExtractEditalData } from "./ExtractEditalData";
 
+// Body é populado pelo next-http-adapter ao parsear o multipart/form-data
+interface ParsedMultipartBody {
+    fileBuffer:   Buffer;
+    fileFilename: string;
+    fileSize:     number;
+}
+
 interface ExtractEditalDataControllerTypes {
-    Body:     ExtractEditalData.Params;
+    Body:     ParsedMultipartBody;
     Query:    undefined;
     Params:   undefined;
-    Response: ExtractEditalData.Response;
+    Response: ExtractEditalData.Output;
 }
 
 export class ExtractEditalDataController
@@ -23,14 +29,17 @@ export class ExtractEditalDataController
 
     async handle(
         request: HttpRequest<ExtractEditalDataControllerTypes>,
-    ): Promise<HttpResponse<ExtractEditalData.Response>> {
+    ): Promise<HttpResponse<ExtractEditalData.Output>> {
         try {
-            const body = ExtractEditalDataControllerSchemas.Body.parse(request.body);
-            const result = await this.useCase.execute(body);
+            const body = request.body as ParsedMultipartBody | undefined;
+            if (!body?.fileBuffer) {
+                return badRequest(new Error("Envie o edital como multipart/form-data com o campo 'file'."));
+            }
+
+            const result = await this.useCase.execute({ pdfBuffer: body.fileBuffer });
             return ok(result);
         } catch (error: any) {
             console.error(error?.stack ?? error);
-            if (error instanceof z.ZodError) return serverError(new Error(error.message));
             return serverError(error);
         }
     }

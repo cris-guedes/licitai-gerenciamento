@@ -7,9 +7,9 @@ import { EditalItemExtractor }      from "@/server/shared/infra/providers/extrac
 import { MetricsProvider }          from "@/server/shared/infra/providers/metrics/metrics-provider";
 import { ExtractionSessionProvider } from "@/server/shared/infra/providers/session/extraction-session-provider";
 import { ExtractEditalData }        from "./ExtractEditalData";
-import { ExtractEditalDataController } from "./ExtractEditalDataController";
+import { ExtractEditalDataStreamController } from "./ExtractEditalDataStreamController";
 
-export function makeExtractEditalData(): ExtractEditalDataController {
+export function makeExtractEditalDataStream(): ExtractEditalDataStreamController {
     const embeddingProvider = new EmbeddingProvider();
     const vectorStore       = new FlatVectorStore();
     const documentParser    = new DocumentHandlerFileParsingProvider();
@@ -28,5 +28,5 @@ export function makeExtractEditalData(): ExtractEditalDataController {
         sessionStorage,
     );
 
-    return new ExtractEditalDataController(useCase);
+    return new ExtractEditalDataStreamController(useCase);
 }

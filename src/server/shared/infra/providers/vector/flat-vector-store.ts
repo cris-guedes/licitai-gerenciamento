@@ -71,10 +71,13 @@ export class FlatVectorStore {
         if (this.entries.length === 0) return [];
 
         const scoreMap = new Map<string, SearchResult>();
+        let maxScoreFound = -1;
 
         for (const qEmb of queryEmbeddings) {
             for (const entry of this.entries) {
                 const score = this.dotProduct(qEmb, entry.embedding);
+                if (score > maxScoreFound) maxScoreFound = score;
+                
                 if (score < minScore) continue;
 
                 const existing = scoreMap.get(entry.id);
@@ -88,6 +91,8 @@ export class FlatVectorStore {
                 }
             }
         }
+
+        console.log(`[FlatVectorStore] Busca Multi-Query completa. Max Score Encontrado: ${maxScoreFound.toFixed(4)}. Mínimo Exigido: ${minScore}. Chunks com score: ${scoreMap.size}`);
 
         const combined = Array.from(scoreMap.values());
         combined.sort((a, b) => b.score - a.score);

@@ -37,4 +37,10 @@ export type OrgaoPublico = {
      * Poder ao qual o órgão está vinculado.
      */
     poder: "executivo" | "legislativo" | "judiciario" | null;
+
+    /**
+     * Trecho original do edital de onde os dados do órgão foram extraídos.
+     * Serve como evidência para auditoria.
+     */
+    textoOriginal: string | null;
 };

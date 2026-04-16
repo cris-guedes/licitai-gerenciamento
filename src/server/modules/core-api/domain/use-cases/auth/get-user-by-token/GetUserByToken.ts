@@ -1,5 +1,5 @@
 import { UnauthorizedError } from "@/server/shared/errors/unauthorized-error";
-import { JwtProvider } from "@/server/shared/infra/providers/jwt/jwt-provider";
+import { JwtProvider } from "@/server/shared/infra/providers/auth/jwt-provider";
 import { PrismaUserRepository } from "@/server/shared/infra/repositories/user.repository";
 
 export class GetUserByToken {

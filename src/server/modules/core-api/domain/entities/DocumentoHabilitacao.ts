@@ -25,6 +25,11 @@ export type DocumentoHabilitacao = {
     tipo: string;
 
     /**
+     * Categoria ou grupo de habilitação (ex: "Jurídica", "Fiscal", "Técnica").
+     */
+    categoria: string;
+
+    /**
      * Indica se a apresentação do documento é obrigatória para participação.
      * Documentos opcionais podem ser exigidos apenas em casos específicos.
      */

@@ -1,56 +1,53 @@
-import { DefaultService } from "./generated/services/DefaultService";
-import { OpenAPI } from "./generated/core/OpenAPI";
 import type { ProcessPdfResponse } from "./generated/models/ProcessPdfResponse";
 
-/**
- * Erro específico para a API do Document Handler
- */
-export class DocumentHandlerApiError extends Error {
+export { DocumentHandlerApiError };
+export type { ProcessPdfResponse };
+
+// ─── Erro ────────────────────────────────────────────────────────────────────
+
+class DocumentHandlerApiError extends Error {
     constructor(
         public readonly status: number,
-        public readonly body: string,
+        public readonly body:   string,
     ) {
         super(`DocumentHandler API error ${status}: ${body}`);
         this.name = "DocumentHandlerApiError";
     }
 }
 
+// ─── Client ──────────────────────────────────────────────────────────────────
+
 const DEFAULT_BASE_URL = process.env.DOCUMENT_HANDLER_API_URL ?? "http://localhost:8000";
 
 /**
- * Client para o Document Handler — extração de PDF via AST.
- * Agora utiliza o código gerado via openapi-typescript-codegen.
+ * Client HTTP para o Document Handler — extração de PDF via AST.
+ * POST /process-pdf → retorna seções com chunks e tabelas estruturadas.
  */
 export class DocumentHandlerClient {
+    private readonly base: string;
+
     constructor(baseUrl: string = DEFAULT_BASE_URL) {
-        OpenAPI.BASE = baseUrl.replace(/\/+$/, "");
+        this.base = baseUrl.replace(/\/+$/, "");
     }
 
-    /**
-     * POST /process-pdf — envia o arquivo PDF como multipart/form-data.
-     * Retorna seções com chunks AST e tabelas.
-     */
     async processPdf(file: Buffer, filename = "document.pdf"): Promise<ProcessPdfResponse> {
-        // Conversão de Buffer para Blob compatível com o FormData do fetch/node
+        const formData    = new FormData();
         const arrayBuffer = file.buffer.slice(
             file.byteOffset,
             file.byteOffset + file.byteLength,
         ) as ArrayBuffer;
-        
-        const blob = new Blob([arrayBuffer], { type: "application/pdf" });
+        formData.append("file", new Blob([arrayBuffer], { type: "application/pdf" }), filename);
 
-        try {
-            return await DefaultService.processPdfProcessPdfPost({
-                formData: {
-                    file: blob as any, // Cast necessário para compatibilidade de tipos gerados
-                },
-            });
-        } catch (error: any) {
-            const status = error.status ?? 0;
-            const body   = error.body ? JSON.stringify(error.body) : error.message;
-            throw new DocumentHandlerApiError(status, body);
+        const response = await fetch(`${this.base}/process-pdf`, {
+            method: "POST",
+            body:   formData,
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text().catch(() => "(sem body)");
+            throw new DocumentHandlerApiError(response.status, errorBody);
         }
+
+        return response.json() as Promise<ProcessPdfResponse>;
     }
 }
-
-export type { ProcessPdfResponse };

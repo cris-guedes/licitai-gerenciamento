@@ -68,13 +68,17 @@ export type GarantiaContratual = {
      * Tipo de atendimento da garantia:
      * - "onsite": técnico vai ao local do órgão
      * - "balcao": órgão leva ao fornecedor
+     * - "remota": atendimento via telefone/conexão remota
      * - "sem_garantia": sem previsão de garantia técnica
      */
-    tipo: "onsite" | "balcao" | "sem_garantia" | null;
+    tipo: "onsite" | "balcao" | "remota" | "sem_garantia" | null;
 
     /** Duração da garantia em meses */
     meses: number | null;
 
     /** Tempo máximo de resposta/atendimento para chamados de garantia, em horas */
     tempoAtendimentoHoras: number | null;
+
+    /** Trecho original do edital referente à garantia e assistência técnica */
+    textoOriginal: string | null;
 };

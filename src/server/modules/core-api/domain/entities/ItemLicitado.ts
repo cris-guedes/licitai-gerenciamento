@@ -46,6 +46,12 @@ export type ItemLicitado = {
     descricaoNcmNbs: string | null;
 
     /**
+     * Código do Catálogo de Materiais (CATMAT) ou
+     * Catálogo de Serviços (CATSER).
+     */
+    codigoCatmatCatser: string | null;
+
+    /**
      * Critério de julgamento específico para este item,
      * quando diferente do critério geral do certame.
      * Ex: "menor_preco", "maior_desconto".

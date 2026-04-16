@@ -25,6 +25,8 @@ export type { CreateInviteResponse } from './models/CreateInviteResponse';
 export type { CreateMemberResponse } from './models/CreateMemberResponse';
 export type { DeleteCompanyResponse } from './models/DeleteCompanyResponse';
 export type { DeleteUserResponse } from './models/DeleteUserResponse';
+export type { ExtractEditalDataResponse } from './models/ExtractEditalDataResponse';
+export type { ExtractEditalDataStreamResponse } from './models/ExtractEditalDataStreamResponse';
 export type { FetchCompanyByCnpjResponse } from './models/FetchCompanyByCnpjResponse';
 export type { FetchCompanyByIdResponse } from './models/FetchCompanyByIdResponse';
 export type { FetchExternalAtaDetailResponse } from './models/FetchExternalAtaDetailResponse';
@@ -67,6 +69,7 @@ export type { User } from './models/User';
 
 export { AuthService } from './services/AuthService';
 export { CompanyService } from './services/CompanyService';
+export { LicitacaoService } from './services/LicitacaoService';
 export { OnboardingService } from './services/OnboardingService';
 export { SearchService } from './services/SearchService';
 export { TeamService } from './services/TeamService';
