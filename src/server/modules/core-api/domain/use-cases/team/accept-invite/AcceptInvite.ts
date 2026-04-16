@@ -1,4 +1,4 @@
-import type { HashProvider }              from "@/server/shared/infra/providers/hash/hash-provider";
+import type { HashProvider }              from "@/server/shared/infra/providers/auth/hash-provider";
 import { PrismaInviteRepository }          from "@/server/shared/infra/repositories/invite.repository";
 import { PrismaUserRepository }            from "@/server/shared/infra/repositories/user.repository";
 import { PrismaMembershipRepository }      from "@/server/shared/infra/repositories/membership.repository";

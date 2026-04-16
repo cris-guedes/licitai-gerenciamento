@@ -7,6 +7,7 @@ import type { OpenAPIConfig } from './core/OpenAPI';
 import { AxiosHttpRequest } from './core/AxiosHttpRequest';
 import { AuthService } from './services/AuthService';
 import { CompanyService } from './services/CompanyService';
+import { LicitacaoService } from './services/LicitacaoService';
 import { OnboardingService } from './services/OnboardingService';
 import { SearchService } from './services/SearchService';
 import { TeamService } from './services/TeamService';
@@ -14,6 +15,7 @@ type HttpRequestConstructor = new (config: OpenAPIConfig) => BaseHttpRequest;
 export class CoreApiClient {
   public readonly auth: AuthService;
   public readonly company: CompanyService;
+  public readonly licitacao: LicitacaoService;
   public readonly onboarding: OnboardingService;
   public readonly search: SearchService;
   public readonly team: TeamService;
@@ -32,6 +34,7 @@ export class CoreApiClient {
     });
     this.auth = new AuthService(this.request);
     this.company = new CompanyService(this.request);
+    this.licitacao = new LicitacaoService(this.request);
     this.onboarding = new OnboardingService(this.request);
     this.search = new SearchService(this.request);
     this.team = new TeamService(this.request);

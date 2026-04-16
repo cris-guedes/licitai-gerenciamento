@@ -1,0 +1,46 @@
+services:
+
+  docling:
+    image: quay.io/docling-project/docling-serve
+    container_name: licitai-docling
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    environment:
+      # ── UI ───────────────────────────────────────────────────────────────────
+      DOCLING_SERVE_ENABLE_UI: "1"
+      DOCLING_SERVE_LOG_LEVEL: "WARNING"
+
+      # ── Timeouts ─────────────────────────────────────────────────────────────
+      DOCLING_SERVE_WORKER_TIMEOUT: "600"
+      DOCLING_SERVE_TIMEOUT: "600"
+      DOCLING_SERVE_MAX_SYNC_WAIT: "600"
+
+      # ── Workers & Concorrência ────────────────────────────────────────────────
+      UVICORN_WORKERS: "1"
+      # 2 documentos processados em paralelo (8 núcleos ÷ 4 threads cada)
+      DOCLING_SERVE_ENG_LOC_NUM_WORKERS: "2"
+      # ── App: chunks paralelos (manter igual ao ENG_LOC_NUM_WORKERS) ───────────
+      DOCLING_PARALLEL_WORKERS: "2"
+      # Modelos compartilhados entre workers → economiza ~4 GB de RAM
+      DOCLING_SERVE_ENG_LOC_SHARE_MODELS: "true"
+
+      # ── CPU Threads (8 núcleos, deixando 2 para OS + Next.js) ────────────────
+      DOCLING_NUM_THREADS: "6"
+      OMP_NUM_THREADS: "6"
+      MKL_NUM_THREADS: "6"
+      OPENBLAS_NUM_THREADS: "6"
+
+      # ── Batch (24 GB RAM permite batches maiores) ─────────────────────────────
+      DOCLING_PERF_PAGE_BATCH_SIZE: "16"
+      DOCLING_PERF_ELEMENTS_BATCH_SIZE: "16"
+
+      # ── Modelos ──────────────────────────────────────────────────────────────
+      # Carrega modelos no boot → elimina cold start na primeira requisição
+      DOCLING_SERVE_LOAD_MODELS_AT_BOOT: "true"
+      # Aumenta o cache de conversores (útil com múltiplos modos de extração)
+      DOCLING_SERVE_OPTIONS_CACHE_SIZE: "4"
+
+      # ── Monitoramento ────────────────────────────────────────────────────────
+      # Habilita GET /v1/memory para ver uso de RAM/modelos em tempo real
+      DOCLING_SERVE_ENABLE_MANAGEMENT_ENDPOINTS: "true"

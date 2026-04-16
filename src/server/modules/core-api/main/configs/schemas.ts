@@ -28,6 +28,7 @@ import { OnboardingControllerSchemas } from "../../domain/use-cases/onboarding/o
 import { ListMembersControllerSchemas, ListMemberItemSchema, ListMembersResponseSchema } from "../../domain/use-cases/team/list-members/ListMembersControllerSchemas";
 import { CreateMemberControllerSchemas, CreateMemberResponseSchema } from "../../domain/use-cases/team/create-member/CreateMemberControllerSchemas";
 import { CreateInviteControllerSchemas, CreateInviteResponseSchema } from "../../domain/use-cases/team/create-invite/CreateInviteControllerSchemas";
+import { ExtractEditalDataControllerSchemas } from "../../domain/use-cases/licitacao/extract-edital-data/ExtractEditalDataControllerSchemas";
 import { GetInviteControllerSchemas, GetInviteResponseSchema } from "../../domain/use-cases/team/get-invite/GetInviteControllerSchemas";
 import { AcceptInviteControllerSchemas, AcceptInviteResponseSchema } from "../../domain/use-cases/team/accept-invite/AcceptInviteControllerSchemas";
 import { UpdateMemberRoleControllerSchemas, UpdateMemberRoleResponseSchema } from "../../domain/use-cases/team/update-member-role/UpdateMemberRoleControllerSchemas";
@@ -53,6 +54,8 @@ export interface EndpointConfig {
   schemas: EndpointSchemas;
   /** Schemas extras adicionados a components/schemas para gerar models nomeados. */
   extraSchemas?: Record<string, ZodType>;
+  /** Sobrescreve o requestBody gerado pelo Zod. Usado para multipart/form-data e outros casos especiais. */
+  requestBodyOverride?: Record<string, unknown>;
 }
 
 /**
@@ -486,5 +489,61 @@ export const apiEndpoints: EndpointConfig[] = [
     method: "POST",
     schemas: RemoveMemberControllerSchemas,
     extraSchemas: { RemoveMemberResponse: RemoveMemberResponseSchema },
+  },
+  {
+    path: "/extract-edital-data",
+    operationId: "extractEditalData",
+    tag: "Licitacao",
+    summary: "Extrai dados de um edital de licitação",
+    description: "Recebe um PDF de edital via upload (multipart/form-data), processa via RAG (busca vetorial + LLM) e retorna a licitação estruturada no modelo de domínio.",
+    successDescription: "Dados extraídos com sucesso",
+    method: "POST",
+    schemas: ExtractEditalDataControllerSchemas,
+    requestBodyOverride: {
+      required: true,
+      content: {
+        "multipart/form-data": {
+          schema: {
+            type: "object",
+            required: ["file"],
+            properties: {
+              file: {
+                type: "string",
+                format: "binary",
+                description: "Arquivo PDF do edital de licitação",
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  {
+    path: "/extract-edital-data/stream",
+    operationId: "extractEditalDataStream",
+    tag: "Licitacao",
+    summary: "Extrai dados de um edital de licitação (Stream SSE)",
+    description: "Recebe um PDF de edital via upload (multipart/form-data) e retorna um EventStream (SSE) com o progresso do processamento em tempo real.",
+    successDescription: "Stream iniciado",
+    method: "POST",
+    schemas: ExtractEditalDataControllerSchemas,
+    requestBodyOverride: {
+      required: true,
+      content: {
+        "multipart/form-data": {
+          schema: {
+            type: "object",
+            required: ["file"],
+            properties: {
+              file: {
+                type: "string",
+                format: "binary",
+                description: "Arquivo PDF do edital de licitação",
+              },
+            },
+          },
+        },
+      },
+    },
   },
 ];

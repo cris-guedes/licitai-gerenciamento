@@ -213,6 +213,26 @@ function NavMain() {
         <DisabledSubItem icon={Target} label="Licitações Estratégicas" badge="em-breve" />
       </NavCollapsible>
 
+      {/* Gerenciar Licitações */}
+      <NavCollapsible id="licitacoes" icon={FileText} label="Gerenciar Licitações" active={is("licitacoes")}>
+        <SidebarMenuSubItem>
+          <SidebarMenuSubButton asChild isActive={pathname === `${base}/licitacoes`}>
+            <Link href={`${base}/licitacoes`}>
+              <FileText className="size-3.5" />
+              <span>Minhas Licitações</span>
+            </Link>
+          </SidebarMenuSubButton>
+        </SidebarMenuSubItem>
+        <SidebarMenuSubItem>
+          <SidebarMenuSubButton asChild isActive={is("licitacoes/nova")}>
+            <Link href={`${base}/licitacoes/nova`}>
+              <FileText className="size-3.5" />
+              <span>Nova Licitação</span>
+            </Link>
+          </SidebarMenuSubButton>
+        </SidebarMenuSubItem>
+      </NavCollapsible>
+
       {/* Minha Empresa */}
       <NavCollapsible id="empresa" icon={Building2} label="Minha Empresa" active={is("time") || is("empresa") || is("conta")}>
         <SidebarMenuSubItem>
@@ -340,7 +360,7 @@ export function DashboardShell({ companyName, children }: Props) {
             <Separator orientation="vertical" className="h-4" />
           </header>
 
-          <div className="flex flex-1 flex-col gap-4 p-6">
+          <div className="flex flex-1 flex-col gap-4 px-6 py-6 min-w-0">
             {children}
           </div>
         </SidebarInset>

@@ -1,4 +1,4 @@
-import { BetterAuthJwtProvider } from "@/server/shared/infra/providers/jwt/jwt-provider";
+import { BetterAuthJwtProvider } from "@/server/shared/infra/providers/auth/jwt-provider";
 import { PrismaUserRepository } from "@/server/shared/infra/repositories/user.repository";
 import { GetUserByToken } from "./GetUserByToken";
 

@@ -18,7 +18,7 @@ export function generateOpenApiSpec() {
   const componentSchemas: Record<string, any> = {};
 
   const paths = Object.fromEntries(
-    apiEndpoints.map(({ path, operationId, tag, summary, description, successDescription, method, schemas, extraSchemas }) => {
+    apiEndpoints.map(({ path, operationId, tag, summary, description, successDescription, method, schemas, extraSchemas, requestBodyOverride }) => {
       const isPost = method === 'POST';
       const querySchema = schemas.Query ? (createSchema(schemas.Query).schema as oas31.SchemaObject) : { properties: {} } as oas31.SchemaObject;
       const responseSchemaName = `${operationId.charAt(0).toUpperCase() + operationId.slice(1)}Response`;
@@ -49,7 +49,9 @@ export function generateOpenApiSpec() {
         },
       };
 
-      if (isPost && schemas.Body) {
+      if (isPost && requestBodyOverride) {
+        methodObject.requestBody = requestBodyOverride;
+      } else if (isPost && schemas.Body) {
         methodObject.requestBody = {
           required: true,
           content: {
