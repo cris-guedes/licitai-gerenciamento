@@ -14,9 +14,9 @@ type VectorEntry = {
  */
 export class EditalIndexingService {
     readonly modelName: string;
-    private readonly batchSize = Number(process.env.EDITAL_INDEX_BATCH_SIZE ?? (process.env.VERCEL ? "50" : "100"));
+    private readonly batchSize = Number(process.env.EDITAL_INDEX_BATCH_SIZE ?? (process.env.VERCEL ? "30" : "100"));
     private readonly maxParallelBatches = Number(
-        process.env.EDITAL_INDEX_CONCURRENCY ?? (process.env.VERCEL ? "2" : "0"),
+        process.env.EDITAL_INDEX_CONCURRENCY ?? (process.env.VERCEL ? "1" : "0"),
     );
 
     constructor(

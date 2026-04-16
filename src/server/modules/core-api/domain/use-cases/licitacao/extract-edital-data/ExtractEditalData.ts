@@ -24,13 +24,20 @@ export class ExtractEditalData {
         const sessionId = this.sessionStorage.newSessionId();
         const totalTimer = this.metricsProvider.startTimer("extract_total");
         const report = input.onProgress ?? (() => { });
+        const lowMemoryMode = Boolean(process.env.VERCEL);
 
         // 0. Aquecer as queries de campo e itens em plano de fundo AGORA
         // Isso roda enquanto o PDF está sendo processado na nuvem!
-        const warmupPromise = Promise.all([
-            this.fieldExtractor.warmupEmbeddings(),
-            this.itemExtractor.warmupEmbeddings(),
-        ]).catch(err => console.error("[ExtractEditalData] Erro ignorável no warmup:", err));
+        const warmupPromise = (lowMemoryMode
+            ? (async () => {
+                await this.fieldExtractor.warmupEmbeddings();
+                await this.itemExtractor.warmupEmbeddings();
+            })()
+            : Promise.all([
+                this.fieldExtractor.warmupEmbeddings(),
+                this.itemExtractor.warmupEmbeddings(),
+            ])
+        ).catch(err => console.error("[ExtractEditalData] Erro ignorável no warmup:", err));
 
         // 1. Parse PDF → seções e tabelas estruturadas
         report({ step: "parse", message: "Convertendo PDF para texto...", percent: 10 });
@@ -57,11 +64,15 @@ export class ExtractEditalData {
         const progressRelay = (message: string, percent: number) =>
             report({ step: "extract", message, percent });
 
-        const [fields, items] = await Promise.all([
-            this.fieldExtractor.extract(progressRelay),
-             this.itemExtractor.extract(progressRelay), 
-            Promise.resolve({ itens: [], tokensUsed: { prompt: 0, completion: 0, total: 0 }, tablesProcessed: 0, totalHits: 0 }),
-        ]);
+        const [fields, items] = lowMemoryMode
+            ? [
+                await this.fieldExtractor.extract(progressRelay),
+                await this.itemExtractor.extract(progressRelay),
+            ]
+            : await Promise.all([
+                this.fieldExtractor.extract(progressRelay),
+                this.itemExtractor.extract(progressRelay),
+            ]);
         const extractionTimeMs = Date.now() - tExtract;
         report({ step: "extract", message: "Dados extraídos", percent: 85 });
 

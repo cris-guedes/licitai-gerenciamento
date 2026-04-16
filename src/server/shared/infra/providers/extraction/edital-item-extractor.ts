@@ -59,6 +59,7 @@ REGRAS RÍGIDAS DE EXTRAÇÃO:
 
 export class EditalItemExtractor {
     private embeddingCache = new Map<string, Float32Array>();
+    private readonly llmBatchSize = Number(process.env.EDITAL_ITEM_LLM_BATCH_SIZE ?? (process.env.VERCEL ? "3" : "8"));
 
     constructor(
         private readonly embeddingProvider: EmbeddingProvider.Contract,
@@ -98,7 +99,7 @@ export class EditalItemExtractor {
         let totalCompletion = 0;
         const allParsedItems: any[] = [];
 
-        const batches      = chunk(uniqueTableHits, 8);
+        const batches      = chunk(uniqueTableHits, this.llmBatchSize);
         const totalBatches = batches.length;
         // Distribui 63-80% pelos lotes de itens
         const pctStart = 63;

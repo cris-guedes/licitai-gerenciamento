@@ -15,7 +15,7 @@ export class EmbeddingProvider {
     
     // Atualização do modelo para um mais adequado para Busca Semântica
     readonly MODEL_NAME = "Xenova/multilingual-e5-small";
-    private readonly batchSize = Number(process.env.EMBEDDING_PROVIDER_BATCH_SIZE ?? (process.env.VERCEL ? "12" : "25"));
+    private readonly batchSize = Number(process.env.EMBEDDING_PROVIDER_BATCH_SIZE ?? (process.env.VERCEL ? "8" : "25"));
 
     async init(): Promise<void> {
         if (this.initPromise) return this.initPromise;
