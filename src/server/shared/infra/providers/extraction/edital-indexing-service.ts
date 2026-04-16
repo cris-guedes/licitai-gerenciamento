@@ -14,6 +14,10 @@ type VectorEntry = {
  */
 export class EditalIndexingService {
     readonly modelName: string;
+    private readonly batchSize = Number(process.env.EDITAL_INDEX_BATCH_SIZE ?? (process.env.VERCEL ? "50" : "100"));
+    private readonly maxParallelBatches = Number(
+        process.env.EDITAL_INDEX_CONCURRENCY ?? (process.env.VERCEL ? "2" : "0"),
+    );
 
     constructor(
         private readonly embeddingProvider: EmbeddingProvider.Contract,
@@ -32,24 +36,35 @@ export class EditalIndexingService {
             return { entriesCount: 0 };
         }
 
-        const t0         = Date.now();
-        const batchSize  = 100;
+        const t0 = Date.now();
 
-        console.log(`[EditalIndexingService] Preparando indexação paralela em lotes de ${batchSize} (${entries.length} fragmentos)...`);
+        console.log(
+            `[EditalIndexingService] Preparando indexação em lotes de ${this.batchSize} (${entries.length} fragmentos, concorrência ${this.maxParallelBatches > 0 ? this.maxParallelBatches : "total"})...`,
+        );
         
         // Separa em lotes independentes
         const chunkedEntries = [];
-        for (let i = 0; i < entries.length; i += batchSize) {
-            chunkedEntries.push(entries.slice(i, i + batchSize));
+        for (let i = 0; i < entries.length; i += this.batchSize) {
+            chunkedEntries.push(entries.slice(i, i + this.batchSize));
         }
 
-        // Executa todas as requisições de embedding SIMULTANEAMENTE
-        const batchPromises = chunkedEntries.map(batch => 
-            this.embeddingProvider.embedMany(batch.map(e => e.text))
-        );
-        
-        const embeddingsGrupados = await Promise.all(batchPromises);
-        const embeddings = embeddingsGrupados.flat() as Float32Array[];
+        const embeddings: Float32Array[] = [];
+
+        if (this.maxParallelBatches <= 0) {
+            const batchPromises = chunkedEntries.map(batch =>
+                this.embeddingProvider.embedMany(batch.map(e => e.text)),
+            );
+            const embeddingsGrupados = await Promise.all(batchPromises);
+            embeddings.push(...embeddingsGrupados.flat() as Float32Array[]);
+        } else {
+            for (let i = 0; i < chunkedEntries.length; i += this.maxParallelBatches) {
+                const group = chunkedEntries.slice(i, i + this.maxParallelBatches);
+                const embeddingsGrupados = await Promise.all(
+                    group.map(batch => this.embeddingProvider.embedMany(batch.map(e => e.text))),
+                );
+                embeddings.push(...embeddingsGrupados.flat() as Float32Array[]);
+            }
+        }
 
         this.vectorStore.upsert(
             entries.map((e, i) => ({

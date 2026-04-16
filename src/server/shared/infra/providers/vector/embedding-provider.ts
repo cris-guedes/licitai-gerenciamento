@@ -15,6 +15,7 @@ export class EmbeddingProvider {
     
     // Atualização do modelo para um mais adequado para Busca Semântica
     readonly MODEL_NAME = "Xenova/multilingual-e5-small";
+    private readonly batchSize = Number(process.env.EMBEDDING_PROVIDER_BATCH_SIZE ?? (process.env.VERCEL ? "12" : "25"));
 
     async init(): Promise<void> {
         if (this.initPromise) return this.initPromise;
@@ -102,11 +103,10 @@ export class EmbeddingProvider {
 
         if (inputs.length === 0) return [];
 
-        const batchSize = 25; // Tamanho do lote para evitar picos de memória em documentos gigantes
         const allEmbeddings: Float32Array[] = [];
 
-        for (let i = 0; i < inputs.length; i += batchSize) {
-            const batchInputs = inputs.slice(i, i + batchSize);
+        for (let i = 0; i < inputs.length; i += this.batchSize) {
+            const batchInputs = inputs.slice(i, i + this.batchSize);
             
             // Enriquecer, limpar espaçamentos extras e adicionar "passage: " ou "query: "
             const preparedTexts = batchInputs.map(input => {
@@ -122,13 +122,24 @@ export class EmbeddingProvider {
                 normalize: true 
             });
 
-            // O output será um token matrix, vamos separá-los para retornar um array
-            // Output.tolist() pode ser um array multi dimensional, converte pros vetores isolados
-            const outputList = output.tolist(); 
-            
-            for (let j = 0; j < outputList.length; j++) {
-                allEmbeddings.push(new Float32Array(outputList[j]));
+            // Evita output.tolist(), que duplica a matriz inteira em memória JS.
+            const dims = Array.isArray(output.dims) ? output.dims : [];
+            const data = output.data as Float32Array;
+
+            if (dims.length >= 2 && typeof dims[0] === "number" && typeof dims[1] === "number") {
+                const rows = dims[0];
+                const cols = dims[1];
+
+                for (let j = 0; j < rows; j++) {
+                    const start = j * cols;
+                    const end = start + cols;
+                    allEmbeddings.push(new Float32Array(data.subarray(start, end)));
+                }
+            } else {
+                allEmbeddings.push(new Float32Array(data));
             }
+
+            onBatch?.(Math.min(i + batchInputs.length, inputs.length), inputs.length);
         }
 
         return allEmbeddings;
