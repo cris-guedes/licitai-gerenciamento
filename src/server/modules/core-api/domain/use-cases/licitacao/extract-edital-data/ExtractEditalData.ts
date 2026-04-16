@@ -89,7 +89,7 @@ export class ExtractEditalData {
             .flatMap(s => s.chunks.map(c => c.text))
             .join("\n\n---\n\n");
 
-        await this.sessionStorage.save({
+       /* await this.sessionStorage.save({
             sessionId,
             pdfBuffer: input.pdfBuffer,
             mdContent,
@@ -100,7 +100,7 @@ export class ExtractEditalData {
             rawItems: items.itens,
             extraction: licitacao as any,
             metrics,
-        });
+        });*/
 
         return { sessionId, mdContent, licitacao, metrics };
     }
