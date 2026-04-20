@@ -2,70 +2,37 @@
  * Entidade: RegrasCertame
  *
  * Representa as regras que definem como a disputa entre fornecedores
- * é conduzida: modo de julgamento, tipo de instrumento convocatório
- * e restrições de participação.
- *
- * Essas regras são definidas pelo órgão no edital e são imutáveis
- * durante o curso do processo licitatório.
+ * é conduzida: modo de julgamento, tipo de lance, participação e vigências.
  */
 export type RegrasCertame = {
-    /**
-     * Forma como os lances são realizados durante a disputa.
-     * Ex: "aberto", "fechado", "aberto_fechado".
-     */
+    // ── Disputa ──────────────────────────────────────────────────────────────
     modoDisputa: string | null;
-
-    /**
-     * Critério que determina o vencedor da disputa.
-     * Ex: "menor_preco", "maior_desconto", "melhor_tecnica".
-     */
     criterioJulgamento: string | null;
-
-    /**
-     * Tipo do documento que convoca os fornecedores.
-     * Ex: "edital", "aviso_dispensa", "termo_referencia".
-     */
-    tipoInstrumento: string | null;
-
-    /**
-     * Intervalo mínimo de diferença entre um lance e o próximo.
-     * Pode ser expresso como percentual ou valor fixo.
-     */
+    tipoLance: "unitario" | "global" | "percentual" | null;
     intervaloLances: string | null;
+    duracaoSessaoMinutos: number | null;
+    /** Trecho exato do edital sobre as regras de disputa (modo, critério, lances). */
+    textoOriginalDisputa: string | null;
 
-    /**
-     * Indica se o processo é exclusivo para Microempresas (ME)
-     * e Empresas de Pequeno Porte (EPP).
-     * Fundamentado na Lei Complementar 123/2006.
-     */
+    // ── Participação ─────────────────────────────────────────────────────────
     exclusivoMeEpp: boolean | null;
-
-    /**
-     * Indica se outros órgãos podem aderir à ata de registro de preços
-     * gerada por este processo (carona).
-     */
-    permiteAdesao: boolean | null;
-
-    /**
-     * Percentual máximo permitido para adesão de órgãos externos (carona).
-     * Expresso como número inteiro (ex: 25 = 25%).
-     */
-    percentualAdesao: number | null;
-
-    /**
-     * Restrição geográfica de participação de fornecedores, se houver.
-     * Ex: "somente fornecedores do estado de MT".
-     */
+    exclusivoMeEppTexto: string | null;
+    permiteConsorcio: boolean | null;
+    permiteConsorcioTexto: string | null;
+    exigeVisitaTecnica: boolean | null;
+    exigeVisitaTecnicaTexto: string | null;
     regionalidade: string | null;
 
-    /**
-     * Indica se há incidência de DIFAL (Diferencial de Alíquota ICMS)
-     * nas aquisições deste processo.
-     */
+    // ── Adesão e Vigências ────────────────────────────────────────────────────
+    permiteAdesao: boolean | null;
+    permiteAdesaoTexto: string | null;
+    percentualAdesao: number | null;
+    vigenciaAtaMeses: number | null;
+    vigenciaAtaMesesTexto: string | null;
+    vigenciaContratoDias: number | null;
+    vigenciaContratoDiasTexto: string | null;
     difal: boolean | null;
 
-    /**
-     * Trecho original do edital de onde as regras de disputa foram extraídas.
-     */
+    /** Trecho geral de onde as regras de certame foram extraídas (fallback). */
     textoOriginal: string | null;
 };

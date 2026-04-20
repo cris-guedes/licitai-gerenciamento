@@ -1,11 +1,19 @@
 /* Manual Implementation - Safe from regeneration */
 import type { ExtractEditalDataResponse } from "@/client/main/infra/apis/api-core/models/ExtractEditalDataResponse"
 
+type LicitacaoData = ExtractEditalDataResponse["licitacao"];
+type ItemLicitado = NonNullable<NonNullable<LicitacaoData["edital"]>["itens"]>[number];
+
+export type ExtractionPartialData =
+  | { type: "fields"; licitacao: LicitacaoData }
+  | { type: "items_batch"; items: ItemLicitado[]; batchIndex: number; totalBatches: number };
+
 export type ExtractionProgressEvent = {
-  step:    'start' | 'parse' | 'index' | 'extract' | 'map' | 'save' | 'done' | 'error';
+  step:    string;
   message: string;
   percent: number;
   result?: ExtractEditalDataResponse;
+  partialData?: ExtractionPartialData;
 };
 
 export class LicitacaoStreamService {
@@ -49,6 +57,11 @@ export class LicitacaoStreamService {
           onProgress(data);
           if (data.step === "done" && data.result) return data.result;
           if (data.step === "error") throw new Error(data.message);
+          // Yield para macrotarefa separada: garante que o React renderiza os dados parciais
+          // antes de processar o próximo evento (evita batching com o evento "done").
+          if (data.partialData) {
+            await new Promise<void>(resolve => setTimeout(resolve, 0));
+          }
         } catch (e) {
           if (e instanceof Error && e.message !== "Unexpected end of JSON input") {
             throw e;

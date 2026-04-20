@@ -20,6 +20,7 @@ export type ExtractEditalDataResponse = {
       uf: (string | null);
       esfera: ('federal' | 'estadual' | 'municipal' | null);
       poder: ('executivo' | 'legislativo' | 'judiciario' | null);
+      itensSolicitados: (Array<{ itemNumero: number; quantidade: number }> | null);
       textoOriginal: (string | null);
     } | null);
     valorTotalEstimado: (number | null);
@@ -41,6 +42,7 @@ export type ExtractEditalDataResponse = {
         uf: (string | null);
         esfera: ('federal' | 'estadual' | 'municipal' | null);
         poder: ('executivo' | 'legislativo' | 'judiciario' | null);
+        itensSolicitados: (Array<{ itemNumero: number; quantidade: number }> | null);
         textoOriginal: (string | null);
       }>;
       cronograma: {
@@ -48,19 +50,34 @@ export type ExtractEditalDataResponse = {
         acolhimentoFim: (string | null);
         horaLimite: (string | null);
         sessaoPublica: (string | null);
+        horaSessaoPublica: (string | null);
         esclarecimentosAte: (string | null);
+        impugnacaoAte: (string | null);
+        textoOriginalPrazos: (string | null);
         textoOriginal: (string | null);
       };
       certame: {
         modoDisputa: (string | null);
         criterioJulgamento: (string | null);
-        tipoInstrumento: (string | null);
+        tipoLance: ('unitario' | 'global' | 'percentual' | null);
         intervaloLances: (string | null);
+        duracaoSessaoMinutos: (number | null);
+        textoOriginalDisputa: (string | null);
         exclusivoMeEpp: (boolean | null);
+        exclusivoMeEppTexto: (string | null);
+        permiteConsorcio: (boolean | null);
+        permiteConsorcioTexto: (string | null);
+        exigeVisitaTecnica: (boolean | null);
+        exigeVisitaTecnicaTexto: (string | null);
         permiteAdesao: (boolean | null);
+        permiteAdesaoTexto: (string | null);
         percentualAdesao: (number | null);
         regionalidade: (string | null);
         difal: (boolean | null);
+        vigenciaAtaMeses: (number | null);
+        vigenciaAtaMesesTexto: (string | null);
+        vigenciaContratoDias: (number | null);
+        vigenciaContratoDiasTexto: (string | null);
         textoOriginal: (string | null);
       };
       itens: Array<{
@@ -86,6 +103,7 @@ export type ExtractEditalDataResponse = {
           localEntrega: (string | null);
           tipoEntrega: ('centralizada' | 'descentralizada' | null);
           responsavelInstalacao: ('fornecedor' | 'comprador' | null);
+          textoOriginalLogistica: (string | null);
         };
         pagamento: {
           prazoEmDias: (number | null);
@@ -102,6 +120,7 @@ export type ExtractEditalDataResponse = {
           tempoAtendimentoHoras: (number | null);
           textoOriginal: (string | null);
         };
+        textoOriginal: (string | null);
       };
       habilitacao: Array<{
         tipo: string;
@@ -124,6 +143,8 @@ export type ExtractEditalDataResponse = {
     entriesIndexed: number;
     conversionTimeMs: number;
     indexingTimeMs: number;
+    embeddingTimeMs: number;
+    prepareQueriesTimeMs: number;
     extractionTimeMs: number;
     totalTimeMs: number;
     tempDir: string;
@@ -141,4 +162,3 @@ export type ExtractEditalDataResponse = {
     };
   };
 };
-

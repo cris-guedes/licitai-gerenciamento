@@ -38,10 +38,19 @@ export class DocumentHandlerClient {
         ) as ArrayBuffer;
         formData.append("file", new Blob([arrayBuffer], { type: "application/pdf" }), filename);
 
-        const response = await fetch(`${this.base}/process-pdf`, {
-            method: "POST",
-            body:   formData,
-        });
+        const url = `${this.base}/process-pdf`;
+        console.log(`[DocumentHandlerClient] POST ${url} — ${file.byteLength} bytes, filename: ${filename}`);
+
+        let response: Response;
+        try {
+            response = await fetch(url, {
+                method: "POST",
+                body:   formData,
+            });
+        } catch (err: any) {
+            console.error(`[DocumentHandlerClient] Fetch falhou para ${url}:`, err.message, err.cause ?? "");
+            throw err;
+        }
 
         if (!response.ok) {
             const errorBody = await response.text().catch(() => "(sem body)");

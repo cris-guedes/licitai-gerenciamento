@@ -20,6 +20,8 @@ const MetricsSchema = z.object({
     entriesIndexed:    z.number(),
     conversionTimeMs:  z.number(),
     indexingTimeMs:    z.number(),
+    embeddingTimeMs:   z.number(),
+    prepareQueriesTimeMs: z.number(),
     extractionTimeMs:  z.number(),
     totalTimeMs:       z.number(),
     tempDir:           z.string(),
@@ -27,6 +29,23 @@ const MetricsSchema = z.object({
         prompt:     z.number(),
         completion: z.number(),
         total:      z.number(),
+    }),
+    /** Total de tokens consumidos pelo modelo de embedding (queries + documento). */
+    embeddingTokensUsed: z.number(),
+    /** Quantidade de chunks limpos enviados para cada agente de extração. */
+    chunksEnviados: z.object({
+        agenteCampos: z.number(),
+        agenteItens:  z.number(),
+    }),
+    /** Configuração do vector store utilizada para obter esses chunks. */
+    vectorStoreConfig: z.object({
+        collection:           z.string(),
+        vectorSize:           z.number(),
+        fieldSearchLimit:     z.number(),
+        fieldScoreThreshold:  z.number(),
+        itemSearchLimit:      z.number(),
+        itemScoreThreshold:   z.number(),
+        itemTypeFilter:       z.array(z.string()),
     }),
     config: z.object({
         embeddingModel: z.string(),
@@ -42,37 +61,53 @@ const MetricsSchema = z.object({
 const n = <T extends z.ZodTypeAny>(schema: T) => schema.nullable();
 
 const OrgaoPublicoSchema = z.object({
-    cnpj:          n(z.string()),
-    nome:          n(z.string()),
-    codigoUnidade: n(z.string()),
-    nomeUnidade:   n(z.string()),
-    municipio:     n(z.string()),
-    uf:            n(z.string()),
-    esfera:        n(z.enum(["federal", "estadual", "municipal"])),
-    poder:         n(z.enum(["executivo", "legislativo", "judiciario"])),
-    textoOriginal: n(z.string()),
+    cnpj:             n(z.string()),
+    nome:             n(z.string()),
+    codigoUnidade:    n(z.string()),
+    nomeUnidade:      n(z.string()),
+    municipio:        n(z.string()),
+    uf:               n(z.string()),
+    esfera:           n(z.enum(["federal", "estadual", "municipal"])),
+    poder:            n(z.enum(["executivo", "legislativo", "judiciario"])),
+    itensSolicitados: n(z.array(z.object({ itemNumero: z.number(), quantidade: z.number() }))),
+    textoOriginal:    n(z.string()),
 });
 
 const CronogramaSchema = z.object({
-    acolhimentoInicio:  n(z.string()),
-    acolhimentoFim:     n(z.string()),
-    horaLimite:         n(z.string()),
-    sessaoPublica:      n(z.string()),
-    esclarecimentosAte: n(z.string()),
-    textoOriginal:      n(z.string()),
+    acolhimentoInicio:   n(z.string()),
+    acolhimentoFim:      n(z.string()),
+    horaLimite:          n(z.string()),
+    sessaoPublica:       n(z.string()),
+    horaSessaoPublica:   n(z.string()),
+    esclarecimentosAte:  n(z.string()),
+    impugnacaoAte:       n(z.string()),
+    textoOriginalPrazos: n(z.string()),
+    textoOriginal:       n(z.string()),
 });
 
 const CertameSchema = z.object({
-    modoDisputa:        n(z.string()),
-    criterioJulgamento: n(z.string()),
-    tipoInstrumento:    n(z.string()),
-    intervaloLances:    n(z.string()),
-    exclusivoMeEpp:     n(z.boolean()),
-    permiteAdesao:      n(z.boolean()),
-    percentualAdesao:   n(z.number()),
-    regionalidade:      n(z.string()),
-    difal:              n(z.boolean()),
-    textoOriginal:      n(z.string()),
+    modoDisputa:               n(z.string()),
+    criterioJulgamento:        n(z.string()),
+    tipoLance:                 n(z.enum(["unitario", "global", "percentual"])),
+    intervaloLances:           n(z.string()),
+    duracaoSessaoMinutos:      n(z.number()),
+    textoOriginalDisputa:      n(z.string()),
+    exclusivoMeEpp:            n(z.boolean()),
+    exclusivoMeEppTexto:       n(z.string()),
+    permiteConsorcio:          n(z.boolean()),
+    permiteConsorcioTexto:     n(z.string()),
+    exigeVisitaTecnica:        n(z.boolean()),
+    exigeVisitaTecnicaTexto:   n(z.string()),
+    permiteAdesao:             n(z.boolean()),
+    permiteAdesaoTexto:        n(z.string()),
+    percentualAdesao:          n(z.number()),
+    regionalidade:             n(z.string()),
+    difal:                     n(z.boolean()),
+    vigenciaAtaMeses:          n(z.number()),
+    vigenciaAtaMesesTexto:     n(z.string()),
+    vigenciaContratoDias:      n(z.number()),
+    vigenciaContratoDiasTexto: n(z.string()),
+    textoOriginal:             n(z.string()),
 });
 
 const PrazoSchema = z.object({
@@ -82,9 +117,10 @@ const PrazoSchema = z.object({
 
 const ExecucaoSchema = z.object({
     entrega: PrazoSchema.extend({
-        localEntrega:          n(z.string()),
-        tipoEntrega:           n(z.enum(["centralizada", "descentralizada"])),
-        responsavelInstalacao: n(z.enum(["fornecedor", "comprador"])),
+        localEntrega:           n(z.string()),
+        tipoEntrega:            n(z.enum(["centralizada", "descentralizada"])),
+        responsavelInstalacao:  n(z.enum(["fornecedor", "comprador"])),
+        textoOriginalLogistica: n(z.string()),
     }),
     pagamento:        PrazoSchema,
     aceite:           PrazoSchema,
@@ -95,6 +131,7 @@ const ExecucaoSchema = z.object({
         tempoAtendimentoHoras: n(z.number()),
         textoOriginal:         n(z.string()),
     }),
+    textoOriginal: n(z.string()),
 });
 
 const ItemLicitadoSchema = z.object({

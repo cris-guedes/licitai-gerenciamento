@@ -1,32 +1,55 @@
 import { DocumentHandlerFileParsingProvider } from "@/server/shared/infra/providers/pdf/document-handler-file-parsing-provider";
-import { EmbeddingProvider }        from "@/server/shared/infra/providers/vector/embedding-provider";
-import { FlatVectorStore }          from "@/server/shared/infra/providers/vector/flat-vector-store";
-import { EditalIndexingService }    from "@/server/shared/infra/providers/extraction/edital-indexing-service";
-import { EditalFieldExtractor }     from "@/server/shared/infra/providers/extraction/edital-field-extractor";
-import { EditalItemExtractor }      from "@/server/shared/infra/providers/extraction/edital-item-extractor";
-import { MetricsProvider }          from "@/server/shared/infra/providers/metrics/metrics-provider";
+import { OpenAIEmbeddingProvider } from "@/server/shared/infra/providers/ia/embeding/providers/openai-embedding-provider";
+import { QdrantVectorStore } from "@/server/shared/infra/providers/ia/vector/qdrant-vector-store";
+import { EditalFieldExtractorAgent } from "@/server/shared/infra/providers/ia/agents/edital-field-extractor";
+import { EditalItemExtractorAgent } from "@/server/shared/infra/providers/ia/agents/edital-item-extractor";
+import { MetricsProvider } from "@/server/shared/infra/providers/metrics/metrics-provider";
 import { ExtractionSessionProvider } from "@/server/shared/infra/providers/session/extraction-session-provider";
-import { ExtractEditalData }        from "./ExtractEditalData";
+import { ExtractEditalData } from "./ExtractEditalData";
 import { ExtractEditalDataStreamController } from "./ExtractEditalDataStreamController";
+import { ExtractEditalDataController } from "./ExtractEditalDataController";
+
+const CONFIG = {
+    embedding: {
+        model: process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small",
+        dimensions: 1536,
+        batchSize: 256,
+        maxConcurrency: 5,
+    },
+    vectorStore: {
+        COLLECTION_NAME: process.env.QDRANT_COLLECTION ?? "edital-v1-1536",
+        FIELD_SEARCH_LIMIT: 10,
+        FIELD_SCORE_THRESHOLD: 0.50,
+        ITEM_SEARCH_LIMIT: 40,
+        ITEM_SCORE_THRESHOLD: 0.50,
+        ITEM_TYPE_FILTER: ["table_md", "table_row"],
+    }
+};
+
+function createUseCase() {
+    const embeddingProvider = new OpenAIEmbeddingProvider({
+        model: CONFIG.embedding.model,
+        dimensions: CONFIG.embedding.dimensions,
+        batchSize: CONFIG.embedding.batchSize,
+        maxConcurrency: CONFIG.embedding.maxConcurrency,
+    });
+
+    return new ExtractEditalData(
+        new DocumentHandlerFileParsingProvider(),
+        embeddingProvider,
+        new QdrantVectorStore(),
+        new EditalFieldExtractorAgent(),
+        new EditalItemExtractorAgent(),
+        new MetricsProvider(),
+        new ExtractionSessionProvider(),
+        CONFIG.vectorStore
+    );
+}
+
+export function makeExtractEditalData(): ExtractEditalDataController {
+    return new ExtractEditalDataController(createUseCase());
+}
 
 export function makeExtractEditalDataStream(): ExtractEditalDataStreamController {
-    const embeddingProvider = new EmbeddingProvider();
-    const vectorStore       = new FlatVectorStore();
-    const documentParser    = new DocumentHandlerFileParsingProvider();
-    const indexingService   = new EditalIndexingService(embeddingProvider, vectorStore);
-    const fieldExtractor    = new EditalFieldExtractor(embeddingProvider, vectorStore);
-    const itemExtractor     = new EditalItemExtractor(embeddingProvider, vectorStore);
-    const metricsProvider   = new MetricsProvider();
-    const sessionStorage    = new ExtractionSessionProvider();
-
-    const useCase = new ExtractEditalData(
-        documentParser,
-        indexingService,
-        fieldExtractor,
-        itemExtractor,
-        metricsProvider,
-        sessionStorage,
-    );
-
-    return new ExtractEditalDataStreamController(useCase);
+    return new ExtractEditalDataStreamController(createUseCase());
 }
