@@ -373,30 +373,30 @@ export class ExtractEditalData {
         });
 
 
-        await this.sessionStorage.save({
-            sessionId,
-            pdfBuffer: input.pdfBuffer,
-            mdContent,
-            fieldPayloads: infoChunks.payloads,
-            itemPayloads: itemChunks.payloads,
-            rawFields: extracted.fields.extraction,
-            rawItems: extracted.items.itens,
-            extraction: licitacao,
-            metrics,
-            searchQueries: {
-                field: this.fieldExtractor.getSearchQueries(),
-                item: this.itemExtractor.getSearchQueries(),
-            },
-            qdrantConfig: {
-                collection: this.VECTOR_STORE_CONFIG.COLLECTION_NAME,
-                documentId,
-                fieldSearchLimit: this.VECTOR_STORE_CONFIG.FIELD_SEARCH_LIMIT,
-                fieldScoreThreshold: this.VECTOR_STORE_CONFIG.FIELD_SCORE_THRESHOLD,
-                itemSearchLimit: this.VECTOR_STORE_CONFIG.ITEM_SEARCH_LIMIT,
-                itemScoreThreshold: this.VECTOR_STORE_CONFIG.ITEM_SCORE_THRESHOLD,
-                itemTypeFilter: this.VECTOR_STORE_CONFIG.ITEM_TYPE_FILTER,
-            },
-        });
+        /* await this.sessionStorage.save({
+             sessionId,
+             pdfBuffer: input.pdfBuffer,
+             mdContent,
+             fieldPayloads: infoChunks.payloads,
+             itemPayloads: itemChunks.payloads,
+             rawFields: extracted.fields.extraction,
+             rawItems: extracted.items.itens,
+             extraction: licitacao,
+             metrics,
+             searchQueries: {
+                 field: this.fieldExtractor.getSearchQueries(),
+                 item: this.itemExtractor.getSearchQueries(),
+             },
+             qdrantConfig: {
+                 collection: this.VECTOR_STORE_CONFIG.COLLECTION_NAME,
+                 documentId,
+                 fieldSearchLimit: this.VECTOR_STORE_CONFIG.FIELD_SEARCH_LIMIT,
+                 fieldScoreThreshold: this.VECTOR_STORE_CONFIG.FIELD_SCORE_THRESHOLD,
+                 itemSearchLimit: this.VECTOR_STORE_CONFIG.ITEM_SEARCH_LIMIT,
+                 itemScoreThreshold: this.VECTOR_STORE_CONFIG.ITEM_SCORE_THRESHOLD,
+                 itemTypeFilter: this.VECTOR_STORE_CONFIG.ITEM_TYPE_FILTER,
+             },
+         });*/
 
         return { sessionId, mdContent, licitacao, metrics };
     }
