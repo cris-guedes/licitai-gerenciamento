@@ -39,6 +39,12 @@ export type OrgaoPublico = {
     poder: "executivo" | "legislativo" | "judiciario" | null;
 
     /**
+     * Itens solicitados pelo órgão participante (SRP).
+     * Presente apenas em órgãos participantes de atas de registro de preços.
+     */
+    itensSolicitados: { itemNumero: number; quantidade: number }[] | null;
+
+    /**
      * Trecho original do edital de onde os dados do órgão foram extraídos.
      * Serve como evidência para auditoria.
      */

@@ -1,4 +1,5 @@
 import { DocumentHandlerClient, type ProcessPdfResponse } from "@/server/shared/lib/document-handler";
+import { normalizeEntries, type IndexEntry }              from "./utils/normalize-entries";
 
 const BASE_URL = process.env.DOCUMENT_HANDLER_API_URL ?? "http://localhost:8000";
 
@@ -16,14 +17,19 @@ export class DocumentHandlerFileParsingProvider {
         const wallTimeMs = Date.now() - t0;
 
         console.log(`[DocumentHandlerFileParsingProvider] pág: ${response.total_pages} | seções: ${response.total_sections} | tab: ${response.total_tables} | chars: ${response.total_chars} | ${wallTimeMs}ms`);
-        return { response, wallTimeMs };
+
+        const entries = normalizeEntries(response);
+        return { response, entries, wallTimeMs };
     }
 }
 
 export namespace DocumentHandlerFileParsingProvider {
     export type Result = {
         response:    ProcessPdfResponse;
+        entries:     IndexEntry[];
         wallTimeMs:  number;
     };
     export type Contract = Pick<DocumentHandlerFileParsingProvider, "process">;
 }
+
+export type { IndexEntry };

@@ -1,8 +1,6 @@
 import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
-// scoredChunks are optional in simplified flow
-import type { ChunkedDocumentResultItem } from "@/server/shared/lib/docling/models/ChunkedDocumentResultItem";
 
 const TEMP_BASE_DIR  = path.join(process.cwd(), "temp");
 const DATASET_FILE   = path.join(TEMP_BASE_DIR, "dataset.json");
@@ -19,70 +17,59 @@ export class ExtractionSessionProvider {
     async save(data: ExtractionSessionProvider.SessionData): Promise<void> {
         const tempDir = this.tempDirFor(data.sessionId);
         await fs.mkdir(tempDir, { recursive: true });
-        const scoredSummary = data.topChunks ?? [];
+
+        const json = (obj: any) => JSON.stringify(obj, null, 2);
+
         await Promise.all([
-            fs.writeFile(path.join(tempDir, "original.pdf"),       data.pdfBuffer),
-            fs.writeFile(path.join(tempDir, "content.md"),         data.mdContent,                          "utf8"),
-            fs.writeFile(path.join(tempDir, "filtered.md"),        data.filteredMd,                         "utf8"),
-            fs.writeFile(path.join(tempDir, "chunks.json"),        JSON.stringify(data.chunks, null, 2),     "utf8"),
-            fs.writeFile(path.join(tempDir, "scored-chunks.json"), JSON.stringify(scoredSummary, null, 2),   "utf8"),
-            fs.writeFile(path.join(tempDir, "extraction.json"),    JSON.stringify(data.extraction, null, 2), "utf8"),
-            fs.writeFile(path.join(tempDir, "raw-fields.json"),    JSON.stringify(data.rawFields ?? {}, null, 2), "utf8"),
-            fs.writeFile(path.join(tempDir, "raw-items.json"),     JSON.stringify(data.rawItems ?? [], null, 2),  "utf8"),
-            fs.writeFile(path.join(tempDir, "metrics.json"),       JSON.stringify(data.metrics, null, 2),    "utf8"),
+            // Documento original
+            fs.writeFile(path.join(tempDir, "original.pdf"),         data.pdfBuffer),
+            fs.writeFile(path.join(tempDir, "content.md"),           data.mdContent, "utf8"),
+
+            // Payloads enviados para cada extrator (o que a IA realmente viu)
+            fs.writeFile(path.join(tempDir, "field-payloads.json"),  json(data.fieldPayloads), "utf8"),
+            fs.writeFile(path.join(tempDir, "item-payloads.json"),   json(data.itemPayloads),  "utf8"),
+
+            // Resultado bruto de cada extrator (o que a IA respondeu)
+            fs.writeFile(path.join(tempDir, "raw-fields.json"),      json(data.rawFields),  "utf8"),
+            fs.writeFile(path.join(tempDir, "raw-items.json"),       json(data.rawItems),   "utf8"),
+
+            // Resultado final mapeado para o domínio
+            fs.writeFile(path.join(tempDir, "extraction.json"),      json(data.extraction), "utf8"),
+
+            // Métricas de performance
+            fs.writeFile(path.join(tempDir, "metrics.json"),         json(data.metrics),    "utf8"),
+
+            // Configuração da busca (reprodutibilidade)
+            fs.writeFile(path.join(tempDir, "search-queries.json"),  json(data.searchQueries), "utf8"),
+            fs.writeFile(path.join(tempDir, "qdrant-config.json"),   json(data.qdrantConfig),  "utf8"),
+
+            // Dataset global
             this.appendToDataset(data),
         ]);
+
+        console.log(`[Audit Trail] Sessão ${data.sessionId} salva em ${tempDir}`);
     }
 
     private async appendToDataset(data: ExtractionSessionProvider.SessionData): Promise<void> {
-        const metrics    = data.metrics as any;
-        const edital     = (data.extraction as any)?.edital ?? {};
-        const orgao      = edital.orgao_gerenciador ?? {};
-        const datas      = edital.datas ?? {};
-        const itens: any[] = edital.itens ?? [];
+        const metrics = data.metrics as any;
+        const extraction = data.extraction as any;
+        const edital = extraction?.edital ?? extraction ?? {};
+        const orgao = edital.orgao_gerenciador ?? {};
+        const itens: any[] = data.rawItems ?? [];
 
         const entry: ExtractionSessionProvider.DatasetEntry = {
-            sessionId:           data.sessionId,
-            timestamp:           metrics.timestamp ?? new Date().toISOString(),
-            pdfUrl:              metrics.pdfUrl ?? "",
-            // identificação do edital
-            numero:              edital.numero              ?? null,
-            numero_processo:     edital.numero_processo     ?? null,
-            modalidade:          edital.modalidade          ?? null,
-            objeto_resumido:     edital.objeto_resumido     ?? null,
-            valor_estimado_total: edital.valor_estimado_total ?? null,
-            // órgão
-            orgao: {
-                nome:   orgao.nome   ?? null,
-                cnpj:   orgao.cnpj   ?? null,
-                uf:     orgao.uf     ?? null,
-                cidade: orgao.cidade ?? null,
-            },
-            // datas chave
-            data_abertura:        datas.data_abertura        ?? null,
-            data_proposta_limite: datas.data_proposta_limite  ?? null,
-            // resumo dos itens
-            total_itens:         itens.length,
-            itens_resumo:        itens.slice(0, 5).map((it: any) => ({
-                numero:      it.numero,
-                descricao:   it.descricao,
-                quantidade:  it.quantidade,
-                unidade:     it.unidade,
-                valor_total: it.valor_total_estimado ?? null,
-            })),
-            // métricas de processamento
-            metricas: {
-                pdfFileSizeBytes: metrics.pdfFileSizeBytes ?? 0,
-                mdWordCount:      metrics.mdWordCount      ?? 0,
-                chunkCount:       metrics.chunkCount       ?? 0,
-                totalTimeMs:      metrics.totalTimeMs      ?? 0,
-                conversionTimeMs: metrics.conversionTimeMs ?? 0,
-                chunkingTimeMs:   metrics.chunkingTimeMs   ?? 0,
-                extractionTimeMs: metrics.extractionTimeMs ?? 0,
-                tokensUsed:       metrics.tokensUsed       ?? { prompt: 0, completion: 0, total: 0 },
-            },
-            // configuração usada — essencial para comparar resultados entre runs
-            config: metrics.config ?? null,
+            sessionId:            data.sessionId,
+            timestamp:            metrics.timestamp ?? new Date().toISOString(),
+            pdfUrl:               metrics.pdfUrl ?? "",
+            numero:               edital.numero ?? null,
+            modalidade:           edital.modalidade ?? null,
+            objeto_resumido:      edital.objeto_resumido ?? null,
+            orgao_nome:           orgao.nome ?? null,
+            total_itens:          itens.length,
+            fieldPayloadsCount:   data.fieldPayloads.length,
+            itemPayloadsCount:    data.itemPayloads.length,
+            totalTimeMs:          metrics.totalTimeMs ?? 0,
+            tokensUsed:           metrics.tokensUsed ?? { prompt: 0, completion: 0, total: 0 },
         };
 
         let dataset: ExtractionSessionProvider.DatasetEntry[] = [];
@@ -93,75 +80,55 @@ export class ExtractionSessionProvider {
             // arquivo ainda não existe — começa vazio
         }
 
-        // substitui entrada existente com mesmo sessionId ou adiciona nova
         const idx = dataset.findIndex(e => e.sessionId === entry.sessionId);
         if (idx >= 0) dataset[idx] = entry;
         else dataset.push(entry);
 
         await fs.mkdir(TEMP_BASE_DIR, { recursive: true });
         await fs.writeFile(DATASET_FILE, JSON.stringify(dataset, null, 2), "utf8");
-        console.log(`[ExtractionSessionProvider] Dataset atualizado — ${dataset.length} entradas → ${DATASET_FILE}`);
+        console.log(`[Dataset] Atualizado — ${dataset.length} entradas → ${DATASET_FILE}`);
     }
 }
 
 export namespace ExtractionSessionProvider {
     export type SessionData = {
-        sessionId:    string;
-        pdfBuffer:    Buffer;
-        mdContent:    string;
-        filteredMd:   string;
-        chunks:       ChunkedDocumentResultItem[];
-        topChunks?:   any[];
-        rawFields?:   any;
-        rawItems?:    any[];
-        extraction:   unknown;
-        metrics:      object;
+        sessionId:      string;
+        pdfBuffer:      Buffer;
+        mdContent:      string;
+        fieldPayloads:  Record<string, any>[];  // Payloads enviados ao field extractor
+        itemPayloads:   Record<string, any>[];  // Payloads enviados ao item extractor
+        rawFields:      any;                     // Resposta bruta da IA (campos)
+        rawItems:       any[];                   // Resposta bruta da IA (itens)
+        extraction:     unknown;                 // Resultado final mapeado
+        metrics:        object;                  // Métricas de performance
+        searchQueries:  {                        // Queries usadas na busca vetorial
+            field: string[];
+            item: string[];
+        };
+        qdrantConfig:   {                        // Config do Qdrant (reprodutibilidade)
+            collection: string;
+            documentId: string;
+            fieldSearchLimit: number;
+            fieldScoreThreshold: number;
+            itemSearchLimit: number;
+            itemScoreThreshold: number;
+            itemTypeFilter: string[];
+        };
     };
 
     export type DatasetEntry = {
-        sessionId:            string;
-        timestamp:            string;
-        pdfUrl:               string;
-        numero:               string | null;
-        numero_processo:      string | null;
-        modalidade:           string | null;
-        objeto_resumido:      string | null;
-        valor_estimado_total: number | null;
-        orgao: {
-            nome:   string | null;
-            cnpj:   string | null;
-            uf:     string | null;
-            cidade: string | null;
-        };
-        data_abertura:        string | null;
-        data_proposta_limite: string | null;
-        total_itens:          number;
-        itens_resumo: Array<{
-            numero:      number;
-            descricao:   string;
-            quantidade:  number;
-            unidade:     string;
-            valor_total: number | null;
-        }>;
-        metricas: {
-            pdfFileSizeBytes: number;
-            mdWordCount:      number;
-            chunkCount:       number;
-            totalTimeMs:      number;
-            conversionTimeMs: number;
-            chunkingTimeMs:   number;
-            extractionTimeMs: number;
-            tokensUsed:       { prompt: number; completion: number; total: number };
-        };
-        config: {
-            chunkSize:        number;
-            chunkOverlap:     number;
-            embeddingModel:   string;
-            aiModel:          string;
-            fileParser:       string;
-            extractionMode:   string;
-            topKPorIntent:    Record<string, number>;
-            queriesPorIntent: Record<string, string[]>;
-        } | null;
+        sessionId:          string;
+        timestamp:          string;
+        pdfUrl:             string;
+        numero:             string | null;
+        modalidade:         string | null;
+        objeto_resumido:    string | null;
+        orgao_nome:         string | null;
+        total_itens:        number;
+        fieldPayloadsCount: number;
+        itemPayloadsCount:  number;
+        totalTimeMs:        number;
+        tokensUsed:         { prompt: number; completion: number; total: number };
     };
 }
+

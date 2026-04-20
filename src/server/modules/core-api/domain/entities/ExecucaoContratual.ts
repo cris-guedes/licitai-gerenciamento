@@ -25,6 +25,9 @@ export type ExecucaoContratual = {
 
     /** Garantia do produto ou serviço após a entrega */
     garantia: GarantiaContratual;
+
+    /** Trecho original do edital referente à execução contratual */
+    textoOriginal: string | null;
 };
 
 /**
@@ -58,6 +61,9 @@ export type EntregaContratual = PrazoContratual & {
      * - "comprador": o órgão comprador é responsável
      */
     responsavelInstalacao: "fornecedor" | "comprador" | null;
+
+    /** Trecho original do edital referente à logística de entrega */
+    textoOriginalLogistica: string | null;
 };
 
 /**

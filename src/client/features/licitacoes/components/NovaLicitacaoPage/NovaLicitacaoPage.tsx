@@ -111,7 +111,7 @@ export function NovaLicitacaoPage() {
                         />
                     )}
 
-                    {(stream.isPending || stream.highWaterPct > 0) && !result && (
+                    {(stream.isPending || stream.highWaterPct > 0) && !result && !stream.partialResult && (
                         <ExtractionChecklist
                             highWater={stream.highWaterPct}
                             currentMessage={stream.progress?.message ?? null}
@@ -120,6 +120,18 @@ export function NovaLicitacaoPage() {
                     )}
                 </CardContent>
             </Card>
+
+            {!result && stream.partialResult && (
+                <div className="space-y-4">
+                    {stream.isPending && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Loader2 className="size-3.5 animate-spin" />
+                            <span>Extraindo itens...</span>
+                        </div>
+                    )}
+                    <LicitacaoDetailView data={stream.partialResult} />
+                </div>
+            )}
 
             {stream.error && (
                 <Card className="border-destructive">
@@ -279,15 +291,18 @@ function ExtractionMetrics({ result }: { result: ExtractEditalDataResponse }) {
                         </p>
                     </div>
                 </div>
-                <div className="grid grid-cols-4 gap-3 sm:grid-cols-8">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
                     <MetricBadge label="PDF"         value={formatBytes(metrics.pdfFileSizeBytes)} />
                     <MetricBadge label="Palavras"     value={metrics.totalWords.toLocaleString("pt-BR")} />
                     <MetricBadge label="Chunks"       value={String(metrics.entriesIndexed)} />
+                    <MetricBadge label="Tokens"       value={metrics.tokensUsed.total.toLocaleString("pt-BR")} />
+                    <MetricBadge label="Busca"        value={formatSeconds(metrics.prepareQueriesTimeMs)} />
+                    
                     <MetricBadge label="Conversão"    value={formatSeconds(metrics.conversionTimeMs)} />
+                    <MetricBadge label="Embedding"    value={formatSeconds(metrics.embeddingTimeMs)} />
                     <MetricBadge label="Indexação"    value={formatSeconds(metrics.indexingTimeMs)} />
                     <MetricBadge label="Extração IA"  value={formatSeconds(metrics.extractionTimeMs)} />
                     <MetricBadge label="Total"        value={formatSeconds(metrics.totalTimeMs)} />
-                    <MetricBadge label="Tokens"       value={metrics.tokensUsed.total.toLocaleString("pt-BR")} />
                 </div>
                 {totalItens > 0 && (
                     <p className="text-xs text-muted-foreground mt-3">
@@ -403,54 +418,79 @@ function LicitacaoDetailView({ data }: { data: ExtractEditalDataResponse["licita
                         <InfoField label="Limite Propostas" value={data.edital?.cronograma.acolhimentoFim} isDate />
                         <InfoField label="Hora Limite" value={data.edital?.cronograma.horaLimite} />
                         <InfoField label="Sessão Pública" value={data.edital?.cronograma.sessaoPublica} isDate />
-                        <InfoField label="Esclarecimentos Até" value={data.edital?.cronograma.esclarecimentosAte} isDate fullWidth />
+                        <InfoField label="Hora Sessão" value={data.edital?.cronograma.horaSessaoPublica} />
+                        <InfoField
+                            label="Esclarecimentos Até"
+                            value={data.edital?.cronograma.esclarecimentosAte}
+                            isDate
+                            subValue={data.edital?.cronograma.textoOriginalPrazos}
+                        />
+                        <InfoField
+                            label="Impugnação Até"
+                            value={data.edital?.cronograma.impugnacaoAte}
+                            isDate
+                            subValue={!data.edital?.cronograma.esclarecimentosAte ? data.edital?.cronograma.textoOriginalPrazos : null}
+                        />
                     </div>
                 </SectionCard>
 
                 {/* 4. Regras do Certame */}
-                 <SectionCard title="Regras e Disputa" icon={Gavel} evidence={data.edital?.certame.textoOriginal}>
-                     <div className="grid grid-cols-2 gap-4">
-                         <InfoField label="Modo de Disputa" value={data.edital?.certame.modoDisputa} />
-                         <InfoField label="Critério Julgamento" value={data.edital?.certame.criterioJulgamento} />
-                         <InfoField label="Tipo Instrumento" value={data.edital?.certame.tipoInstrumento} />
-                         <InfoField label="Intervalo Lances" value={data.edital?.certame.intervaloLances} />
-                         <InfoField label="Exclusivo ME/EPP" value={data.edital?.certame.exclusivoMeEpp} isBoolean />
-                         <InfoField label="Permite Adesão (Carona)" value={data.edital?.certame.permiteAdesao} isBoolean />
-                         <InfoField label="Máx. Adesão (%)" value={data.edital?.certame.percentualAdesao ? `${data.edital.certame.percentualAdesao}%` : null} />
-                         <InfoField label="DIFAL" value={data.edital?.certame.difal} isBoolean />
-                         <InfoField label="Regionalidade" value={data.edital?.certame.regionalidade} />
-                     </div>
-                 </SectionCard>
+                <SectionCard title="Certame" icon={Gavel} evidence={data.edital?.certame.textoOriginal}>
+                    <div className="space-y-4">
+                        <SubGroup label="Disputa" evidence={data.edital?.certame.textoOriginalDisputa}>
+                            <div className="grid grid-cols-2 gap-4">
+                                <InfoField label="Modo de Disputa" value={data.edital?.certame.modoDisputa} isEnum />
+                                <InfoField label="Critério Julgamento" value={data.edital?.certame.criterioJulgamento} isEnum />
+                                <InfoField label="Tipo Lance" value={data.edital?.certame.tipoLance} isEnum />
+                                <InfoField label="Intervalo Lances" value={data.edital?.certame.intervaloLances} />
+                                <InfoField label="Duração Sessão" value={data.edital?.certame.duracaoSessaoMinutos ? `${data.edital.certame.duracaoSessaoMinutos} min` : null} />
+                            </div>
+                        </SubGroup>
+                        <SubGroup label="Participação">
+                            <div className="grid grid-cols-2 gap-4">
+                                <InfoField label="Exclusivo ME/EPP" value={data.edital?.certame.exclusivoMeEpp} isBoolean subValue={data.edital?.certame.exclusivoMeEppTexto} />
+                                <InfoField label="Permite Consórcio" value={data.edital?.certame.permiteConsorcio} isBoolean subValue={data.edital?.certame.permiteConsorcioTexto} />
+                                <InfoField label="Visita Técnica" value={data.edital?.certame.exigeVisitaTecnica} isBoolean subValue={data.edital?.certame.exigeVisitaTecnicaTexto} />
+                                <InfoField label="DIFAL" value={data.edital?.certame.difal} isBoolean />
+                                <InfoField label="Regionalidade" value={data.edital?.certame.regionalidade} fullWidth />
+                            </div>
+                        </SubGroup>
+                        <SubGroup label="Adesão e Vigências">
+                            <div className="grid grid-cols-2 gap-4">
+                                <InfoField label="Permite Adesão (Carona)" value={data.edital?.certame.permiteAdesao} isBoolean subValue={data.edital?.certame.permiteAdesaoTexto} />
+                                <InfoField label="Máx. Adesão (%)" value={data.edital?.certame.percentualAdesao ? `${data.edital.certame.percentualAdesao}%` : null} />
+                                <InfoField label="Vigência Ata (meses)" value={data.edital?.certame.vigenciaAtaMeses ? `${data.edital.certame.vigenciaAtaMeses} meses` : null} subValue={data.edital?.certame.vigenciaAtaMesesTexto} />
+                                <InfoField label="Vigência Contrato (dias)" value={data.edital?.certame.vigenciaContratoDias ? `${data.edital.certame.vigenciaContratoDias} dias` : null} subValue={data.edital?.certame.vigenciaContratoDiasTexto} />
+                            </div>
+                        </SubGroup>
+                    </div>
+                </SectionCard>
 
-                {/* 5. Execução e Logística */}
-                <SectionCard title="Logística e Prazos" icon={Truck}>
-                    <div className="grid grid-cols-2 gap-4">
-                        <InfoField 
-                            label="Prazo de Entrega" 
-                            value={data.edital?.execucao.entrega.prazoEmDias ? `${data.edital.execucao.entrega.prazoEmDias} dias` : null} 
-                            subValue={data.edital?.execucao.entrega.textoOriginal}
-                        />
-                        <InfoField label="Tipo Entrega" value={data.edital?.execucao.entrega.tipoEntrega} isEnum />
-                        <InfoField label="Instalação por" value={data.edital?.execucao.entrega.responsavelInstalacao} isEnum />
-                        <div className="grid grid-cols-2 gap-2">
-                             <InfoField label="Validade Proposta" value={data.edital?.execucao.validadeProposta ? `${data.edital.execucao.validadeProposta} dias` : null} />
-                             <InfoField 
-                                label="Prazo Aceite" 
-                                value={data.edital?.execucao.aceite.prazoEmDias ? `${data.edital.execucao.aceite.prazoEmDias} dias` : null} 
-                                subValue={data.edital?.execucao.aceite.textoOriginal}
-                            />
-                        </div>
-                        <InfoField 
-                            label="Prazo de Pagamento" 
-                            value={data.edital?.execucao.pagamento.prazoEmDias ? `${data.edital.execucao.pagamento.prazoEmDias} dias` : null} 
-                            subValue={data.edital?.execucao.pagamento.textoOriginal}
-                        />
-                         <InfoField label="Garantia (Tipo)" value={data.edital?.execucao.garantia.tipo} isEnum subValue={data.edital?.execucao.garantia.textoOriginal} />
-                        <div className="grid grid-cols-2 gap-2">
-                            <InfoField label="Meses" value={data.edital?.execucao.garantia.meses} />
-                            <InfoField label="SLA Atend." value={data.edital?.execucao.garantia.tempoAtendimentoHoras ? `${data.edital.execucao.garantia.tempoAtendimentoHoras}h` : null} />
-                        </div>
-                        <InfoField label="Local de Entrega" value={data.edital?.execucao.entrega.localEntrega} fullWidth />
+                {/* 5. Execução Contratual */}
+                <SectionCard title="Execução Contratual" icon={Truck} evidence={data.edital?.execucao.textoOriginal}>
+                    <div className="space-y-4">
+                        <SubGroup label="Entrega" evidence={data.edital?.execucao.entrega.textoOriginalLogistica}>
+                            <div className="grid grid-cols-2 gap-4">
+                                <InfoField label="Prazo de Entrega" value={data.edital?.execucao.entrega.prazoEmDias ? `${data.edital.execucao.entrega.prazoEmDias} dias` : null} subValue={data.edital?.execucao.entrega.textoOriginal} />
+                                <InfoField label="Tipo Entrega" value={data.edital?.execucao.entrega.tipoEntrega} isEnum />
+                                <InfoField label="Instalação por" value={data.edital?.execucao.entrega.responsavelInstalacao} isEnum />
+                                <InfoField label="Local de Entrega" value={data.edital?.execucao.entrega.localEntrega} fullWidth />
+                            </div>
+                        </SubGroup>
+                        <SubGroup label="Aceite e Pagamento">
+                            <div className="grid grid-cols-2 gap-4">
+                                <InfoField label="Validade Proposta" value={data.edital?.execucao.validadeProposta ? `${data.edital.execucao.validadeProposta} dias` : null} />
+                                <InfoField label="Prazo Aceite" value={data.edital?.execucao.aceite.prazoEmDias ? `${data.edital.execucao.aceite.prazoEmDias} dias` : null} subValue={data.edital?.execucao.aceite.textoOriginal} />
+                                <InfoField label="Prazo Pagamento" value={data.edital?.execucao.pagamento.prazoEmDias ? `${data.edital.execucao.pagamento.prazoEmDias} dias` : null} subValue={data.edital?.execucao.pagamento.textoOriginal} />
+                            </div>
+                        </SubGroup>
+                        <SubGroup label="Garantia" evidence={data.edital?.execucao.garantia.textoOriginal}>
+                            <div className="grid grid-cols-2 gap-4">
+                                <InfoField label="Tipo Garantia" value={data.edital?.execucao.garantia.tipo} isEnum />
+                                <InfoField label="Duração (meses)" value={data.edital?.execucao.garantia.meses} />
+                                <InfoField label="SLA Atendimento" value={data.edital?.execucao.garantia.tempoAtendimentoHoras ? `${data.edital.execucao.garantia.tempoAtendimentoHoras}h` : null} />
+                            </div>
+                        </SubGroup>
                     </div>
                 </SectionCard>
             </div>
@@ -473,10 +513,19 @@ function LicitacaoDetailView({ data }: { data: ExtractEditalDataResponse["licita
                     </SectionCard>
                 )}
 
-                <SectionCard title="Informações Adicionais" icon={Info} evidence={data.edital?.textoOriginal}>
-                    <p className="text-sm text-muted-foreground leading-relaxed italic">
-                        {data.edital?.informacaoComplementar ? `"${data.edital.informacaoComplementar}"` : "Nenhuma informação complementar extraída."}
-                    </p>
+                <SectionCard title="Informações Adicionais" icon={Info}>
+                    {data.edital?.informacaoComplementar ? (
+                        <ul className="space-y-1.5">
+                            {data.edital.informacaoComplementar.split(/\n-\s+/).filter(Boolean).map((item, i) => (
+                                <li key={i} className="flex gap-2 text-sm text-muted-foreground leading-relaxed">
+                                    <span className="text-primary/50 mt-0.5 shrink-0">•</span>
+                                    <span>{item.replace(/^-\s*/, "")}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-sm text-muted-foreground/50 italic">Nenhuma informação adicional extraída.</p>
+                    )}
                 </SectionCard>
             </div>
 
@@ -520,52 +569,52 @@ function LicitacaoDetailView({ data }: { data: ExtractEditalDataResponse["licita
                         <Table>
                             <TableHeader className="bg-muted/50">
                                 <TableRow>
-                                    <TableHead className="w-[60px]">Nº</TableHead>
-                                    <TableHead className="w-[80px]">Tipo</TableHead>
+                                    <TableHead className="w-[50px]">Nº</TableHead>
+                                    <TableHead className="w-[70px]">Tipo</TableHead>
                                     <TableHead>Descrição</TableHead>
-                                    <TableHead>Lote</TableHead>
-                                    <TableHead className="text-right">Qtd</TableHead>
-                                    <TableHead>Unid.</TableHead>
-                                    <TableHead className="text-right">Estimado</TableHead>
-                                    <TableHead className="text-right">Total</TableHead>
+                                    <TableHead className="w-[160px]">CATMAT/SER</TableHead>
+                                    <TableHead className="w-[80px]">Lote</TableHead>
+                                    <TableHead className="text-right w-[60px]">Qtd</TableHead>
+                                    <TableHead className="w-[55px]">Unid.</TableHead>
+                                    <TableHead className="text-right w-[110px]">Unit. Est.</TableHead>
+                                    <TableHead className="text-right w-[110px]">Total Est.</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {data.edital.itens.map((item, i) => (
                                     <TableRow key={i}>
-                                        <TableCell className="font-mono text-xs">{item.numero}</TableCell>
+                                        <TableCell className="font-mono text-xs text-center">{item.numero ?? "—"}</TableCell>
                                         <TableCell>
-                                            <Badge variant="outline" className="text-[10px] scale-90">{item.tipo || "—"}</Badge>
+                                            {item.tipo && (
+                                                <Badge variant="outline" className={`text-[9px] font-bold ${item.tipo === "servico" ? "border-blue-200 text-blue-700" : "border-emerald-200 text-emerald-700"}`}>
+                                                    {item.tipo === "servico" ? "SVC" : "MAT"}
+                                                </Badge>
+                                            )}
                                         </TableCell>
-                                        <TableCell className="max-w-md">
-                                            <div className="space-y-1">
-                                                <p className="font-medium text-xs leading-tight">{item.descricao}</p>
-                                                {item.codigoNcmNbs && (
-                                                    <div className="space-y-0.5">
-                                                        <p className="text-[9px] text-muted-foreground font-mono">NCM: {item.codigoNcmNbs}</p>
-                                                        {item.descricaoNcmNbs && (
-                                                            <p className="text-[8px] text-muted-foreground/60 italic leading-none max-w-xs">{item.descricaoNcmNbs}</p>
-                                                        )}
-                                                    </div>
-                                                )}
-                                                {item.codigoCatmatCatser && (
-                                                    <p className="text-[9px] text-primary/70 font-mono font-bold">CATMAT/SER: {item.codigoCatmatCatser}</p>
-                                                )}
+                                        <TableCell className="max-w-sm whitespace-normal">
+                                            <div className="space-y-0.5">
+                                                <p className="font-medium text-xs leading-snug line-clamp-2">{item.descricao}</p>
                                                 {item.beneficioTributario && (
                                                     <Badge variant="secondary" className="text-[9px] h-4 py-0 px-1 bg-amber-50 text-amber-700 border-amber-200">
                                                         {item.beneficioTributario}
                                                     </Badge>
                                                 )}
+                                                {item.observacao && (
+                                                    <p className="text-[9px] text-muted-foreground/50 italic leading-tight">{item.observacao}</p>
+                                                )}
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-xs text-muted-foreground">{item.lote || "—"}</TableCell>
-                                        <TableCell className="text-right text-xs">{item.quantidade}</TableCell>
-                                        <TableCell className="text-xs font-mono">{item.unidadeMedida}</TableCell>
+                                        <TableCell className="text-[10px] text-muted-foreground font-mono leading-snug whitespace-normal">
+                                            {item.codigoCatmatCatser || "—"}
+                                        </TableCell>
+                                        <TableCell className="text-xs text-muted-foreground font-mono">{item.lote || "—"}</TableCell>
+                                        <TableCell className="text-right text-xs font-mono">{item.quantidade ?? "—"}</TableCell>
+                                        <TableCell className="text-xs font-mono text-muted-foreground">{item.unidadeMedida || "—"}</TableCell>
                                         <TableCell className="text-right text-xs font-semibold text-primary">
-                                            {item.valorUnitarioEstimado ? `R$ ${item.valorUnitarioEstimado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
+                                            {item.valorUnitarioEstimado != null ? `R$ ${item.valorUnitarioEstimado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
                                         </TableCell>
                                         <TableCell className="text-right text-xs font-bold text-primary">
-                                            {item.valorTotal ? `R$ ${item.valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
+                                            {item.valorTotal != null ? `R$ ${item.valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -620,25 +669,58 @@ function LicitacaoDetailView({ data }: { data: ExtractEditalDataResponse["licita
     );
 }
 
-function InfoField({ label, value, subValue, fullWidth, isBoolean, isDate, isEnum }: { 
-    label: string, 
-    value: any, 
+function SubGroup({ label, children, evidence }: { label: string; children: React.ReactNode; evidence?: string | null }) {
+    const [showEvidence, setShowEvidence] = useState(false);
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center gap-2">
+                <p className="text-[11px] font-bold uppercase text-primary/60 tracking-wide">{label}</p>
+                {evidence && (
+                    <button
+                        onClick={() => setShowEvidence(v => !v)}
+                        className="text-[10px] text-muted-foreground/60 hover:text-primary transition-colors underline underline-offset-2"
+                    >
+                        {showEvidence ? "ocultar trecho" : "ver trecho"}
+                    </button>
+                )}
+            </div>
+            {showEvidence && evidence && (
+                <div className="p-2.5 rounded-md bg-slate-50 border border-slate-100 italic text-[11px] text-muted-foreground leading-relaxed">
+                    "{evidence}"
+                </div>
+            )}
+            <div className="pl-2 border-l-2 border-primary/20">
+                {children}
+            </div>
+        </div>
+    );
+}
+
+function InfoField({ label, value, subValue, fullWidth, isBoolean, isDate, isEnum }: {
+    label: string,
+    value: any,
     subValue?: string | null,
-    fullWidth?: boolean, 
-    isBoolean?: boolean, 
+    fullWidth?: boolean,
+    isBoolean?: boolean,
     isDate?: boolean,
-    isEnum?: boolean 
+    isEnum?: boolean
 }) {
+    const [expanded, setExpanded] = useState(false);
     const hasValue = value !== null && value !== undefined && value !== "";
+    const hasEvidence = !!(subValue?.trim());
+    // Value is missing but text evidence exists — show as "found but unparsed"
+    const valueAbsentWithEvidence = !hasValue && hasEvidence;
 
     let content: React.ReactNode = value;
 
     if (!hasValue) {
-        content = <span className="text-muted-foreground/30 italic">—</span>;
+        content = valueAbsentWithEvidence
+            ? <span className="text-amber-500/70 italic text-xs">não extraído</span>
+            : <span className="text-muted-foreground/30 italic">—</span>;
     } else if (isBoolean) {
         content = (
-            <Badge 
-                variant={value ? "default" : "secondary"} 
+            <Badge
+                variant={value ? "default" : "secondary"}
                 className={value ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-emerald-200" : "bg-slate-100 text-slate-800 hover:bg-slate-100 border-slate-200"}
             >
                 {value ? "Sim" : "Não"}
@@ -656,13 +738,31 @@ function InfoField({ label, value, subValue, fullWidth, isBoolean, isDate, isEnu
         <div className={`space-y-0.5 ${fullWidth ? "col-span-2" : ""}`}>
             <p className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider font-mono">{label}</p>
             <div className="flex flex-col gap-0.5">
-                <div className="text-sm font-medium leading-tight">
-                    {content}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="text-sm font-medium leading-tight">
+                        {content}
+                    </div>
+                    {hasEvidence && (
+                        <button
+                            onClick={() => setExpanded(v => !v)}
+                            className={`text-[9px] underline underline-offset-2 transition-colors leading-none mt-0.5 ${
+                                valueAbsentWithEvidence
+                                    ? "text-amber-400 hover:text-amber-600"
+                                    : "text-muted-foreground/40 hover:text-primary/60"
+                            }`}
+                        >
+                            {expanded ? "ocultar" : "trecho"}
+                        </button>
+                    )}
                 </div>
-                {subValue && (
-                    <p className="text-[9px] text-muted-foreground/50 leading-tight italic line-clamp-2" title={subValue}>
+                {expanded && hasEvidence && (
+                    <div className={`text-[10px] leading-relaxed italic p-2 rounded border mt-0.5 ${
+                        valueAbsentWithEvidence
+                            ? "text-amber-700 bg-amber-50/60 border-amber-100"
+                            : "text-muted-foreground/60 bg-slate-50 border-slate-100"
+                    }`}>
                         "{subValue}"
-                    </p>
+                    </div>
                 )}
             </div>
         </div>
