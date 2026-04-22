@@ -8,8 +8,7 @@
     "paths": {
         "/process-pdf": {
             "post": {
-                "summary": "Processa um PDF",
-                "description": "Extrai texto (por página) e tabelas (em markdown) de um arquivo PDF, removendo headers, footers e tabelas template.",
+                "summary": "Process Pdf",
                 "operationId": "process_pdf_process_pdf_post",
                 "requestBody": {
                     "content": {
@@ -44,17 +43,179 @@
                     }
                 }
             }
+        },
+        "/extract-tables": {
+            "post": {
+                "summary": "Extract Tables",
+                "operationId": "extract_tables_extract_tables_post",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_extract_tables_extract_tables_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExtractResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/extract-text": {
+            "post": {
+                "summary": "Extract Text",
+                "operationId": "extract_text_extract_text_post",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_extract_text_extract_text_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExtractResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
         "schemas": {
+            "BaseMetadataSchema": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "title": "Id"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "title": "Page"
+                    },
+                    "word_count": {
+                        "type": "integer",
+                        "title": "Word Count"
+                    },
+                    "origin": {
+                        "type": "string",
+                        "title": "Origin"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "table_row",
+                            "text"
+                        ],
+                        "title": "Type"
+                    },
+                    "next": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Next"
+                    },
+                    "prev": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prev"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "page",
+                    "word_count",
+                    "origin",
+                    "type"
+                ],
+                "title": "BaseMetadataSchema"
+            },
+            "Body_extract_tables_extract_tables_post": {
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "contentMediaType": "application/octet-stream",
+                        "title": "File"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "file"
+                ],
+                "title": "Body_extract_tables_extract_tables_post"
+            },
+            "Body_extract_text_extract_text_post": {
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "contentMediaType": "application/octet-stream",
+                        "title": "File"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "file"
+                ],
+                "title": "Body_extract_text_extract_text_post"
+            },
             "Body_process_pdf_process_pdf_post": {
                 "properties": {
                     "file": {
                         "type": "string",
                         "contentMediaType": "application/octet-stream",
-                        "title": "File",
-                        "description": "Arquivo PDF para processar"
+                        "title": "File"
                     }
                 },
                 "type": "object",
@@ -63,43 +224,43 @@
                 ],
                 "title": "Body_process_pdf_process_pdf_post"
             },
-            "ChunkMetadataSchema": {
+            "ChunkSchema": {
                 "properties": {
-                    "bold": {
-                        "$ref": "#/components/schemas/MetadataFieldSchema",
-                        "description": "Trechos em negrito"
+                    "content": {
+                        "type": "string",
+                        "title": "Content"
                     },
-                    "italic": {
-                        "$ref": "#/components/schemas/MetadataFieldSchema",
-                        "description": "Trechos em itálico"
-                    },
-                    "code": {
-                        "$ref": "#/components/schemas/MetadataFieldSchema",
-                        "description": "Trechos de código inline"
-                    },
-                    "links": {
-                        "$ref": "#/components/schemas/MetadataFieldSchema",
-                        "description": "URLs de links"
-                    },
-                    "lists": {
-                        "$ref": "#/components/schemas/MetadataFieldSchema",
-                        "description": "Itens de lista"
-                    },
-                    "tables": {
-                        "$ref": "#/components/schemas/MetadataFieldSchema",
-                        "description": "Cabeçalhos de tabelas"
+                    "metadata": {
+                        "$ref": "#/components/schemas/schemas__extract_schema__ChunkMetadataSchema"
                     }
                 },
                 "type": "object",
                 "required": [
-                    "bold",
-                    "italic",
-                    "code",
-                    "links",
-                    "lists",
-                    "tables"
+                    "content",
+                    "metadata"
                 ],
-                "title": "ChunkMetadataSchema"
+                "title": "ChunkSchema"
+            },
+            "ExtractResponse": {
+                "properties": {
+                    "raw": {
+                        "type": "string",
+                        "title": "Raw"
+                    },
+                    "chunks": {
+                        "items": {
+                            "$ref": "#/components/schemas/ChunkSchema"
+                        },
+                        "type": "array",
+                        "title": "Chunks"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "raw",
+                    "chunks"
+                ],
+                "title": "ExtractResponse"
             },
             "HTTPValidationError": {
                 "properties": {
@@ -235,7 +396,7 @@
                         "description": "Texto do chunk"
                     },
                     "metadata": {
-                        "$ref": "#/components/schemas/ChunkMetadataSchema",
+                        "$ref": "#/components/schemas/schemas__process_pdf_schema__ChunkMetadataSchema",
                         "description": "Metadados extraídos via AST"
                     }
                 },
@@ -401,6 +562,56 @@
                     "type"
                 ],
                 "title": "ValidationError"
+            },
+            "schemas__extract_schema__ChunkMetadataSchema": {
+                "properties": {
+                    "base": {
+                        "$ref": "#/components/schemas/BaseMetadataSchema"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "base"
+                ],
+                "title": "ChunkMetadataSchema"
+            },
+            "schemas__process_pdf_schema__ChunkMetadataSchema": {
+                "properties": {
+                    "bold": {
+                        "$ref": "#/components/schemas/MetadataFieldSchema",
+                        "description": "Trechos em negrito"
+                    },
+                    "italic": {
+                        "$ref": "#/components/schemas/MetadataFieldSchema",
+                        "description": "Trechos em itálico"
+                    },
+                    "code": {
+                        "$ref": "#/components/schemas/MetadataFieldSchema",
+                        "description": "Trechos de código inline"
+                    },
+                    "links": {
+                        "$ref": "#/components/schemas/MetadataFieldSchema",
+                        "description": "URLs de links"
+                    },
+                    "lists": {
+                        "$ref": "#/components/schemas/MetadataFieldSchema",
+                        "description": "Itens de lista"
+                    },
+                    "tables": {
+                        "$ref": "#/components/schemas/MetadataFieldSchema",
+                        "description": "Cabeçalhos de tabelas"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "bold",
+                    "italic",
+                    "code",
+                    "links",
+                    "lists",
+                    "tables"
+                ],
+                "title": "ChunkMetadataSchema"
             }
         }
     }

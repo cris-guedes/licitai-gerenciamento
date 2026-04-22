@@ -2,7 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type Body_process_pdf_process_pdf_post = {
+export type Body_extract_text_extract_text_post = {
   file: string;
 };
 

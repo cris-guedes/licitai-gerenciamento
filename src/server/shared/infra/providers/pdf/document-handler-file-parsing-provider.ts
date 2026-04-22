@@ -1,35 +1,40 @@
-import { DocumentHandlerClient, type ProcessPdfResponse } from "@/server/shared/lib/document-handler";
-import { normalizeEntries, type IndexEntry }              from "./utils/normalize-entries";
+import { DocumentHandlerClient, type ProcessPdfResponse, type ExtractResponse } from "@/server/shared/lib/document-handler";
 
 const BASE_URL = process.env.DOCUMENT_HANDLER_API_URL ?? "http://localhost:8000";
 
 export class DocumentHandlerFileParsingProvider {
     private readonly client = new DocumentHandlerClient(BASE_URL);
 
-    async process(pdfBuffer: Buffer, pdfUrl?: string): Promise<DocumentHandlerFileParsingProvider.Result> {
-        const filename = pdfUrl
-            ? (pdfUrl.split("/").pop()?.split("?")[0] ?? "document.pdf")
-            : "document.pdf";
+    /**
+     * Processamento unificado (Pipeline Principal)
+     * Retorna ProcessPdfResponse diretamente da lib
+     */
+    async process(pdfBuffer: Buffer, filename: string): Promise<ProcessPdfResponse> {
+        console.log(`[DocumentHandlerFileParsingProvider] ${filename} — ${pdfBuffer.byteLength} bytes → ${BASE_URL} (Unified Process)`);
+        return this.client.processPdf(pdfBuffer, filename);
+    }
 
-        console.log(`[DocumentHandlerFileParsingProvider] ${filename} — ${pdfBuffer.byteLength} bytes → ${BASE_URL}`);
-        const t0       = Date.now();
-        const response = await this.client.processPdf(pdfBuffer, filename);
-        const wallTimeMs = Date.now() - t0;
+    /**
+     * Apenas extração de texto
+     * Retorna ExtractResponse diretamente da lib
+     */
+    async processText(pdfBuffer: Buffer, filename: string): Promise<ExtractResponse> {
+        return this.client.extractText(pdfBuffer, filename);
+    }
 
-        console.log(`[DocumentHandlerFileParsingProvider] pág: ${response.total_pages} | seções: ${response.total_sections} | tab: ${response.total_tables} | chars: ${response.total_chars} | ${wallTimeMs}ms`);
-
-        const entries = normalizeEntries(response);
-        return { response, entries, wallTimeMs };
+    /**
+     * Apenas extração de tabelas
+     * Retorna ExtractResponse diretamente da lib
+     */
+    async processTables(pdfBuffer: Buffer, filename: string): Promise<ExtractResponse> {
+        return this.client.extractTables(pdfBuffer, filename);
     }
 }
 
 export namespace DocumentHandlerFileParsingProvider {
-    export type Result = {
-        response:    ProcessPdfResponse;
-        entries:     IndexEntry[];
-        wallTimeMs:  number;
-    };
-    export type Contract = Pick<DocumentHandlerFileParsingProvider, "process">;
+    /**
+     * Contrato que o Worker utiliza. 
+     * O Worker agora deve lidar com ProcessPdfResponse ou ExtractResponse.
+     */
+    export type Contract = Pick<DocumentHandlerFileParsingProvider, "process" | "processText" | "processTables">;
 }
-
-export type { IndexEntry };
