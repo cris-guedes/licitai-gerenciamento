@@ -111,29 +111,29 @@ export class ExtractEditalData {
         // mdContent agora usa o RAW formatado (Prettified) vindo de ambas as pipelines
         const mdContent = (info.ingestionResult.prettifiedRaw || "") + "\n\n" + (items.ingestionResult.prettifiedRaw || "");
 
-        await this.sessionStorage.save({
-            sessionId,
-            pdfBuffer: input.pdfBuffer,
-            mdContent,
-            parsedTextEntries: info.ingestionResult.entries,
-            parsedTableEntries: items.ingestionResult.entries,
-            fieldPayloads: info.infoChunks.payloads,
-            itemPayloads: items.itemChunks.payloads,
-            rawFields: info.extraction,
-            rawItems: items.itens,
-            extraction: licitacao,
-            metrics,
-            searchQueries: { field: [], item: [] },
-            qdrantConfig: {
-                collection: config.COLLECTION_NAME,
-                documentId,
-                fieldSearchLimit: config.FIELD_SEARCH_LIMIT,
-                fieldScoreThreshold: config.FIELD_SCORE_THRESHOLD,
-                itemSearchLimit: config.ITEM_SEARCH_LIMIT,
-                itemScoreThreshold: config.ITEM_SCORE_THRESHOLD,
-                itemTypeFilter: ["table_row"],
-            },
-        });
+        /*await this.sessionStorage.save({
+             sessionId,
+             pdfBuffer: input.pdfBuffer,
+             mdContent,
+             parsedTextEntries: info.ingestionResult.entries,
+             parsedTableEntries: items.ingestionResult.entries,
+             fieldPayloads: info.infoChunks.payloads,
+             itemPayloads: items.itemChunks.payloads,
+             rawFields: info.extraction,
+             rawItems: items.itens,
+             extraction: licitacao,
+             metrics,
+             searchQueries: { field: [], item: [] },
+             qdrantConfig: {
+                 collection: config.COLLECTION_NAME,
+                 documentId,
+                 fieldSearchLimit: config.FIELD_SEARCH_LIMIT,
+                 fieldScoreThreshold: config.FIELD_SCORE_THRESHOLD,
+                 itemSearchLimit: config.ITEM_SEARCH_LIMIT,
+                 itemScoreThreshold: config.ITEM_SCORE_THRESHOLD,
+                 itemTypeFilter: ["table_row"],
+             },
+         });*/
 
         return { sessionId, mdContent, licitacao, metrics };
     }
