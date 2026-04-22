@@ -2,7 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type Body_process_pdf_process_pdf_post = {
-  file: string;
+import type { ChunkSchema } from './ChunkSchema';
+export type ExtractResponse = {
+  raw: string;
+  chunks: Array<ChunkSchema>;
 };
 

@@ -1,6 +1,6 @@
 import { generateObject } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
-import type { IAgent, IExtractionResult } from "@/server/modules/core-api/domain/data/IAgent";
+import type { IAgent, IExtractionResult, IExtractionMetrics } from "@/server/modules/core-api/domain/data/IAgent";
 import { EDITAL_SEARCH_QUERIES } from "./queries";
 import { EDITAL_FIELD_SCHEMA } from "./schemas";
 import { SYSTEM_PROMPT, buildExtractionPrompt } from "./prompts";
@@ -17,9 +17,10 @@ export class EditalFieldExtractorAgent implements IAgent<Record<string, any>[], 
         return EDITAL_SEARCH_QUERIES;
     }
 
-    async extract(payloads: Record<string, any>[], onProgress?: (message: string, percent: number) => void): Promise<IExtractionResult<Record<string, any>>> {
-        const startTime = Date.now();
-        onProgress?.("Interpretando contexto com IA...", 60);
+    async extract(payloads: Record<string, any>[]): Promise<IExtractionResult<Record<string, any>>> {
+        if (payloads.length === 0) {
+            return { data: {}, metrics: this.emptyMetrics() };
+        }
 
         const context = JSON.stringify(payloads, null, 2);
 
@@ -35,20 +36,25 @@ export class EditalFieldExtractorAgent implements IAgent<Record<string, any>[], 
         console.log(JSON.stringify(object, null, 2));
         console.log("-------------------------------------------\n");
 
-        const elapsedMs = Date.now() - startTime;
-        console.log(`[EditalFieldExtractorAgent] Extração concluída em ${elapsedMs}ms`);
-
-        onProgress?.("Campos do edital extraídos com sucesso", 70);
-
         return {
-            data: object,
-            metrics: {
-                tokensUsed: {
-                    prompt: usage?.inputTokens ?? 0,
-                    completion: usage?.outputTokens ?? 0,
-                    total: (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0),
-                }
-            }
+            data:    object,
+            metrics: this.mapMetrics(usage),
+        };
+    }
+
+    private mapMetrics(usage: any): IExtractionMetrics {
+        return {
+            tokensUsed: {
+                prompt:     usage?.inputTokens ?? 0,
+                completion: usage?.outputTokens ?? 0,
+                total:      (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0),
+            },
+        };
+    }
+
+    private emptyMetrics(): IExtractionMetrics {
+        return {
+            tokensUsed: { prompt: 0, completion: 0, total: 0 },
         };
     }
 }

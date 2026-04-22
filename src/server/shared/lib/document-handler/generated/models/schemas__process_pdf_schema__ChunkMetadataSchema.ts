@@ -3,7 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { MetadataFieldSchema } from './MetadataFieldSchema';
-export type ChunkMetadataSchema = {
+export type schemas__process_pdf_schema__ChunkMetadataSchema = {
   /**
    * Trechos em negrito
    */

@@ -2,7 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { ChunkMetadataSchema } from './ChunkMetadataSchema';
+import type { schemas__process_pdf_schema__ChunkMetadataSchema } from './schemas__process_pdf_schema__ChunkMetadataSchema';
 export type SectionChunkSchema = {
   /**
    * Ordem do chunk dentro da seção
@@ -19,6 +19,6 @@ export type SectionChunkSchema = {
   /**
    * Metadados extraídos via AST
    */
-  metadata: ChunkMetadataSchema;
+  metadata: schemas__process_pdf_schema__ChunkMetadataSchema;
 };
 

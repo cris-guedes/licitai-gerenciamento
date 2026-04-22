@@ -1,3 +1,4 @@
+import type { IIdentifierProvider } from "@/server/modules/core-api/domain/data/IIdentifierProvider";
 import { PrismaInviteRepository } from "@/server/shared/infra/repositories/invite.repository";
 import { CreateInviteMapper, type CreateInviteView } from "./dtos/CreateInviteView";
 import type { CreateInviteDTO } from "./dtos/CreateInviteDTOs";
@@ -5,10 +6,11 @@ import type { CreateInviteDTO } from "./dtos/CreateInviteDTOs";
 export class CreateInvite {
     constructor(
         private readonly inviteRepository: PrismaInviteRepository,
+        private readonly identifierProvider: IIdentifierProvider,
     ) {}
 
     async execute(params: CreateInvite.Params): Promise<CreateInvite.Response> {
-        const token     = crypto.randomUUID();
+        const token     = this.identifierProvider.generate();
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
         await this.inviteRepository.create({

@@ -21,8 +21,8 @@ import type { ExtractEditalDataResponse } from "@/client/main/infra/apis/api-cor
 
 export function NovaLicitacaoPage() {
     const api    = useCoreApi()
-    const { extractEditalDataStream } = useLicitacaoService(api)
-    const stream = extractEditalDataStream()
+    const { extractEdital } = useLicitacaoService(api)
+    const extract = extractEdital()
 
     const [pdfFile, setPdfFile] = useState<File | null>(null)
     const [result,  setResult]  = useState<ExtractEditalDataResponse | null>(null)
@@ -31,11 +31,11 @@ export function NovaLicitacaoPage() {
         e.preventDefault()
         if (!pdfFile) return
         setResult(null)
-        stream.reset()
+        extract.reset()
         try {
-            const data = await stream.mutateAsync({ file: pdfFile })
+            const data = await extract.mutateAsync({ file: pdfFile })
             setResult(data)
-        } catch { /* error já está em stream.error */ }
+        } catch { /* error em extract.error */ }
     }
 
     function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -71,7 +71,7 @@ export function NovaLicitacaoPage() {
                                     <button
                                         type="button"
                                         onClick={clearFile}
-                                        disabled={stream.isPending}
+                                        disabled={extract.isPending}
                                         className="text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-50"
                                     >
                                         <X className="size-3.5" />
@@ -91,12 +91,12 @@ export function NovaLicitacaoPage() {
                                 type="file"
                                 accept=".pdf,application/pdf"
                                 onChange={handleFileChange}
-                                disabled={stream.isPending}
+                                disabled={extract.isPending}
                                 className="sr-only"
                             />
                         </div>
-                        <Button type="submit" disabled={stream.isPending || !pdfFile}>
-                            {stream.isPending ? (
+                        <Button type="submit" disabled={extract.isPending || !pdfFile}>
+                            {extract.isPending ? (
                                 <><Loader2 className="size-4 mr-2 animate-spin" />Processando...</>
                             ) : (
                                 <><FileText className="size-4 mr-2" />Extrair Edital</>
@@ -104,42 +104,22 @@ export function NovaLicitacaoPage() {
                         </Button>
                     </form>
 
-                    {stream.isPending && stream.progress && (
-                        <ExtractionProgress
-                            message={stream.progress.message}
-                            percent={stream.progress.percent}
-                        />
-                    )}
-
-                    {(stream.isPending || stream.highWaterPct > 0) && !result && !stream.partialResult && (
-                        <ExtractionChecklist
-                            highWater={stream.highWaterPct}
-                            currentMessage={stream.progress?.message ?? null}
-                            isPending={stream.isPending}
-                        />
+                    {extract.isPending && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground pt-1">
+                            <Loader2 className="size-3.5 animate-spin shrink-0" />
+                            <span>Extraindo dados do edital — isso pode levar alguns minutos...</span>
+                        </div>
                     )}
                 </CardContent>
             </Card>
 
-            {!result && stream.partialResult && (
-                <div className="space-y-4">
-                    {stream.isPending && (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Loader2 className="size-3.5 animate-spin" />
-                            <span>Extraindo itens...</span>
-                        </div>
-                    )}
-                    <LicitacaoDetailView data={stream.partialResult} />
-                </div>
-            )}
-
-            {stream.error && (
+            {extract.error && (
                 <Card className="border-destructive">
                     <CardContent className="pt-4 flex items-start gap-3">
                         <AlertCircle className="size-5 text-destructive shrink-0 mt-0.5" />
                         <div>
                             <p className="font-medium text-sm text-destructive">Erro na extração</p>
-                            <p className="text-sm text-muted-foreground mt-0.5">{stream.error.message}</p>
+                            <p className="text-sm text-muted-foreground mt-0.5">{extract.error.message}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -198,80 +178,6 @@ export function NovaLicitacaoPage() {
     )
 }
 
-// ─── Progress bar ─────────────────────────────────────────────────────────────
-
-function ExtractionProgress({ message, percent }: { message: string; percent: number }) {
-    return (
-        <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{message}</span>
-                <span className="font-mono">{percent}%</span>
-            </div>
-            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                    className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
-                    style={{ width: `${percent}%` }}
-                />
-            </div>
-        </div>
-    )
-}
-
-// ─── Checklist de etapas ─────────────────────────────────────────────────────
-
-const CHECKLIST_STEPS = [
-    { label: "Arquivo recebido",           doneAt: 9  },
-    { label: "PDF convertido para texto",  doneAt: 31 },
-    { label: "Conteúdo indexado",          doneAt: 51 },
-    { label: "Campos do edital extraídos", doneAt: 71 },
-    { label: "Itens licitados extraídos",  doneAt: 83 },
-    { label: "Licitação estruturada",      doneAt: 100 },
-] as const
-
-function ExtractionChecklist({
-    highWater,
-    currentMessage,
-    isPending,
-}: {
-    highWater:      number
-    currentMessage: string | null
-    isPending:      boolean
-}) {
-    const currentIdx = CHECKLIST_STEPS.findIndex(s => highWater < s.doneAt)
-
-    return (
-        <div className="pt-1 space-y-1.5">
-            {CHECKLIST_STEPS.map((step, i) => {
-                const done    = highWater >= step.doneAt
-                const current = !done && isPending && i === currentIdx
-
-                return (
-                    <div key={i} className="flex items-start gap-2.5">
-                        <div className="mt-0.5 size-4 shrink-0 flex items-center justify-center">
-                            {done ? (
-                                <CheckCircle2 className="size-4 text-emerald-500" />
-                            ) : current ? (
-                                <Loader2 className="size-3.5 text-primary animate-spin" />
-                            ) : (
-                                <div className="size-2 rounded-full bg-border mt-1" />
-                            )}
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                            <span className={`text-sm leading-tight ${done ? "text-foreground font-medium" : current ? "text-foreground" : "text-muted-foreground/40"}`}>
-                                {step.label}
-                            </span>
-                            {current && currentMessage && (
-                                <span className="text-xs text-muted-foreground mt-0.5 truncate">
-                                    {currentMessage}
-                                </span>
-                            )}
-                        </div>
-                    </div>
-                )
-            })}
-        </div>
-    )
-}
 
 // ─── Métricas ─────────────────────────────────────────────────────────────────
 

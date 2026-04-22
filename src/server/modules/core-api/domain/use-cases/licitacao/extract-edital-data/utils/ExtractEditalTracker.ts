@@ -1,3 +1,4 @@
+import type { PdfIngestionWorker } from "@/server/modules/core-api/workers/pdf-ingestion/PdfIngestionWorker";
 import { MetricsProvider } from "@/server/shared/infra/providers/metrics/metrics-provider";
 import { ExtractEditalData } from "../ExtractEditalData";
 
@@ -11,7 +12,6 @@ export class ExtractEditalTracker {
         this.mainTimer = this.metrics.startTimer("extract_total");
     }
 
-    // Retorna o tempo total ao final
     finishTotal(meta?: Record<string, unknown>) {
         this.reportFn({ step: "extract_total", message: "Extração concluída!", percent: 100 });
         return this.mainTimer(meta);
@@ -23,19 +23,6 @@ export class ExtractEditalTracker {
 
     emitSave(documentId: string) {
         this.reportFn({ step: "save", message: `Finalizando Documento ${documentId}...`, percent: 95 });
-    }
-
-    emitPartialInfo(data: any, licitacao: any) {
-        this.reportFn({ step: "extract_info_done", message: "Campos extraídos", percent: 70, partialData: { type: "fields", data, licitacao } });
-    }
-
-    emitPartialItemBatch(items: any[], batchIndex: number, totalBatches: number) {
-        const percent = 72 + Math.round(((batchIndex + 1) / totalBatches) * 12);
-        this.reportFn({ step: "extract_itens_batch", message: `Extraindo itens: lote ${batchIndex + 1} de ${totalBatches}`, percent, partialData: { type: "items_batch", items, batchIndex, totalBatches } });
-    }
-
-    emitPartialItems(data: any) {
-        this.reportFn({ step: "extract_itens_done", message: "Itens extraídos", percent: 85, partialData: { type: "items_final", data } });
     }
 
     // ─── Steps ────────────────────────────────────────────────────────────────
@@ -52,39 +39,20 @@ export class ExtractEditalTracker {
         };
     }
 
-    parse() {
-        this.reportFn({ step: "parse", message: "Convertendo PDF para texto...", percent: 15 });
-        const timer = this.metrics.startTimer("parse");
+    ingest(): PdfIngestionWorker.IngestionProgress & { done: () => number } {
+        this.reportFn({ step: "ingest", message: "Processando PDF...", percent: 15 });
+        const timer = this.metrics.startTimer("ingest");
         return {
-            done: (meta: { sessionId: string; apiMs: number }) => {
-                const time = timer(meta);
-                this.reportFn({ step: "parse", message: "PDF convertido", percent: 30 });
-                return time;
-            }
-        };
-    }
-
-    embed() {
-        this.reportFn({ step: "embed", message: "Gerando embeddings do documento...", percent: 35 });
-        const timer = this.metrics.startTimer("embed");
-        return {
-            done: (count: number) => {
-                const time = timer();
-                this.reportFn({ step: "embed", message: `Embeddings gerados para ${count} fragmentos`, percent: 42 });
-                return time;
-            }
-        };
-    }
-
-    store() {
-        this.reportFn({ step: "store", message: "Armazenando contexto semântico...", percent: 45 });
-        const timer = this.metrics.startTimer("store");
-        return {
-            done: () => {
-                const time = timer();
-                this.reportFn({ step: "store", message: "Armazenamento vetorial concluído", percent: 50 });
-                return time;
-            }
+            onParsed: (ms) => {
+                this.reportFn({ step: "ingest_parse", message: "PDF convertido em chunks", percent: 28 });
+            },
+            onEmbedded: (count) => {
+                this.reportFn({ step: "ingest_embed", message: `Embeddings gerados para ${count} fragmentos`, percent: 40 });
+            },
+            onStored: () => {
+                this.reportFn({ step: "ingest_store", message: "Armazenamento vetorial concluído", percent: 50 });
+            },
+            done: () => timer(),
         };
     }
 
@@ -106,7 +74,6 @@ export class ExtractEditalTracker {
         const timer = this.metrics.startTimer("extract_itens");
         return {
             relay: (message: string, percent: number) => this.reportFn({ step: "extract_itens", message, percent }),
-            relayBatch: (items: any[], batchIndex: number, totalBatches: number) => this.emitPartialItemBatch(items, batchIndex, totalBatches),
             done: (count: number) => {
                 const time = timer();
                 this.reportFn({ step: "extract_itens", message: `${count} itens extraídos`, percent: 85 });

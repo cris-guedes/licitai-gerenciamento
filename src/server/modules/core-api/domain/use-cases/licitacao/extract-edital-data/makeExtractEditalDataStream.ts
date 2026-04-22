@@ -5,9 +5,15 @@ import { EditalFieldExtractorAgent } from "@/server/shared/infra/providers/ia/ag
 import { EditalItemExtractorAgent } from "@/server/shared/infra/providers/ia/agents/edital-item-extractor";
 import { MetricsProvider } from "@/server/shared/infra/providers/metrics/metrics-provider";
 import { ExtractionSessionProvider } from "@/server/shared/infra/providers/session/extraction-session-provider";
+import { UuidIdentifierProvider } from "@/server/shared/infra/providers/identifier/uuid-identifier-provider";
+import { PQueuePromiseProvider } from "@/server/shared/infra/providers/promise/p-queue-promise-provider";
+import { PdfIngestionWorker } from "@/server/modules/core-api/workers/pdf-ingestion/PdfIngestionWorker";
+import { TableIngestionWorker } from "@/server/modules/core-api/workers/pdf-ingestion/TableIngestionWorker";
+import { LLMDocumentPrettifyProvider } from "@/server/shared/infra/providers/ia/prettify/llm-document-prettify-provider";
 import { ExtractEditalData } from "./ExtractEditalData";
-import { ExtractEditalDataStreamController } from "./ExtractEditalDataStreamController";
 import { ExtractEditalDataController } from "./ExtractEditalDataController";
+import { ExtractInfoPipeline } from "./pipelines/ExtractInfoPipeline";
+import { ExtractItemsPipeline } from "./pipelines/ExtractItemsPipeline";
 
 const CONFIG = {
     embedding: {
@@ -18,15 +24,21 @@ const CONFIG = {
     },
     vectorStore: {
         COLLECTION_NAME: process.env.QDRANT_COLLECTION ?? "edital-v1-1536",
-        FIELD_SEARCH_LIMIT: 10,
-        FIELD_SCORE_THRESHOLD: 0.50,
-        ITEM_SEARCH_LIMIT: 40,
-        ITEM_SCORE_THRESHOLD: 0.50,
-        ITEM_TYPE_FILTER: ["table_md", "table_row"],
-    }
+        FIELD_SEARCH_LIMIT: 200,
+        FIELD_SCORE_THRESHOLD: 0.38,
+        ITEM_SEARCH_LIMIT: 500,
+        ITEM_SCORE_THRESHOLD: 0.45,
+        ITEM_SCROLL_BATCH_SIZE: 1000,
+        ITEM_SCROLL_SCORE: 1.0,
+        ITEM_EXTRACTION_CONCURRENCY: 5,
+        EMBEDDING_CONCURRENCY: 5,
+        STORE_CONCURRENCY: 5,
+    },
 };
 
 function createUseCase() {
+    const metricsProvider = new MetricsProvider();
+
     const embeddingProvider = new OpenAIEmbeddingProvider({
         model: CONFIG.embedding.model,
         dimensions: CONFIG.embedding.dimensions,
@@ -34,22 +46,61 @@ function createUseCase() {
         maxConcurrency: CONFIG.embedding.maxConcurrency,
     });
 
-    return new ExtractEditalData(
-        new DocumentHandlerFileParsingProvider(),
+    const vectorStore = new QdrantVectorStore();
+    const identifierProvider = new UuidIdentifierProvider();
+    const promiseProvider = new PQueuePromiseProvider();
+    const documentParser = new DocumentHandlerFileParsingProvider();
+    const prettifyProvider = new LLMDocumentPrettifyProvider();
+
+    // 1. Instancia os Workers
+    const pdfIngestionWorker = new PdfIngestionWorker(
+        documentParser,
         embeddingProvider,
-        new QdrantVectorStore(),
+        vectorStore,
+        identifierProvider,
+        promiseProvider,
+        metricsProvider,
+        { collectionName: CONFIG.vectorStore.COLLECTION_NAME },
+    );
+
+    const tableIngestionWorker = new TableIngestionWorker(
+        documentParser,
+        embeddingProvider,
+        vectorStore,
+        identifierProvider,
+        promiseProvider,
+        metricsProvider,
+        { collectionName: CONFIG.vectorStore.COLLECTION_NAME },
+    );
+
+    // 2. Instancia as Pipelines
+    const infoPipeline = new ExtractInfoPipeline(
+        pdfIngestionWorker,
+        embeddingProvider,
+        vectorStore,
         new EditalFieldExtractorAgent(),
+        prettifyProvider,
+    );
+
+    const itemsPipeline = new ExtractItemsPipeline(
+        tableIngestionWorker,
+        vectorStore,
         new EditalItemExtractorAgent(),
-        new MetricsProvider(),
+        promiseProvider,
+        prettifyProvider,
+    );
+
+    // 3. Retorna o Use Case orquestrador
+    return new ExtractEditalData(
+        infoPipeline,
+        itemsPipeline,
+        embeddingProvider,
         new ExtractionSessionProvider(),
-        CONFIG.vectorStore
+        metricsProvider,
+        CONFIG.vectorStore,
     );
 }
 
 export function makeExtractEditalData(): ExtractEditalDataController {
     return new ExtractEditalDataController(createUseCase());
-}
-
-export function makeExtractEditalDataStream(): ExtractEditalDataStreamController {
-    return new ExtractEditalDataStreamController(createUseCase());
 }
