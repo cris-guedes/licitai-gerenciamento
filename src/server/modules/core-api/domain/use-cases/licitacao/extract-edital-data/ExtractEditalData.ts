@@ -285,14 +285,14 @@ export class ExtractEditalData {
             },
         };
 
-        await this.sessionStorage.saveMetrics({
+        /*await this.sessionStorage.saveMetrics({
             sessionId,
             metrics,
             extraction: licitacao,
             rawItems: items.itens,
             fieldPayloads: info.infoChunks.payloads,
             itemPayloads: items.itemChunks.payloads,
-        });
+        });*/
 
         return { sessionId, mdContent, licitacao, metrics };
     }
