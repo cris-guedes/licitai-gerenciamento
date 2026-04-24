@@ -6,6 +6,7 @@ import type { IIdentifierProvider } from "@/server/modules/core-api/domain/data/
 import type { IPromiseProvider } from "@/server/modules/core-api/domain/data/IPromiseProvider";
 import type { MetricsProvider } from "@/server/shared/infra/providers/metrics/metrics-provider";
 import type { ProcessedChunk } from "@/server/modules/core-api/domain/data/ProcessedChunk";
+import { performance } from "perf_hooks";
 
 export class PdfIngestionWorker {
     private readonly MIN_EMBEDDING_BATCH_SIZE = 100;
@@ -27,16 +28,21 @@ export class PdfIngestionWorker {
         storeConcurrency = 1,
         onProgress
     }: PdfIngestionWorker.Input): Promise<PdfIngestionWorker.Result> {
+        const ingestStartedAt = performance.now();
 
-        await this.stepEnsureVectorCollectionExists();
+        const ensureCollectionTimeMs = await this.stepEnsureVectorCollectionExists();
 
-        const response = await this.stepParseDocument(pdfBuffer, documentId);
+        const { response, timeMs: parseTimeMs } = await this.stepParseDocument(pdfBuffer, documentId);
 
         const allChunks = this.stepExtractRawChunksFromResponse(response);
-        onProgress?.onParsed(response.processing_time_ms);
+        onProgress?.onParsed(parseTimeMs);
 
         if (allChunks.length === 0) {
-            return this.stepReturnEmptyResult(documentId, response);
+            return this.stepReturnEmptyResult(documentId, response, {
+                ensureCollectionTimeMs,
+                parseTimeMs,
+                totalTimeMs: performance.now() - ingestStartedAt,
+            });
         }
 
         // Decisão de concorrência para Embeddings
@@ -71,11 +77,16 @@ export class PdfIngestionWorker {
             }
         }));
 
+        const totalTimeMs = performance.now() - ingestStartedAt;
+
         return {
             documentId,
-            parseTimeMs: response.processing_time_ms,
+            ensureCollectionTimeMs,
+            parseTimeMs,
+            providerReportedParseTimeMs: response.processing_time_ms,
             embeddingTimeMs,
             indexingTimeMs,
+            totalTimeMs,
             embeddingTokensUsed,
             entriesCount: allChunks.length,
             totalChars: response.total_chars,
@@ -85,15 +96,20 @@ export class PdfIngestionWorker {
         };
     }
 
-    private async stepEnsureVectorCollectionExists(): Promise<void> {
+    private async stepEnsureVectorCollectionExists(): Promise<number> {
+        const stopTimer = this.metrics.startTimer("pdf-ingestion:ensure-collection");
         await this.vectorStore.ensureCollection(this.config.collectionName, {
             vectorSize: this.embeddingProvider.dimensions,
             payloadIndexFields: ["document_id", "metadata.base.type", "metadata.base.page"],
         });
+        return stopTimer({ collectionName: this.config.collectionName });
     }
 
-    private async stepParseDocument(buffer: Buffer, documentId: string): Promise<ProcessPdfResponse> {
-        return this.documentParser.process(buffer, documentId);
+    private async stepParseDocument(buffer: Buffer, documentId: string): Promise<{ response: ProcessPdfResponse; timeMs: number }> {
+        const stopTimer = this.metrics.startTimer("pdf-ingestion:parse-document");
+        const response = await this.documentParser.process(buffer, documentId);
+        const timeMs = stopTimer({ documentId, providerReportedParseTimeMs: response.processing_time_ms });
+        return { response, timeMs };
     }
 
     private stepExtractRawChunksFromResponse(response: ProcessPdfResponse): any[] {
@@ -223,12 +239,19 @@ export class PdfIngestionWorker {
         return partitions;
     }
 
-    private stepReturnEmptyResult(documentId: string, response: ProcessPdfResponse): PdfIngestionWorker.Result {
+    private stepReturnEmptyResult(
+        documentId: string,
+        response: ProcessPdfResponse,
+        timing: { ensureCollectionTimeMs: number; parseTimeMs: number; totalTimeMs: number }
+    ): PdfIngestionWorker.Result {
         return {
             documentId,
-            parseTimeMs: response.processing_time_ms,
+            ensureCollectionTimeMs: timing.ensureCollectionTimeMs,
+            parseTimeMs: timing.parseTimeMs,
+            providerReportedParseTimeMs: response.processing_time_ms,
             embeddingTimeMs: 0,
             indexingTimeMs: 0,
+            totalTimeMs: timing.totalTimeMs,
             embeddingTokensUsed: 0,
             entriesCount: 0,
             totalChars: response.total_chars,
@@ -259,9 +282,12 @@ export namespace PdfIngestionWorker {
 
     export type Result = {
         documentId: string;
+        ensureCollectionTimeMs: number;
         parseTimeMs: number;
+        providerReportedParseTimeMs?: number;
         embeddingTimeMs: number;
         indexingTimeMs: number;
+        totalTimeMs: number;
         embeddingTokensUsed: number;
         entriesCount: number;
         totalChars: number;

@@ -167,7 +167,7 @@ export function NovaLicitacaoPage() {
                                 <MarkdownViewer
                                     content={result.mdContent}
                                     wordCount={result.metrics.totalWords}
-                                    fileSizeKb={result.metrics.totalChars / 1024}
+                                    fileSizeKb={result.metrics.pdfFileSizeBytes / 1024}
                                 />
                             </Card>
                         </TabsContent>
@@ -182,12 +182,16 @@ export function NovaLicitacaoPage() {
 // ─── Métricas ─────────────────────────────────────────────────────────────────
 
 function ExtractionMetrics({ result }: { result: ExtractEditalDataResponse }) {
-    const { metrics, licitacao } = result
-    const totalItens = licitacao.edital?.itens?.length ?? 0
+    const { metrics } = result
+    const stepGroups = [
+        metrics.steps.orchestration,
+        metrics.steps.info,
+        metrics.steps.items,
+    ]
 
     return (
         <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20">
-            <CardContent className="pt-4">
+            <CardContent className="pt-4 space-y-5">
                 <div className="flex items-center gap-3 mb-4">
                     <CheckCircle2 className="size-5 text-emerald-600 shrink-0" />
                     <div>
@@ -198,23 +202,23 @@ function ExtractionMetrics({ result }: { result: ExtractEditalDataResponse }) {
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                    <MetricBadge label="PDF"         value={formatBytes(metrics.pdfFileSizeBytes)} />
-                    <MetricBadge label="Palavras"     value={metrics.totalWords.toLocaleString("pt-BR")} />
-                    <MetricBadge label="Chunks"       value={String(metrics.entriesIndexed)} />
-                    <MetricBadge label="Tokens"       value={metrics.tokensUsed.total.toLocaleString("pt-BR")} />
-                    <MetricBadge label="Busca"        value={formatSeconds(metrics.prepareQueriesTimeMs)} />
-                    
-                    <MetricBadge label="Conversão"    value={formatSeconds(metrics.conversionTimeMs)} />
-                    <MetricBadge label="Embedding"    value={formatSeconds(metrics.embeddingTimeMs)} />
-                    <MetricBadge label="Indexação"    value={formatSeconds(metrics.indexingTimeMs)} />
-                    <MetricBadge label="Extração IA"  value={formatSeconds(metrics.extractionTimeMs)} />
-                    <MetricBadge label="Total"        value={formatSeconds(metrics.totalTimeMs)} />
+                    <MetricBadge label="PDF" value={formatBytes(metrics.pdfFileSizeBytes)} />
+                    <MetricBadge label="Palavras do PDF" value={metrics.totalWords.toLocaleString("pt-BR")} />
+                    <MetricBadge label="Entradas Indexadas" value={metrics.entriesIndexed.toLocaleString("pt-BR")} />
+                    <MetricBadge label="Chunks Para IA" value={(metrics.chunksEnviados.agenteCampos + metrics.chunksEnviados.agenteItens).toLocaleString("pt-BR")} />
+                    <MetricBadge label="Tokens IA" value={metrics.tokensUsed.total.toLocaleString("pt-BR")} />
+                    <MetricBadge label="Tokens Embedding" value={metrics.embeddingTokensUsed.toLocaleString("pt-BR")} />
+                    <MetricBadge label="Campos IA" value={metrics.chunksEnviados.agenteCampos.toLocaleString("pt-BR")} />
+                    <MetricBadge label="Itens IA" value={metrics.chunksEnviados.agenteItens.toLocaleString("pt-BR")} />
+                    <MetricBadge label="Itens Extraídos" value={metrics.itemsExtracted.toLocaleString("pt-BR")} />
+                    <MetricBadge label="Tempo Total" value={formatSeconds(metrics.totalTimeMs)} />
                 </div>
-                {totalItens > 0 && (
-                    <p className="text-xs text-muted-foreground mt-3">
-                        {totalItens} {totalItens === 1 ? "item extraído" : "itens extraídos"}
-                    </p>
-                )}
+
+                <div className="grid gap-4 xl:grid-cols-3">
+                    {stepGroups.map(group => (
+                        <PipelineStepsCard key={group.label} group={group} />
+                    ))}
+                </div>
             </CardContent>
         </Card>
     )
@@ -687,6 +691,46 @@ function formatDate(dateStr: string) {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function PipelineStepsCard({ group }: { group: ExtractEditalDataResponse["metrics"]["steps"]["info"] }) {
+    const visibleSteps = group.steps.filter(step => step.id !== "save_artifacts")
+
+    return (
+        <div className="rounded-xl border border-emerald-200/70 bg-white/70 p-4">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <p className="text-sm font-semibold text-foreground">{group.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                        {visibleSteps.length} {visibleSteps.length === 1 ? "step" : "steps"}
+                    </p>
+                </div>
+                <Badge variant="secondary" className="font-mono">
+                    {formatSeconds(group.totalTimeMs)}
+                </Badge>
+            </div>
+
+            <div className="mt-4 space-y-3">
+                {visibleSteps.map(step => (
+                    <div key={step.id} className="rounded-lg border border-border/60 bg-background/80 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-medium leading-tight">{step.label}</p>
+                            <span className="text-xs font-mono text-emerald-700">{formatSeconds(step.timeMs)}</span>
+                        </div>
+                        {step.details.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                                {step.details.map(detail => (
+                                    <Badge key={`${step.id}-${detail.label}`} variant="outline" className="text-[10px]">
+                                        {detail.label}: {detail.value}
+                                    </Badge>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}
 
 function MetricBadge({ label, value }: { label: string; value: string }) {
     return (

@@ -8,23 +8,48 @@ const ExtractEditalDataBodySchema = z.null();
 
 // ─── Métricas de processamento ────────────────────────────────────────────────
 
+const StepDetailSchema = z.object({
+    label: z.string(),
+    value: z.string(),
+});
+
+const PipelineStepSchema = z.object({
+    id: z.string(),
+    label: z.string(),
+    timeMs: z.number(),
+    details: z.array(StepDetailSchema),
+});
+
+const PipelineStepsGroupSchema = z.object({
+    label: z.string(),
+    totalTimeMs: z.number(),
+    steps: z.array(PipelineStepSchema),
+});
+
+const DetailedStepsSchema = z.object({
+    orchestration: PipelineStepsGroupSchema,
+    info: PipelineStepsGroupSchema,
+    items: PipelineStepsGroupSchema,
+});
+
+const ArtifactsSchema = z.object({
+    directory: z.string(),
+    originalPdf: z.string(),
+    pdfProcessingResponse: z.string(),
+    aiInputs: z.string(),
+    extractionResult: z.string(),
+    metrics: z.string(),
+});
+
 const MetricsSchema = z.object({
     sessionId:         z.string(),
     timestamp:         z.string(),
-    pdfUrl:            z.string(),
     pdfFilename:       z.string(),
     pdfFileSizeBytes:  z.number(),
-    totalChars:        z.number(),
     totalWords:        z.number(),
-    totalTables:       z.number(),
     entriesIndexed:    z.number(),
-    conversionTimeMs:  z.number(),
-    indexingTimeMs:    z.number(),
-    embeddingTimeMs:   z.number(),
-    prepareQueriesTimeMs: z.number(),
-    extractionTimeMs:  z.number(),
+    itemsExtracted:    z.number(),
     totalTimeMs:       z.number(),
-    tempDir:           z.string(),
     tokensUsed: z.object({
         prompt:     z.number(),
         completion: z.number(),
@@ -37,23 +62,8 @@ const MetricsSchema = z.object({
         agenteCampos: z.number(),
         agenteItens:  z.number(),
     }),
-    /** Configuração do vector store utilizada para obter esses chunks. */
-    vectorStoreConfig: z.object({
-        collection:           z.string(),
-        vectorSize:           z.number(),
-        fieldSearchLimit:     z.number(),
-        fieldScoreThreshold:  z.number(),
-        itemSearchLimit:      z.number(),
-        itemScoreThreshold:   z.number(),
-        itemTypeFilter:       z.array(z.string()),
-    }),
-    config: z.object({
-        embeddingModel: z.string(),
-        aiModel:        z.string(),
-        fileParser:     z.string(),
-        extractionMode: z.string(),
-        totalQueries:   z.number(),
-    }).optional(),
+    artifacts: ArtifactsSchema,
+    steps: DetailedStepsSchema,
 });
 
 // ─── Modelo de domínio (espelha as entidades) ─────────────────────────────────

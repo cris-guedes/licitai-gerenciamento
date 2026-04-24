@@ -134,31 +134,70 @@ export type ExtractEditalDataResponse = {
   metrics: {
     sessionId: string;
     timestamp: string;
-    pdfUrl: string;
     pdfFilename: string;
     pdfFileSizeBytes: number;
-    totalChars: number;
     totalWords: number;
-    totalTables: number;
     entriesIndexed: number;
-    conversionTimeMs: number;
-    indexingTimeMs: number;
-    embeddingTimeMs: number;
-    prepareQueriesTimeMs: number;
-    extractionTimeMs: number;
+    itemsExtracted: number;
     totalTimeMs: number;
-    tempDir: string;
     tokensUsed: {
       prompt: number;
       completion: number;
       total: number;
     };
-    config?: {
-      embeddingModel: string;
-      aiModel: string;
-      fileParser: string;
-      extractionMode: string;
-      totalQueries: number;
+    embeddingTokensUsed: number;
+    chunksEnviados: {
+      agenteCampos: number;
+      agenteItens: number;
+    };
+    artifacts: {
+      directory: string;
+      originalPdf: string;
+      pdfProcessingResponse: string;
+      aiInputs: string;
+      extractionResult: string;
+      metrics: string;
+    };
+    steps: {
+      orchestration: {
+        label: string;
+        totalTimeMs: number;
+        steps: Array<{
+          id: string;
+          label: string;
+          timeMs: number;
+          details: Array<{
+            label: string;
+            value: string;
+          }>;
+        }>;
+      };
+      info: {
+        label: string;
+        totalTimeMs: number;
+        steps: Array<{
+          id: string;
+          label: string;
+          timeMs: number;
+          details: Array<{
+            label: string;
+            value: string;
+          }>;
+        }>;
+      };
+      items: {
+        label: string;
+        totalTimeMs: number;
+        steps: Array<{
+          id: string;
+          label: string;
+          timeMs: number;
+          details: Array<{
+            label: string;
+            value: string;
+          }>;
+        }>;
+      };
     };
   };
 };
