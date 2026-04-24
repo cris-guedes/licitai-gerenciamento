@@ -1,4 +1,5 @@
 import { createDocument, createSchema, oas31 } from "zod-openapi";
+import type { ZodOpenApiOperationObject, ZodOpenApiPathsObject, ZodOpenApiResponsesObject } from "zod-openapi";
 import { apiEndpoints } from "./schemas";
 
 function buildQueryParameters(schema: oas31.SchemaObject): oas31.ParameterObject[] {
@@ -31,7 +32,7 @@ export function generateOpenApiSpec() {
         }
       }
 
-      const defaultResponses: oas31.ResponsesObject = {
+      const defaultResponses: ZodOpenApiResponsesObject = {
         "200": {
           description: successDescription,
           content: {
@@ -42,17 +43,17 @@ export function generateOpenApiSpec() {
         },
       };
 
-      const methodObject: oas31.OperationObject = {
+      const methodObject: ZodOpenApiOperationObject = {
         summary,
         description,
         operationId,
         tags: [tag],
         parameters: buildQueryParameters(querySchema),
-        responses: (responsesOverride as oas31.ResponsesObject | undefined) ?? defaultResponses,
+        responses: responsesOverride ?? defaultResponses,
       };
 
       if (isPost && requestBodyOverride) {
-        methodObject.requestBody = requestBodyOverride as oas31.RequestBodyObject;
+        methodObject.requestBody = requestBodyOverride;
       } else if (isPost && schemas.Body) {
         methodObject.requestBody = {
           required: true,
@@ -61,7 +62,7 @@ export function generateOpenApiSpec() {
               schema: createSchema(schemas.Body).schema as oas31.SchemaObject,
             },
           },
-        } as oas31.RequestBodyObject;
+        };
       }
 
       return [
@@ -69,7 +70,7 @@ export function generateOpenApiSpec() {
         isPost ? { post: methodObject } : { get: methodObject },
       ];
     })
-  ) as oas31.PathsObject;
+  ) as ZodOpenApiPathsObject;
 
   return createDocument({
     openapi: "3.1.0",

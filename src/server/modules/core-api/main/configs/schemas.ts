@@ -35,6 +35,7 @@ import { AcceptInviteControllerSchemas, AcceptInviteResponseSchema } from "../..
 import { UpdateMemberRoleControllerSchemas, UpdateMemberRoleResponseSchema } from "../../domain/use-cases/team/update-member-role/UpdateMemberRoleControllerSchemas";
 import { RemoveMemberControllerSchemas, RemoveMemberResponseSchema } from "../../domain/use-cases/team/remove-member/RemoveMemberControllerSchemas";
 import { ZodType } from "zod";
+import type { ZodOpenApiRequestBodyObject, ZodOpenApiResponsesObject } from "zod-openapi";
 
 export interface EndpointSchemas {
   Headers?: ZodType | undefined;
@@ -56,9 +57,9 @@ export interface EndpointConfig {
   /** Schemas extras adicionados a components/schemas para gerar models nomeados. */
   extraSchemas?: Record<string, ZodType>;
   /** Sobrescreve o requestBody gerado pelo Zod. Usado para multipart/form-data e outros casos especiais. */
-  requestBodyOverride?: Record<string, unknown>;
+  requestBodyOverride?: ZodOpenApiRequestBodyObject;
   /** Sobrescreve o bloco `responses` gerado automaticamente. Usado para SSE e outros formatos especiais. */
-  responsesOverride?: Record<string, unknown>;
+  responsesOverride?: ZodOpenApiResponsesObject;
 }
 
 /**
