@@ -22,23 +22,71 @@ export class ExtractEditalData {
         const tracker = new ExtractEditalTracker(this.metricsProvider, input.onProgress ?? (() => { }));
         const sessionId = this.sessionStorage.newSessionId();
         const documentId = input.externalId ?? sessionId;
+        let latestInfoResult: ExtractInfoPipelineResult | null = null;
+        let partialItems: any[] = [];
 
         console.log(`[ExtractEditalData] Iniciando Pipelines em paralelo — documentId: ${documentId}`);
 
         const pipelinesStartedAt = performance.now();
+        const infoPromise = this.infoPipeline.execute({
+            pdfBuffer: input.pdfBuffer,
+            documentId,
+            tracker,
+            config: this.vectorStoreConfig,
+        }).then(async result => {
+            latestInfoResult = result;
+
+            await input.onInfoPartial?.({
+                type: "partial_info",
+                scope: "info",
+                step: "info.partial",
+                message: "Extração de informações concluída",
+                percent: 70,
+                pipelinePercent: 100,
+                partialItemsCount: partialItems.length,
+                result: this.buildPartialOutput(sessionId, result, partialItems),
+            });
+
+            return result;
+        });
+
+        const itemsPromise = this.itemsPipeline.execute({
+            pdfBuffer: input.pdfBuffer,
+            documentId,
+            tracker,
+            config: this.vectorStoreConfig,
+            onBatchCompleted: async batch => {
+                partialItems = batch.cumulativeItems;
+
+                const batchItems = this.mapPartialItems(batch.batchItems);
+                const cumulativeItems = this.mapPartialItems(batch.cumulativeItems);
+
+                await input.onItemsBatchPartial?.({
+                    type: "partial_items_batch",
+                    scope: "items",
+                    step: "items.partial_batch",
+                    message: `Lote ${batch.batchIndex}/${batch.totalBatches} concluído`,
+                    percent: 72 + Math.round((batch.completedBatches / batch.totalBatches) * 13),
+                    pipelinePercent: 85 + Math.round((batch.completedBatches / batch.totalBatches) * 15),
+                    batch: {
+                        batchIndex: batch.batchIndex,
+                        totalBatches: batch.totalBatches,
+                        completedBatches: batch.completedBatches,
+                        batchTimeMs: batch.batchTimeMs,
+                        batchPayloadCount: batch.batchPayloadCount,
+                        batchPayloadChars: batch.batchPayloadChars,
+                        batchItems,
+                        cumulativeItems,
+                        cumulativeItemsCount: cumulativeItems.length,
+                    },
+                    result: this.buildPartialOutput(sessionId, latestInfoResult, batch.cumulativeItems),
+                });
+            },
+        });
+
         const [infoResult, itemsResult] = await Promise.all([
-            this.infoPipeline.execute({
-                pdfBuffer: input.pdfBuffer,
-                documentId,
-                tracker,
-                config: this.vectorStoreConfig,
-            }),
-            this.itemsPipeline.execute({
-                pdfBuffer: input.pdfBuffer,
-                documentId,
-                tracker,
-                config: this.vectorStoreConfig,
-            }),
+            infoPromise,
+            itemsPromise,
         ]);
         const pipelinesTimeMs = performance.now() - pipelinesStartedAt;
 
@@ -245,6 +293,22 @@ export class ExtractEditalData {
     private formatMs(ms: number): string {
         return `${(ms / 1000).toFixed(1)}s`;
     }
+
+    private buildPartialOutput(
+        sessionId: string,
+        info: ExtractInfoPipelineResult | null,
+        rawItems: any[],
+    ): ExtractEditalData.PartialOutput {
+        return {
+            sessionId,
+            mdContent: info?.ingestionResult.prettifiedRaw ?? info?.ingestionResult.raw ?? "",
+            licitacao: EditalExtractionMapper.toLicitacao(info?.extraction ?? {}, rawItems),
+        };
+    }
+
+    private mapPartialItems(rawItems: any[]) {
+        return EditalExtractionMapper.toLicitacao({}, rawItems).edital?.itens ?? [];
+    }
 }
 
 export namespace ExtractEditalData {
@@ -262,15 +326,54 @@ export namespace ExtractEditalData {
     };
 
     export type ProgressEvent = {
+        type: "progress";
+        scope: "info" | "items" | "orchestration";
         step: string;
         message: string;
         percent: number;
+        pipelinePercent?: number;
+    };
+
+    export type PartialOutput = Pick<Output, "sessionId" | "mdContent" | "licitacao">;
+
+    export type InfoPartialEvent = {
+        type: "partial_info";
+        scope: "info";
+        step: string;
+        message: string;
+        percent: number;
+        pipelinePercent: number;
+        partialItemsCount: number;
+        result: PartialOutput;
+    };
+
+    export type ItemsBatchPartialEvent = {
+        type: "partial_items_batch";
+        scope: "items";
+        step: string;
+        message: string;
+        percent: number;
+        pipelinePercent: number;
+        batch: {
+            batchIndex: number;
+            totalBatches: number;
+            completedBatches: number;
+            batchTimeMs: number;
+            batchPayloadCount: number;
+            batchPayloadChars: number;
+            batchItems: any[];
+            cumulativeItems: any[];
+            cumulativeItemsCount: number;
+        };
+        result: PartialOutput;
     };
 
     export interface Input {
         pdfBuffer: Buffer;
         externalId?: string;
         onProgress?: (event: ProgressEvent) => void;
+        onInfoPartial?: (event: InfoPartialEvent) => void | Promise<void>;
+        onItemsBatchPartial?: (event: ItemsBatchPartialEvent) => void | Promise<void>;
     }
 
     export type Output = ExtractEditalDataControllerSchemas.Output;

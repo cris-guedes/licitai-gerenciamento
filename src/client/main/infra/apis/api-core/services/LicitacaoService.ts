@@ -34,7 +34,7 @@ export class LicitacaoService {
   /**
    * Extrai dados de um edital de licitação (Stream SSE)
    * Recebe um PDF de edital via upload (multipart/form-data) e retorna um EventStream (SSE) com o progresso do processamento em tempo real.
-   * @returns ExtractEditalDataStreamResponse Stream iniciado
+   * @returns ExtractEditalDataStreamResponse Stream SSE iniciado
    * @throws ApiError
    */
   public extractEditalDataStream({

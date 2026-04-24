@@ -43,16 +43,38 @@ export class ExtractEditalDataStreamController implements StreamController {
                 const send = (data: object) => controller.enqueue(sseEvent(data));
 
                 try {
-                    send({ step: "parse", message: "Arquivo recebido, processando...", percent: 8 });
+                    send({
+                        type: "progress",
+                        scope: "orchestration",
+                        step: "orchestration.parse",
+                        message: "Arquivo recebido, processando...",
+                        percent: 8,
+                        pipelinePercent: 8,
+                    });
 
                     const result = await useCase.execute({
                         pdfBuffer,
                         onProgress: send,
+                        onInfoPartial: send,
+                        onItemsBatchPartial: send,
                     });
 
-                    send({ step: "done", message: "Extração concluída", percent: 100, result });
+                    send({
+                        type: "done",
+                        scope: "orchestration",
+                        step: "done",
+                        message: "Extração concluída",
+                        percent: 100,
+                        result,
+                    });
                 } catch (error: any) {
-                    send({ step: "error", message: error?.message ?? "Erro inesperado", percent: 0 });
+                    send({
+                        type: "error",
+                        scope: "orchestration",
+                        step: "error",
+                        message: error?.message ?? "Erro inesperado",
+                        percent: 0,
+                    });
                 } finally {
                     controller.close();
                 }

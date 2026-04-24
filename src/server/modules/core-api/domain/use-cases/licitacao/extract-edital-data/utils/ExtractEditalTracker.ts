@@ -13,28 +13,28 @@ export class ExtractEditalTracker {
     }
 
     finishTotal(meta?: Record<string, unknown>) {
-        this.reportFn({ step: "orchestration.total", message: "Extração concluída!", percent: 100 });
+        this.emit("orchestration", "orchestration.total", "Extração concluída!", 100, 100);
         return this.mainTimer(meta);
     }
 
     emitMap() {
-        this.reportFn({ step: "orchestration.map", message: "Mapeando para o modelo de domínio...", percent: 88 });
+        this.emit("orchestration", "orchestration.map", "Mapeando para o modelo de domínio...", 88, 88);
     }
 
     emitSave(documentId: string) {
-        this.reportFn({ step: "orchestration.save", message: `Persistindo artefatos da sessão ${documentId}...`, percent: 95 });
+        this.emit("orchestration", "orchestration.save", `Persistindo artefatos da sessão ${documentId}...`, 95, 95);
     }
 
     // ─── Steps ────────────────────────────────────────────────────────────────
 
     prepareQueries(scope: "info" | "items") {
         const label = scope === "info" ? "campos" : "itens";
-        this.reportFn({ step: `${scope}.prepare_queries`, message: `Preparando consultas semânticas de ${label}...`, percent: 5 });
+        this.emit(scope, `${scope}.prepare_queries`, `Preparando consultas semânticas de ${label}...`, 5, 12);
         const timer = this.metrics.startTimer(`${scope}:prepare_queries`);
         return {
             done: () => {
                 const time = timer();
-                this.reportFn({ step: `${scope}.prepare_queries`, message: `Consultas de ${label} preparadas`, percent: 10 });
+                this.emit(scope, `${scope}.prepare_queries`, `Consultas de ${label} preparadas`, 10, 22);
                 return time;
             }
         };
@@ -42,45 +42,62 @@ export class ExtractEditalTracker {
 
     ingest(scope: "info" | "items"): PdfIngestionWorker.IngestionProgress & { done: () => number } {
         const label = scope === "info" ? "texto e contexto" : "linhas de tabela";
-        this.reportFn({ step: `${scope}.ingest`, message: `Processando ${label}...`, percent: 15 });
+        this.emit(scope, `${scope}.ingest`, `Processando ${label}...`, 15, 28);
         const timer = this.metrics.startTimer(`${scope}:ingest`);
         return {
             onParsed: (ms) => {
-                this.reportFn({ step: `${scope}.ingest.parse`, message: `${label} convertidos em chunks (${Math.round(ms)} ms)`, percent: 28 });
+                this.emit(scope, `${scope}.ingest.parse`, `${label} convertidos em chunks (${Math.round(ms)} ms)`, 28, 45);
             },
             onEmbedded: (count) => {
-                this.reportFn({ step: `${scope}.ingest.embed`, message: `Embeddings gerados para ${count} fragmentos de ${label}`, percent: 40 });
+                this.emit(scope, `${scope}.ingest.embed`, `Embeddings gerados para ${count} fragmentos de ${label}`, 40, 62);
             },
             onStored: () => {
-                this.reportFn({ step: `${scope}.ingest.store`, message: `Indexação vetorial de ${label} concluída`, percent: 50 });
+                this.emit(scope, `${scope}.ingest.store`, `Indexação vetorial de ${label} concluída`, 50, 78);
             },
             done: () => timer(),
         };
     }
 
     extractInfo() {
-        this.reportFn({ step: "info.extract", message: "Extraindo campos do edital...", percent: 55 });
+        this.emit("info", "info.extract", "Extraindo campos do edital...", 55, 84);
         const timer = this.metrics.startTimer("info:extract");
         return {
-            relay: (message: string, percent: number) => this.reportFn({ step: "info.extract", message, percent }),
+            relay: (message: string, percent: number) => this.emit("info", "info.extract", message, percent, 92),
             done: () => {
                 const time = timer();
-                this.reportFn({ step: "info.extract", message: "Campos extraídos com sucesso", percent: 70 });
+                this.emit("info", "info.extract", "Campos extraídos com sucesso", 70, 100);
                 return time;
             }
         };
     }
 
     extractItens() {
-        this.reportFn({ step: "items.extract", message: "Extraindo itens do edital...", percent: 72 });
+        this.emit("items", "items.extract", "Extraindo itens do edital...", 72, 84);
         const timer = this.metrics.startTimer("items:extract");
         return {
-            relay: (message: string, percent: number) => this.reportFn({ step: "items.extract", message, percent }),
+            relay: (message: string, percent: number) => this.emit("items", "items.extract", message, percent, 88),
             done: (count: number) => {
                 const time = timer();
-                this.reportFn({ step: "items.extract", message: `${count} itens extraídos`, percent: 85 });
+                this.emit("items", "items.extract", `${count} itens extraídos`, 85, 100);
                 return time;
             }
         };
+    }
+
+    private emit(
+        scope: ExtractEditalData.ProgressEvent["scope"],
+        step: string,
+        message: string,
+        percent: number,
+        pipelinePercent?: number,
+    ) {
+        this.reportFn({
+            type: "progress",
+            scope,
+            step,
+            message,
+            percent,
+            pipelinePercent,
+        });
     }
 }

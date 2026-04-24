@@ -20,7 +20,7 @@ export type ExtractEditalDataResponse = {
       uf: (string | null);
       esfera: ('federal' | 'estadual' | 'municipal' | null);
       poder: ('executivo' | 'legislativo' | 'judiciario' | null);
-      itensSolicitados: (Array<{ itemNumero: number; quantidade: number }> | null);
+      itensSolicitados: null;
       textoOriginal: (string | null);
     } | null);
     valorTotalEstimado: (number | null);
@@ -42,7 +42,7 @@ export type ExtractEditalDataResponse = {
         uf: (string | null);
         esfera: ('federal' | 'estadual' | 'municipal' | null);
         poder: ('executivo' | 'legislativo' | 'judiciario' | null);
-        itensSolicitados: (Array<{ itemNumero: number; quantidade: number }> | null);
+        itensSolicitados: null;
         textoOriginal: (string | null);
       }>;
       cronograma: {
@@ -201,3 +201,4 @@ export type ExtractEditalDataResponse = {
     };
   };
 };
+

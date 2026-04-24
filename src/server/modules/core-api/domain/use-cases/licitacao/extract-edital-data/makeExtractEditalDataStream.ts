@@ -12,6 +12,7 @@ import { TableIngestionWorker } from "@/server/modules/core-api/workers/pdf-inge
 import { LLMDocumentPrettifyProvider } from "@/server/shared/infra/providers/ia/prettify/llm-document-prettify-provider";
 import { ExtractEditalData } from "./ExtractEditalData";
 import { ExtractEditalDataController } from "./ExtractEditalDataController";
+import { ExtractEditalDataStreamController } from "./ExtractEditalDataStreamController";
 import { ExtractInfoPipeline } from "./pipelines/ExtractInfoPipeline";
 import { ExtractItemsPipeline } from "./pipelines/ExtractItemsPipeline";
 
@@ -104,4 +105,8 @@ function createUseCase() {
 
 export function makeExtractEditalData(): ExtractEditalDataController {
     return new ExtractEditalDataController(createUseCase());
+}
+
+export function makeExtractEditalDataStream(): ExtractEditalDataStreamController {
+    return new ExtractEditalDataStreamController(createUseCase());
 }
