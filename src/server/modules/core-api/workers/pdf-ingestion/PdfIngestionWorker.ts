@@ -10,7 +10,8 @@ import { performance } from "perf_hooks";
 
 export class PdfIngestionWorker {
     private readonly MIN_EMBEDDING_BATCH_SIZE = 100;
-    private readonly MIN_STORAGE_BATCH_SIZE = 500;
+    private readonly STORAGE_UPSERT_BATCH_SIZE = 200;
+    private readonly MIN_STORAGE_BATCH_SIZE = this.STORAGE_UPSERT_BATCH_SIZE;
 
     constructor(
         private readonly documentParser: DocumentHandlerFileParsingProvider.Contract,
@@ -207,15 +208,22 @@ export class PdfIngestionWorker {
         const stopTimer = this.metrics.startTimer("pdf-ingestion:save-to-vector-store-parallel");
 
         const points = this.mapToVectorPoints(documentId, embeddedEntries);
-        const partitions = this.partitionItems(points, concurrency);
+        const batches = this.chunkItems(points, this.STORAGE_UPSERT_BATCH_SIZE);
+        const effectiveConcurrency = Math.min(concurrency, batches.length);
 
         await this.promiseProvider.runAll(
-            partitions.map(p => () => this.vectorStore.upsert(this.config.collectionName, p)),
-            concurrency
+            batches.map(batch => () => this.vectorStore.upsert(this.config.collectionName, batch)),
+            effectiveConcurrency
         );
 
         onProgress?.onStored();
-        return stopTimer({ pointsCount: points.length, documentId, concurrency });
+        return stopTimer({
+            pointsCount: points.length,
+            documentId,
+            concurrency: effectiveConcurrency,
+            batchCount: batches.length,
+            batchSize: this.STORAGE_UPSERT_BATCH_SIZE,
+        });
     }
 
     private mapToVectorPoints(documentId: string, embeddedEntries: Array<{ entry: any; embedding: Float32Array }>) {
@@ -237,6 +245,16 @@ export class PdfIngestionWorker {
             partitions.push(items.slice(i, i + batchSize));
         }
         return partitions;
+    }
+
+    private chunkItems<T>(items: T[], batchSize: number): T[][] {
+        const batches: T[][] = [];
+
+        for (let i = 0; i < items.length; i += batchSize) {
+            batches.push(items.slice(i, i + batchSize));
+        }
+
+        return batches;
     }
 
     private stepReturnEmptyResult(

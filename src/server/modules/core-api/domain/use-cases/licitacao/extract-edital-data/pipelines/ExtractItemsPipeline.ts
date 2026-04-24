@@ -13,6 +13,7 @@ export type ExtractItemsPipelineInput = {
     documentId: string;
     tracker: ExtractEditalTracker;
     config: ExtractEditalData.VectorStoreConfig;
+    onBatchCompleted?: (event: ExtractItemsPipeline.BatchCompletedEvent) => void | Promise<void>;
 };
 
 type QueryPreparationMetrics = {
@@ -111,7 +112,7 @@ export class ExtractItemsPipeline {
     ) { }
 
     async execute(input: ExtractItemsPipelineInput): Promise<ExtractItemsPipelineResult> {
-        const { pdfBuffer, documentId, tracker, config } = input;
+        const { pdfBuffer, documentId, tracker, config, onBatchCompleted } = input;
         const pipelineStartedAt = performance.now();
 
         const [ingestionResult, queries] = await Promise.all([
@@ -199,6 +200,11 @@ export class ExtractItemsPipeline {
 
         console.log(`[ExtractItemsPipeline] ${itemChunks.payloads.length} payloads semânticos → ${batches.length} lotes (concurrency=${config.ITEM_EXTRACTION_CONCURRENCY})`);
 
+        const partialState = {
+            completedBatches: 0,
+            cumulativeItems: [] as any[],
+        };
+
         const results = await this.promiseProvider.runAll(
             batches.map((batch, i) => async () => {
                 extractionStep.relay(`Extraindo itens (lote ${i + 1}/${batches.length}): interpretando resultados semânticos...`, 72 + Math.round(((i + 1) / batches.length) * 12));
@@ -207,6 +213,24 @@ export class ExtractItemsPipeline {
                 const batchStartedAt = performance.now();
                 const res = await this.itemExtractor.extract(agentPayload);
                 const batchTimeMs = performance.now() - batchStartedAt;
+
+                partialState.completedBatches += 1;
+                const batchItems = this.deduplicateExtractedItems(res.data);
+                partialState.cumulativeItems = this.deduplicateExtractedItems([
+                    ...partialState.cumulativeItems,
+                    ...batchItems,
+                ]);
+
+                await onBatchCompleted?.({
+                    batchIndex: i + 1,
+                    totalBatches: batches.length,
+                    completedBatches: partialState.completedBatches,
+                    batchItems,
+                    cumulativeItems: [...partialState.cumulativeItems],
+                    batchTimeMs,
+                    batchPayloadCount: batch.length,
+                    batchPayloadChars: this.calculatePayloadChars(batch),
+                });
 
                 return {
                     ...res,
@@ -530,4 +554,17 @@ export class ExtractItemsPipeline {
         if (values.length === 0) return 0;
         return values.reduce((sum, value) => sum + value, 0) / values.length;
     }
+}
+
+export namespace ExtractItemsPipeline {
+    export type BatchCompletedEvent = {
+        batchIndex: number;
+        totalBatches: number;
+        completedBatches: number;
+        batchItems: any[];
+        cumulativeItems: any[];
+        batchTimeMs: number;
+        batchPayloadCount: number;
+        batchPayloadChars: number;
+    };
 }

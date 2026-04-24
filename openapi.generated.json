@@ -2756,9 +2756,10 @@
         },
         "responses": {
           "200": {
-            "description": "Stream iniciado",
+            "description": "Stream SSE iniciado",
             "content": {
-              "application/json": {
+              "text/event-stream": {
+                "example": "data: {\"type\":\"progress\",\"scope\":\"orchestration\",\"step\":\"orchestration.parse\",\"message\":\"Arquivo recebido, processando...\",\"percent\":8,\"pipelinePercent\":8}\n\n",
                 "schema": {
                   "$ref": "#/components/schemas/ExtractEditalDataStreamResponse"
                 }
@@ -7678,6 +7679,32 @@
                           }
                         ]
                       },
+                      "itensSolicitados": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "itemNumero": {
+                                  "type": "number"
+                                },
+                                "quantidade": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "itemNumero",
+                                "quantidade"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "textoOriginal": {
                         "anyOf": [
                           {
@@ -7698,6 +7725,7 @@
                       "uf",
                       "esfera",
                       "poder",
+                      "itensSolicitados",
                       "textoOriginal"
                     ],
                     "additionalProperties": false
@@ -7897,6 +7925,32 @@
                                 }
                               ]
                             },
+                            "itensSolicitados": {
+                              "anyOf": [
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "itemNumero": {
+                                        "type": "number"
+                                      },
+                                      "quantidade": {
+                                        "type": "number"
+                                      }
+                                    },
+                                    "required": [
+                                      "itemNumero",
+                                      "quantidade"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
                             "textoOriginal": {
                               "anyOf": [
                                 {
@@ -7917,6 +7971,7 @@
                             "uf",
                             "esfera",
                             "poder",
+                            "itensSolicitados",
                             "textoOriginal"
                           ],
                           "additionalProperties": false
@@ -7965,7 +8020,37 @@
                               }
                             ]
                           },
+                          "horaSessaoPublica": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "esclarecimentosAte": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "impugnacaoAte": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "textoOriginalPrazos": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -7991,7 +8076,10 @@
                           "acolhimentoFim",
                           "horaLimite",
                           "sessaoPublica",
+                          "horaSessaoPublica",
                           "esclarecimentosAte",
+                          "impugnacaoAte",
+                          "textoOriginalPrazos",
                           "textoOriginal"
                         ],
                         "additionalProperties": false
@@ -8019,7 +8107,22 @@
                               }
                             ]
                           },
-                          "tipoInstrumento": {
+                          "tipoLance": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "unitario",
+                                  "global",
+                                  "percentual"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "intervaloLances": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -8029,7 +8132,17 @@
                               }
                             ]
                           },
-                          "intervaloLances": {
+                          "duracaoSessaoMinutos": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "textoOriginalDisputa": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -8049,10 +8162,70 @@
                               }
                             ]
                           },
+                          "exclusivoMeEppTexto": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "permiteConsorcio": {
+                            "anyOf": [
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "permiteConsorcioTexto": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "exigeVisitaTecnica": {
+                            "anyOf": [
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "exigeVisitaTecnicaTexto": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "permiteAdesao": {
                             "anyOf": [
                               {
                                 "type": "boolean"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "permiteAdesaoTexto": {
+                            "anyOf": [
+                              {
+                                "type": "string"
                               },
                               {
                                 "type": "null"
@@ -8089,6 +8262,46 @@
                               }
                             ]
                           },
+                          "vigenciaAtaMeses": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "vigenciaAtaMesesTexto": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "vigenciaContratoDias": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "vigenciaContratoDiasTexto": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "textoOriginal": {
                             "anyOf": [
                               {
@@ -8103,13 +8316,25 @@
                         "required": [
                           "modoDisputa",
                           "criterioJulgamento",
-                          "tipoInstrumento",
+                          "tipoLance",
                           "intervaloLances",
+                          "duracaoSessaoMinutos",
+                          "textoOriginalDisputa",
                           "exclusivoMeEpp",
+                          "exclusivoMeEppTexto",
+                          "permiteConsorcio",
+                          "permiteConsorcioTexto",
+                          "exigeVisitaTecnica",
+                          "exigeVisitaTecnicaTexto",
                           "permiteAdesao",
+                          "permiteAdesaoTexto",
                           "percentualAdesao",
                           "regionalidade",
                           "difal",
+                          "vigenciaAtaMeses",
+                          "vigenciaAtaMesesTexto",
+                          "vigenciaContratoDias",
+                          "vigenciaContratoDiasTexto",
                           "textoOriginal"
                         ],
                         "additionalProperties": false
@@ -8346,6 +8571,16 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "textoOriginalLogistica": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               }
                             },
                             "required": [
@@ -8353,7 +8588,8 @@
                               "textoOriginal",
                               "localEntrega",
                               "tipoEntrega",
-                              "responsavelInstalacao"
+                              "responsavelInstalacao",
+                              "textoOriginalLogistica"
                             ],
                             "additionalProperties": false
                           },
@@ -8484,6 +8720,16 @@
                               "textoOriginal"
                             ],
                             "additionalProperties": false
+                          },
+                          "textoOriginal": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
@@ -8491,7 +8737,8 @@
                           "pagamento",
                           "aceite",
                           "validadeProposta",
-                          "garantia"
+                          "garantia",
+                          "textoOriginal"
                         ],
                         "additionalProperties": false
                       },
@@ -8586,41 +8833,23 @@
               "timestamp": {
                 "type": "string"
               },
-              "pdfUrl": {
-                "type": "string"
-              },
               "pdfFilename": {
                 "type": "string"
               },
               "pdfFileSizeBytes": {
                 "type": "number"
               },
-              "totalChars": {
-                "type": "number"
-              },
               "totalWords": {
-                "type": "number"
-              },
-              "totalTables": {
                 "type": "number"
               },
               "entriesIndexed": {
                 "type": "number"
               },
-              "conversionTimeMs": {
-                "type": "number"
-              },
-              "indexingTimeMs": {
-                "type": "number"
-              },
-              "extractionTimeMs": {
+              "itemsExtracted": {
                 "type": "number"
               },
               "totalTimeMs": {
                 "type": "number"
-              },
-              "tempDir": {
-                "type": "string"
               },
               "tokensUsed": {
                 "type": "object",
@@ -8642,31 +8871,245 @@
                 ],
                 "additionalProperties": false
               },
-              "config": {
+              "embeddingTokensUsed": {
+                "type": "number"
+              },
+              "chunksEnviados": {
                 "type": "object",
                 "properties": {
-                  "embeddingModel": {
-                    "type": "string"
+                  "agenteCampos": {
+                    "type": "number"
                   },
-                  "aiModel": {
-                    "type": "string"
-                  },
-                  "fileParser": {
-                    "type": "string"
-                  },
-                  "extractionMode": {
-                    "type": "string"
-                  },
-                  "totalQueries": {
+                  "agenteItens": {
                     "type": "number"
                   }
                 },
                 "required": [
-                  "embeddingModel",
-                  "aiModel",
-                  "fileParser",
-                  "extractionMode",
-                  "totalQueries"
+                  "agenteCampos",
+                  "agenteItens"
+                ],
+                "additionalProperties": false
+              },
+              "artifacts": {
+                "type": "object",
+                "properties": {
+                  "directory": {
+                    "type": "string"
+                  },
+                  "originalPdf": {
+                    "type": "string"
+                  },
+                  "pdfProcessingResponse": {
+                    "type": "string"
+                  },
+                  "aiInputs": {
+                    "type": "string"
+                  },
+                  "extractionResult": {
+                    "type": "string"
+                  },
+                  "metrics": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "directory",
+                  "originalPdf",
+                  "pdfProcessingResponse",
+                  "aiInputs",
+                  "extractionResult",
+                  "metrics"
+                ],
+                "additionalProperties": false
+              },
+              "steps": {
+                "type": "object",
+                "properties": {
+                  "orchestration": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string"
+                      },
+                      "totalTimeMs": {
+                        "type": "number"
+                      },
+                      "steps": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "timeMs": {
+                              "type": "number"
+                            },
+                            "details": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "label": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "label",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "label",
+                            "timeMs",
+                            "details"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "totalTimeMs",
+                      "steps"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "info": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string"
+                      },
+                      "totalTimeMs": {
+                        "type": "number"
+                      },
+                      "steps": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "timeMs": {
+                              "type": "number"
+                            },
+                            "details": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "label": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "label",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "label",
+                            "timeMs",
+                            "details"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "totalTimeMs",
+                      "steps"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string"
+                      },
+                      "totalTimeMs": {
+                        "type": "number"
+                      },
+                      "steps": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "timeMs": {
+                              "type": "number"
+                            },
+                            "details": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "label": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "label",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "label",
+                            "timeMs",
+                            "details"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "totalTimeMs",
+                      "steps"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "orchestration",
+                  "info",
+                  "items"
                 ],
                 "additionalProperties": false
               }
@@ -8674,19 +9117,17 @@
             "required": [
               "sessionId",
               "timestamp",
-              "pdfUrl",
               "pdfFilename",
               "pdfFileSizeBytes",
-              "totalChars",
               "totalWords",
-              "totalTables",
               "entriesIndexed",
-              "conversionTimeMs",
-              "indexingTimeMs",
-              "extractionTimeMs",
+              "itemsExtracted",
               "totalTimeMs",
-              "tempDir",
-              "tokensUsed"
+              "tokensUsed",
+              "embeddingTokensUsed",
+              "chunksEnviados",
+              "artifacts",
+              "steps"
             ],
             "additionalProperties": false
           }
@@ -8700,1182 +9141,8 @@
         "additionalProperties": false
       },
       "ExtractEditalDataStreamResponse": {
-        "type": "object",
-        "properties": {
-          "sessionId": {
-            "type": "string"
-          },
-          "mdContent": {
-            "type": "string"
-          },
-          "licitacao": {
-            "type": "object",
-            "properties": {
-              "numeroLicitacao": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "ano": {
-                "anyOf": [
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "processo": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "modalidade": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "objeto": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "orgaoGerenciador": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "cnpj": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "nome": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "codigoUnidade": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "nomeUnidade": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "municipio": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "uf": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "esfera": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "enum": [
-                              "federal",
-                              "estadual",
-                              "municipal"
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "poder": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "enum": [
-                              "executivo",
-                              "legislativo",
-                              "judiciario"
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "textoOriginal": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      }
-                    },
-                    "required": [
-                      "cnpj",
-                      "nome",
-                      "codigoUnidade",
-                      "nomeUnidade",
-                      "municipio",
-                      "uf",
-                      "esfera",
-                      "poder",
-                      "textoOriginal"
-                    ],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "valorTotalEstimado": {
-                "anyOf": [
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "srp": {
-                "anyOf": [
-                  {
-                    "type": "boolean"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "valorTotalHomologado": {
-                "anyOf": [
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "situacao": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "dataPublicacao": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "dataUltimaAtualizacao": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "linkProcesso": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "identificadorExterno": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "edital": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "amparoLegal": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "orgaosParticipantes": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "cnpj": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "nome": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "codigoUnidade": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "nomeUnidade": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "municipio": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "uf": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "esfera": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "enum": [
-                                    "federal",
-                                    "estadual",
-                                    "municipal"
-                                  ]
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "poder": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "enum": [
-                                    "executivo",
-                                    "legislativo",
-                                    "judiciario"
-                                  ]
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "textoOriginal": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            }
-                          },
-                          "required": [
-                            "cnpj",
-                            "nome",
-                            "codigoUnidade",
-                            "nomeUnidade",
-                            "municipio",
-                            "uf",
-                            "esfera",
-                            "poder",
-                            "textoOriginal"
-                          ],
-                          "additionalProperties": false
-                        }
-                      },
-                      "cronograma": {
-                        "type": "object",
-                        "properties": {
-                          "acolhimentoInicio": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "acolhimentoFim": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "horaLimite": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "sessaoPublica": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "esclarecimentosAte": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "textoOriginal": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          }
-                        },
-                        "required": [
-                          "acolhimentoInicio",
-                          "acolhimentoFim",
-                          "horaLimite",
-                          "sessaoPublica",
-                          "esclarecimentosAte",
-                          "textoOriginal"
-                        ],
-                        "additionalProperties": false
-                      },
-                      "certame": {
-                        "type": "object",
-                        "properties": {
-                          "modoDisputa": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "criterioJulgamento": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "tipoInstrumento": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "intervaloLances": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "exclusivoMeEpp": {
-                            "anyOf": [
-                              {
-                                "type": "boolean"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "permiteAdesao": {
-                            "anyOf": [
-                              {
-                                "type": "boolean"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "percentualAdesao": {
-                            "anyOf": [
-                              {
-                                "type": "number"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "regionalidade": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "difal": {
-                            "anyOf": [
-                              {
-                                "type": "boolean"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "textoOriginal": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          }
-                        },
-                        "required": [
-                          "modoDisputa",
-                          "criterioJulgamento",
-                          "tipoInstrumento",
-                          "intervaloLances",
-                          "exclusivoMeEpp",
-                          "permiteAdesao",
-                          "percentualAdesao",
-                          "regionalidade",
-                          "difal",
-                          "textoOriginal"
-                        ],
-                        "additionalProperties": false
-                      },
-                      "itens": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "numero": {
-                              "anyOf": [
-                                {
-                                  "type": "number"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "descricao": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "tipo": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "enum": [
-                                    "material",
-                                    "servico"
-                                  ]
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "lote": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "quantidade": {
-                              "anyOf": [
-                                {
-                                  "type": "number"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "unidadeMedida": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "valorUnitarioEstimado": {
-                              "anyOf": [
-                                {
-                                  "type": "number"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "valorTotal": {
-                              "anyOf": [
-                                {
-                                  "type": "number"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "codigoNcmNbs": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "descricaoNcmNbs": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "codigoCatmatCatser": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "criterioJulgamento": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "beneficioTributario": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "observacao": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            }
-                          },
-                          "required": [
-                            "numero",
-                            "descricao",
-                            "tipo",
-                            "lote",
-                            "quantidade",
-                            "unidadeMedida",
-                            "valorUnitarioEstimado",
-                            "valorTotal",
-                            "codigoNcmNbs",
-                            "descricaoNcmNbs",
-                            "codigoCatmatCatser",
-                            "criterioJulgamento",
-                            "beneficioTributario",
-                            "observacao"
-                          ],
-                          "additionalProperties": false
-                        }
-                      },
-                      "execucao": {
-                        "type": "object",
-                        "properties": {
-                          "entrega": {
-                            "type": "object",
-                            "properties": {
-                              "prazoEmDias": {
-                                "anyOf": [
-                                  {
-                                    "type": "number"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "textoOriginal": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "localEntrega": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "tipoEntrega": {
-                                "anyOf": [
-                                  {
-                                    "type": "string",
-                                    "enum": [
-                                      "centralizada",
-                                      "descentralizada"
-                                    ]
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "responsavelInstalacao": {
-                                "anyOf": [
-                                  {
-                                    "type": "string",
-                                    "enum": [
-                                      "fornecedor",
-                                      "comprador"
-                                    ]
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              }
-                            },
-                            "required": [
-                              "prazoEmDias",
-                              "textoOriginal",
-                              "localEntrega",
-                              "tipoEntrega",
-                              "responsavelInstalacao"
-                            ],
-                            "additionalProperties": false
-                          },
-                          "pagamento": {
-                            "type": "object",
-                            "properties": {
-                              "prazoEmDias": {
-                                "anyOf": [
-                                  {
-                                    "type": "number"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "textoOriginal": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              }
-                            },
-                            "required": [
-                              "prazoEmDias",
-                              "textoOriginal"
-                            ],
-                            "additionalProperties": false
-                          },
-                          "aceite": {
-                            "type": "object",
-                            "properties": {
-                              "prazoEmDias": {
-                                "anyOf": [
-                                  {
-                                    "type": "number"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "textoOriginal": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              }
-                            },
-                            "required": [
-                              "prazoEmDias",
-                              "textoOriginal"
-                            ],
-                            "additionalProperties": false
-                          },
-                          "validadeProposta": {
-                            "anyOf": [
-                              {
-                                "type": "number"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "garantia": {
-                            "type": "object",
-                            "properties": {
-                              "tipo": {
-                                "anyOf": [
-                                  {
-                                    "type": "string",
-                                    "enum": [
-                                      "onsite",
-                                      "balcao",
-                                      "sem_garantia",
-                                      "remota"
-                                    ]
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "meses": {
-                                "anyOf": [
-                                  {
-                                    "type": "number"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "tempoAtendimentoHoras": {
-                                "anyOf": [
-                                  {
-                                    "type": "number"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "textoOriginal": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              }
-                            },
-                            "required": [
-                              "tipo",
-                              "meses",
-                              "tempoAtendimentoHoras",
-                              "textoOriginal"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "required": [
-                          "entrega",
-                          "pagamento",
-                          "aceite",
-                          "validadeProposta",
-                          "garantia"
-                        ],
-                        "additionalProperties": false
-                      },
-                      "habilitacao": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "tipo": {
-                              "type": "string"
-                            },
-                            "categoria": {
-                              "type": "string"
-                            },
-                            "obrigatorio": {
-                              "type": "boolean"
-                            }
-                          },
-                          "required": [
-                            "tipo",
-                            "categoria",
-                            "obrigatorio"
-                          ],
-                          "additionalProperties": false
-                        }
-                      },
-                      "informacaoComplementar": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "textoOriginal": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      }
-                    },
-                    "required": [
-                      "amparoLegal",
-                      "orgaosParticipantes",
-                      "cronograma",
-                      "certame",
-                      "itens",
-                      "execucao",
-                      "habilitacao",
-                      "informacaoComplementar",
-                      "textoOriginal"
-                    ],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              }
-            },
-            "required": [
-              "numeroLicitacao",
-              "ano",
-              "processo",
-              "modalidade",
-              "objeto",
-              "orgaoGerenciador",
-              "valorTotalEstimado",
-              "srp",
-              "valorTotalHomologado",
-              "situacao",
-              "dataPublicacao",
-              "dataUltimaAtualizacao",
-              "linkProcesso",
-              "identificadorExterno",
-              "edital"
-            ],
-            "additionalProperties": false
-          },
-          "metrics": {
-            "type": "object",
-            "properties": {
-              "sessionId": {
-                "type": "string"
-              },
-              "timestamp": {
-                "type": "string"
-              },
-              "pdfUrl": {
-                "type": "string"
-              },
-              "pdfFilename": {
-                "type": "string"
-              },
-              "pdfFileSizeBytes": {
-                "type": "number"
-              },
-              "totalChars": {
-                "type": "number"
-              },
-              "totalWords": {
-                "type": "number"
-              },
-              "totalTables": {
-                "type": "number"
-              },
-              "entriesIndexed": {
-                "type": "number"
-              },
-              "conversionTimeMs": {
-                "type": "number"
-              },
-              "indexingTimeMs": {
-                "type": "number"
-              },
-              "extractionTimeMs": {
-                "type": "number"
-              },
-              "totalTimeMs": {
-                "type": "number"
-              },
-              "tempDir": {
-                "type": "string"
-              },
-              "tokensUsed": {
-                "type": "object",
-                "properties": {
-                  "prompt": {
-                    "type": "number"
-                  },
-                  "completion": {
-                    "type": "number"
-                  },
-                  "total": {
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "prompt",
-                  "completion",
-                  "total"
-                ],
-                "additionalProperties": false
-              },
-              "config": {
-                "type": "object",
-                "properties": {
-                  "embeddingModel": {
-                    "type": "string"
-                  },
-                  "aiModel": {
-                    "type": "string"
-                  },
-                  "fileParser": {
-                    "type": "string"
-                  },
-                  "extractionMode": {
-                    "type": "string"
-                  },
-                  "totalQueries": {
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "embeddingModel",
-                  "aiModel",
-                  "fileParser",
-                  "extractionMode",
-                  "totalQueries"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "sessionId",
-              "timestamp",
-              "pdfUrl",
-              "pdfFilename",
-              "pdfFileSizeBytes",
-              "totalChars",
-              "totalWords",
-              "totalTables",
-              "entriesIndexed",
-              "conversionTimeMs",
-              "indexingTimeMs",
-              "extractionTimeMs",
-              "totalTimeMs",
-              "tempDir",
-              "tokensUsed"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "required": [
-          "sessionId",
-          "mdContent",
-          "licitacao",
-          "metrics"
-        ],
-        "additionalProperties": false
+        "type": "string",
+        "description": "Stream Server-Sent Events (SSE). Cada evento e enviado no formato `data: {...}\\n\\n`, incluindo progresso, respostas parciais e o evento final."
       }
     },
     "securitySchemes": {

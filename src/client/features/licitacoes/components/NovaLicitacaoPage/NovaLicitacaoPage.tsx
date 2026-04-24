@@ -2,16 +2,23 @@
 
 import { useState } from "react"
 import { useCoreApi } from "@/client/hooks/use-core-api"
-import { useLicitacaoService } from "../../services/use-licitacao.service"
+import {
+    useLicitacaoService,
+    type ExtractionProgressState,
+    type PartialExtractionPreview,
+} from "../../services/use-licitacao.service"
 import { Button } from "@/client/components/ui/button"
 import { Card, CardContent } from "@/client/components/ui/card"
 import { Badge } from "@/client/components/ui/badge"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/client/components/ui/collapsible"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/client/components/ui/tabs"
+import { Progress } from "@/client/components/ui/progress"
 import {
     FileText, Loader2, CheckCircle2, AlertCircle,
     Building2, CalendarClock, Gavel, Truck, Info, Users2, ClipboardCheck,
-    ListOrdered, Upload, X
+    ListOrdered, Upload, X, ChevronDown
 } from "lucide-react"
+import { cn } from "@/client/main/lib/utils"
 import { MarkdownViewer } from "../MarkdownViewer/MarkdownViewer"
 import { Separator } from "@/client/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/client/components/ui/table"
@@ -113,6 +120,10 @@ export function NovaLicitacaoPage() {
                 </CardContent>
             </Card>
 
+            {extract.isPending && (
+                <LiveExtractionStatus progress={extract.progress} preview={extract.preview} />
+            )}
+
             {extract.error && (
                 <Card className="border-destructive">
                     <CardContent className="pt-4 flex items-start gap-3">
@@ -181,45 +192,255 @@ export function NovaLicitacaoPage() {
 
 // ─── Métricas ─────────────────────────────────────────────────────────────────
 
+function LiveExtractionStatus({
+    progress,
+    preview,
+}: {
+    progress: ExtractionProgressState
+    preview: PartialExtractionPreview
+}) {
+    const licitacao = preview.partialResponse?.licitacao ?? null
+    const showInfoPreview = preview.infoReady && licitacao !== null
+    const itemsCompleted = progress.items.completed
+    const visibleItems = itemsCompleted ? preview.items : preview.items.slice(0, 6)
+
+    return (
+        <Card className="border-sky-200 bg-sky-50/40">
+            <CardContent className="pt-4 space-y-5">
+                <div className="flex items-start gap-3">
+                    <Loader2 className="size-5 text-sky-600 shrink-0 animate-spin" />
+                    <div>
+                        <p className="font-medium text-sm">Processamento em andamento</p>
+                        <p className="text-xs text-muted-foreground">{progress.orchestrationMessage}</p>
+                    </div>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                    <PipelineLiveCard
+                        title="Extração de informações"
+                        pipeline={progress.info}
+                        summary={progress.info.completed ? "Resposta parcial de informações pronta." : undefined}
+                    />
+                    <PipelineLiveCard
+                        title="Extração de itens"
+                        pipeline={progress.items}
+                        summary={
+                            progress.items.totalBatches > 0
+                                ? `${progress.items.completedBatches}/${progress.items.totalBatches} lotes concluídos`
+                                : undefined
+                        }
+                    />
+                </div>
+
+                {(showInfoPreview || preview.items.length > 0) && (
+                    <div className="rounded-xl border border-border/60 bg-background/80 p-4 space-y-4">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm font-semibold">Resposta parcial</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Atualizada assim que as informações ficam prontas e a cada lote concluído de itens.
+                                </p>
+                            </div>
+                            {preview.sessionId && (
+                                <Badge variant="secondary" className="font-mono text-[10px]">
+                                    {preview.sessionId}
+                                </Badge>
+                            )}
+                        </div>
+
+                        {showInfoPreview && licitacao && (
+                            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                                <PreviewField label="Número" value={licitacao.numeroLicitacao} />
+                                <PreviewField label="Processo" value={licitacao.processo} />
+                                <PreviewField label="Modalidade" value={licitacao.modalidade?.replaceAll("_", " ")} />
+                                <PreviewField label="Órgão" value={licitacao.orgaoGerenciador?.nome} />
+                                <PreviewField label="Objeto" value={licitacao.objeto} className="md:col-span-2 xl:col-span-4" />
+                            </div>
+                        )}
+
+                        {preview.items.length > 0 && (
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <p className="text-sm font-semibold">
+                                        {itemsCompleted ? "Itens extraídos" : "Itens parciais extraídos"}
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className="text-[10px]">
+                                            {preview.items.length.toLocaleString("pt-BR")} itens acumulados
+                                        </Badge>
+                                        {preview.lastBatchItems.length > 0 && (
+                                            <Badge variant="outline" className="text-[10px]">
+                                                +{preview.lastBatchItems.length.toLocaleString("pt-BR")} no último lote
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="rounded-md border overflow-hidden">
+                                    <Table>
+                                        <TableHeader className="bg-muted/50">
+                                            <TableRow>
+                                                <TableHead className="w-[56px]">Nº</TableHead>
+                                                <TableHead>Descrição</TableHead>
+                                                <TableHead className="w-[80px]">Lote</TableHead>
+                                                <TableHead className="text-right w-[90px]">Qtd</TableHead>
+                                                <TableHead className="w-[70px]">Unid.</TableHead>
+                                                <TableHead className="text-right w-[120px]">Total Est.</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {visibleItems.map((item, index) => (
+                                                <TableRow key={`${item.numero ?? "item"}-${index}`}>
+                                                    <TableCell className="font-mono text-xs">{item.numero ?? "—"}</TableCell>
+                                                    <TableCell className="text-xs">
+                                                        <div className="line-clamp-2">{item.descricao ?? "—"}</div>
+                                                    </TableCell>
+                                                    <TableCell className="text-xs">{item.lote ?? "—"}</TableCell>
+                                                    <TableCell className="text-right text-xs font-mono">{item.quantidade ?? "—"}</TableCell>
+                                                    <TableCell className="text-xs">{item.unidadeMedida ?? "—"}</TableCell>
+                                                    <TableCell className="text-right text-xs font-semibold">
+                                                        {formatCurrency(item.valorTotal)}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+
+                                {!itemsCompleted && preview.items.length > visibleItems.length && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Exibindo os primeiros {visibleItems.length} itens enquanto a extração continua.
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    )
+}
+
+function PipelineLiveCard({
+    title,
+    pipeline,
+    summary,
+}: {
+    title: string
+    pipeline: ExtractionProgressState["info"]
+    summary?: string
+}) {
+    const stepCopy = getLiveStepCopy(pipeline.step, pipeline.message)
+
+    return (
+        <div className="rounded-xl border border-sky-200/70 bg-white/80 p-4 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <p className="text-sm font-semibold">{title}</p>
+                    <p className="text-xs text-muted-foreground">{pipeline.message}</p>
+                </div>
+                <Badge variant="secondary" className="font-mono">
+                    {Math.round(pipeline.percent)}%
+                </Badge>
+            </div>
+
+            <Progress value={pipeline.percent} className="h-2.5" />
+
+            {stepCopy && (
+                <div className="rounded-lg border border-sky-200/70 bg-sky-50/80 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-700/80">
+                        Etapa atual
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-slate-900">{stepCopy.title}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-600">{stepCopy.description}</p>
+                </div>
+            )}
+
+            <div className="flex flex-wrap gap-1.5">
+                {summary && (
+                    <Badge variant="outline" className="text-[10px]">
+                        {summary}
+                    </Badge>
+                )}
+                {pipeline.extractedItems > 0 && (
+                    <Badge variant="outline" className="text-[10px]">
+                        Itens acumulados: {pipeline.extractedItems.toLocaleString("pt-BR")}
+                    </Badge>
+                )}
+            </div>
+        </div>
+    )
+}
+
+function PreviewField({
+    label,
+    value,
+    className,
+}: {
+    label: string
+    value: string | number | null | undefined
+    className?: string
+}) {
+    return (
+        <div className={className}>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+            <p className="text-sm font-medium leading-snug">
+                {value == null || value === "" ? "—" : String(value)}
+            </p>
+        </div>
+    )
+}
+
 function ExtractionMetrics({ result }: { result: ExtractEditalDataResponse }) {
     const { metrics } = result
+    const [open, setOpen] = useState(false)
     const stepGroups = [
-        metrics.steps.orchestration,
-        metrics.steps.info,
-        metrics.steps.items,
+        { key: "orchestration" as const, group: metrics.steps.orchestration },
+        { key: "info" as const, group: metrics.steps.info },
+        { key: "items" as const, group: metrics.steps.items },
     ]
 
     return (
-        <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20">
-            <CardContent className="pt-4 space-y-5">
-                <div className="flex items-center gap-3 mb-4">
-                    <CheckCircle2 className="size-5 text-emerald-600 shrink-0" />
-                    <div>
-                        <p className="font-medium text-sm">Extração concluída</p>
-                        <p className="text-xs text-muted-foreground">
-                            Sessão: <code className="font-mono">{result.sessionId}</code>
-                        </p>
-                    </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                    <MetricBadge label="PDF" value={formatBytes(metrics.pdfFileSizeBytes)} />
-                    <MetricBadge label="Palavras do PDF" value={metrics.totalWords.toLocaleString("pt-BR")} />
-                    <MetricBadge label="Entradas Indexadas" value={metrics.entriesIndexed.toLocaleString("pt-BR")} />
-                    <MetricBadge label="Chunks Para IA" value={(metrics.chunksEnviados.agenteCampos + metrics.chunksEnviados.agenteItens).toLocaleString("pt-BR")} />
-                    <MetricBadge label="Tokens IA" value={metrics.tokensUsed.total.toLocaleString("pt-BR")} />
-                    <MetricBadge label="Tokens Embedding" value={metrics.embeddingTokensUsed.toLocaleString("pt-BR")} />
-                    <MetricBadge label="Campos IA" value={metrics.chunksEnviados.agenteCampos.toLocaleString("pt-BR")} />
-                    <MetricBadge label="Itens IA" value={metrics.chunksEnviados.agenteItens.toLocaleString("pt-BR")} />
-                    <MetricBadge label="Itens Extraídos" value={metrics.itemsExtracted.toLocaleString("pt-BR")} />
-                    <MetricBadge label="Tempo Total" value={formatSeconds(metrics.totalTimeMs)} />
+        <Card className="overflow-hidden border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20">
+            <Collapsible open={open} onOpenChange={setOpen}>
+                <div className="px-3 py-2">
+                    <CollapsibleTrigger asChild>
+                        <button type="button" className="flex w-full items-center justify-between gap-3 text-left">
+                            <span className="flex min-w-0 items-center gap-2.5">
+                                <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+                                <span className="block text-sm font-medium text-foreground">Extração concluída</span>
+                            </span>
+
+                            <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-emerald-300/80 bg-white/80 text-emerald-800 shadow-sm">
+                                <ChevronDown className={cn("size-4 transition-transform duration-200", open && "-rotate-180")} />
+                            </span>
+                        </button>
+                    </CollapsibleTrigger>
                 </div>
 
-                <div className="grid gap-4 xl:grid-cols-3">
-                    {stepGroups.map(group => (
-                        <PipelineStepsCard key={group.label} group={group} />
-                    ))}
-                </div>
-            </CardContent>
+                <CollapsibleContent className="border-t border-emerald-200/70">
+                    <div className="space-y-5 p-4 pt-5">
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                            <MetricBadge label="PDF" value={formatBytes(metrics.pdfFileSizeBytes)} />
+                            <MetricBadge label="Palavras do PDF" value={metrics.totalWords.toLocaleString("pt-BR")} />
+                            <MetricBadge label="Entradas Indexadas" value={metrics.entriesIndexed.toLocaleString("pt-BR")} />
+                            <MetricBadge label="Chunks Para IA" value={(metrics.chunksEnviados.agenteCampos + metrics.chunksEnviados.agenteItens).toLocaleString("pt-BR")} />
+                            <MetricBadge label="Tokens IA" value={metrics.tokensUsed.total.toLocaleString("pt-BR")} />
+                            <MetricBadge label="Tokens Embedding" value={metrics.embeddingTokensUsed.toLocaleString("pt-BR")} />
+                            <MetricBadge label="Campos IA" value={metrics.chunksEnviados.agenteCampos.toLocaleString("pt-BR")} />
+                            <MetricBadge label="Itens IA" value={metrics.chunksEnviados.agenteItens.toLocaleString("pt-BR")} />
+                            <MetricBadge label="Itens Extraídos" value={metrics.itemsExtracted.toLocaleString("pt-BR")} />
+                            <MetricBadge label="Tempo Total" value={formatSeconds(metrics.totalTimeMs)} />
+                        </div>
+
+                        <div className="grid gap-4 xl:grid-cols-3">
+                            {stepGroups.map(({ key, group }) => (
+                                <PipelineStepsCard key={key} groupKey={key} group={group} />
+                            ))}
+                        </div>
+                    </div>
+                </CollapsibleContent>
+            </Collapsible>
         </Card>
     )
 }
@@ -692,15 +913,25 @@ function formatDate(dateStr: string) {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function PipelineStepsCard({ group }: { group: ExtractEditalDataResponse["metrics"]["steps"]["info"] }) {
+function PipelineStepsCard({
+    groupKey,
+    group,
+}: {
+    groupKey: "orchestration" | "info" | "items"
+    group: ExtractEditalDataResponse["metrics"]["steps"]["info"]
+}) {
     const visibleSteps = group.steps.filter(step => step.id !== "save_artifacts")
+    const groupDescription = getPipelineGroupDescription(groupKey)
 
     return (
         <div className="rounded-xl border border-emerald-200/70 bg-white/70 p-4">
             <div className="flex items-start justify-between gap-3">
                 <div>
                     <p className="text-sm font-semibold text-foreground">{group.label}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        {groupDescription}
+                    </p>
+                    <p className="mt-2 text-xs text-muted-foreground">
                         {visibleSteps.length} {visibleSteps.length === 1 ? "step" : "steps"}
                     </p>
                 </div>
@@ -711,24 +942,86 @@ function PipelineStepsCard({ group }: { group: ExtractEditalDataResponse["metric
 
             <div className="mt-4 space-y-3">
                 {visibleSteps.map(step => (
-                    <div key={step.id} className="rounded-lg border border-border/60 bg-background/80 p-3">
-                        <div className="flex items-center justify-between gap-3">
-                            <p className="text-sm font-medium leading-tight">{step.label}</p>
-                            <span className="text-xs font-mono text-emerald-700">{formatSeconds(step.timeMs)}</span>
-                        </div>
-                        {step.details.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1.5">
-                                {step.details.map(detail => (
-                                    <Badge key={`${step.id}-${detail.label}`} variant="outline" className="text-[10px]">
-                                        {detail.label}: {detail.value}
-                                    </Badge>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    <PipelineStepItem key={`${groupKey}-${step.id}`} groupKey={groupKey} step={step} />
                 ))}
             </div>
         </div>
+    )
+}
+
+function PipelineStepItem({
+    groupKey,
+    step,
+}: {
+    groupKey: "orchestration" | "info" | "items"
+    step: ExtractEditalDataResponse["metrics"]["steps"]["info"]["steps"][number]
+}) {
+    const narrative = getStepNarrative(groupKey, step.id, step.label)
+
+    return (
+        <div className="rounded-lg border border-border/60 bg-background/80 p-3">
+            <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                    <p className="text-sm font-medium leading-tight">{step.label}</p>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                        {narrative}
+                    </p>
+                </div>
+                <span className="shrink-0 text-xs font-mono text-emerald-700">{formatSeconds(step.timeMs)}</span>
+            </div>
+
+            {step.details.length > 0 && (
+                <StepMetricsExpandableCard step={step} />
+            )}
+        </div>
+    )
+}
+
+function StepMetricsExpandableCard({
+    step,
+}: {
+    step: ExtractEditalDataResponse["metrics"]["steps"]["info"]["steps"][number]
+}) {
+    const [open, setOpen] = useState(false)
+
+    return (
+        <Collapsible open={open} onOpenChange={setOpen} className="mt-3 rounded-lg border border-emerald-200/80 bg-emerald-50/60">
+            <CollapsibleTrigger asChild>
+                <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-3 p-3 text-left transition-colors hover:bg-emerald-100/50"
+                >
+                    <div>
+                        <p className="text-xs font-semibold text-emerald-900">Detalhes de métricas</p>
+                        <p className="text-[11px] text-emerald-800/80">
+                            {step.details.length} {step.details.length === 1 ? "indicador coletado nesta etapa" : "indicadores coletados nesta etapa"}
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2 text-emerald-900">
+                        <Badge variant="outline" className="border-emerald-300 bg-white/80 text-[10px]">
+                            {open ? "Ocultar" : "Expandir"}
+                        </Badge>
+                        <ChevronDown className={cn("size-4 transition-transform duration-200", open && "-rotate-180")} />
+                    </div>
+                </button>
+            </CollapsibleTrigger>
+
+            <CollapsibleContent className="border-t border-emerald-200/80 p-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                    {step.details.map(detail => (
+                        <div
+                            key={`${step.id}-${detail.label}`}
+                            className="rounded-lg border border-white/80 bg-white/85 p-3 shadow-sm"
+                        >
+                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                {detail.label}
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-slate-900">{detail.value}</p>
+                        </div>
+                    ))}
+                </div>
+            </CollapsibleContent>
+        </Collapsible>
     )
 }
 
@@ -749,6 +1042,113 @@ function formatBytes(bytes: number): string {
     if (bytes < 1024)           return `${bytes} B`
     if (bytes < 1024 * 1024)    return `${(bytes / 1024).toFixed(1)} KB`
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function formatCurrency(value: number | null | undefined) {
+    if (value == null) return "—"
+    return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+}
+
+function getPipelineGroupDescription(groupKey: "orchestration" | "info" | "items") {
+    switch (groupKey) {
+        case "orchestration":
+            return "Coordena as duas frentes de processamento, consolida o resultado final e fecha a sessão da extração."
+        case "info":
+            return "Cuida dos campos gerais do edital, preparando contexto, selecionando trechos relevantes e estruturando a resposta."
+        case "items":
+            return "Lê as tabelas e linhas do documento, organiza os lotes para IA e consolida os itens extraídos."
+    }
+}
+
+function getStepNarrative(
+    groupKey: "orchestration" | "info" | "items",
+    stepId: string,
+    fallbackLabel: string,
+) {
+    const narratives: Record<"orchestration" | "info" | "items", Record<string, string>> = {
+        orchestration: {
+            parallel_pipelines: "As pipelines de campos e de itens rodam juntas para encurtar o tempo total e aproveitar melhor o paralelismo do processamento.",
+            map_result: "Os dados extraídos são consolidados no formato final da licitação, prontos para exibição e persistência.",
+        },
+        info: {
+            prepare_pipeline: "O PDF é transformado em trechos pesquisáveis, com embeddings e indexação semântica para que cada campo receba o contexto mais útil.",
+            search_chunks: "A busca semântica seleciona os trechos com maior aderência antes de enviar o material para a extração com IA.",
+            extract_fields: "A IA interpreta os melhores trechos encontrados e preenche os campos estruturados do edital com base nesse contexto.",
+        },
+        items: {
+            prepare_pipeline: "As linhas e tabelas do edital são preparadas e indexadas para que a extração de itens aconteça com mais precisão.",
+            search_chunks: "As linhas mais promissoras são filtradas para reduzir ruído e manter apenas conteúdo relevante para itens e lotes.",
+            build_batches: "O conteúdo é dividido em lotes equilibrados para caber bem no contexto da IA sem perder continuidade entre os registros.",
+            extract_items: "A IA processa cada lote, identifica os itens válidos e consolida a lista final extraída do documento.",
+        },
+    }
+
+    return narratives[groupKey][stepId] ?? `Resumo da etapa: ${fallbackLabel}.`
+}
+
+function getLiveStepCopy(step: string, message: string) {
+    if (!step) return null
+
+    if (step.startsWith("info.prepare_queries")) {
+        return {
+            title: "Montando o plano de leitura dos campos",
+            description: "Estamos preparando as consultas semânticas que ajudam a localizar rapidamente os trechos mais úteis para cada informação do edital.",
+        }
+    }
+
+    if (step.startsWith("info.ingest")) {
+        return {
+            title: "Organizando o contexto do edital",
+            description: "O PDF está sendo quebrado em fragmentos úteis, vetorizado e indexado para virar uma base pesquisável antes da leitura com IA.",
+        }
+    }
+
+    if (step.startsWith("info.extract")) {
+        return {
+            title: "Extraindo os campos principais",
+            description: "A IA está lendo os melhores trechos selecionados para preencher os campos estruturados e devolver uma visão limpa do edital.",
+        }
+    }
+
+    if (step === "info.partial") {
+        return {
+            title: "Campos principais concluídos",
+            description: "A primeira parte da resposta já está pronta e a prévia foi atualizada com as informações estruturadas encontradas até agora.",
+        }
+    }
+
+    if (step.startsWith("items.prepare_queries")) {
+        return {
+            title: "Planejando a busca pelos itens",
+            description: "Estamos definindo como localizar linhas e tabelas que descrevem os itens do edital com o menor ruído possível.",
+        }
+    }
+
+    if (step.startsWith("items.ingest")) {
+        return {
+            title: "Preparando tabelas e linhas para leitura",
+            description: "As estruturas do documento estão sendo transformadas em entradas pesquisáveis para que a IA encontre cada item com mais contexto.",
+        }
+    }
+
+    if (step.startsWith("items.extract")) {
+        return {
+            title: "Consolidando os itens do edital",
+            description: "A IA está interpretando os lotes preparados e convertendo as linhas relevantes em itens estruturados para a prévia.",
+        }
+    }
+
+    if (step === "items.partial_batch") {
+        return {
+            title: "Novo lote de itens entregue",
+            description: "Mais um bloco de itens foi processado e incorporado à resposta parcial, mantendo a tela atualizada ao longo da extração.",
+        }
+    }
+
+    return {
+        title: "Processamento em andamento",
+        description: message,
+    }
 }
 
 // ─── JsonView ───────────────────────────────────────────────────────────────

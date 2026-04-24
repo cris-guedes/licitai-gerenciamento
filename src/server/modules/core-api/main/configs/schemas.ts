@@ -29,11 +29,13 @@ import { ListMembersControllerSchemas, ListMemberItemSchema, ListMembersResponse
 import { CreateMemberControllerSchemas, CreateMemberResponseSchema } from "../../domain/use-cases/team/create-member/CreateMemberControllerSchemas";
 import { CreateInviteControllerSchemas, CreateInviteResponseSchema } from "../../domain/use-cases/team/create-invite/CreateInviteControllerSchemas";
 import { ExtractEditalDataControllerSchemas } from "../../domain/use-cases/licitacao/extract-edital-data/ExtractEditalDataControllerSchemas";
+import { ExtractEditalDataStreamControllerSchemas } from "../../domain/use-cases/licitacao/extract-edital-data/ExtractEditalDataStreamControllerSchemas";
 import { GetInviteControllerSchemas, GetInviteResponseSchema } from "../../domain/use-cases/team/get-invite/GetInviteControllerSchemas";
 import { AcceptInviteControllerSchemas, AcceptInviteResponseSchema } from "../../domain/use-cases/team/accept-invite/AcceptInviteControllerSchemas";
 import { UpdateMemberRoleControllerSchemas, UpdateMemberRoleResponseSchema } from "../../domain/use-cases/team/update-member-role/UpdateMemberRoleControllerSchemas";
 import { RemoveMemberControllerSchemas, RemoveMemberResponseSchema } from "../../domain/use-cases/team/remove-member/RemoveMemberControllerSchemas";
 import { ZodType } from "zod";
+import type { ZodOpenApiRequestBodyObject, ZodOpenApiResponsesObject } from "zod-openapi";
 
 export interface EndpointSchemas {
   Headers?: ZodType | undefined;
@@ -55,7 +57,9 @@ export interface EndpointConfig {
   /** Schemas extras adicionados a components/schemas para gerar models nomeados. */
   extraSchemas?: Record<string, ZodType>;
   /** Sobrescreve o requestBody gerado pelo Zod. Usado para multipart/form-data e outros casos especiais. */
-  requestBodyOverride?: Record<string, unknown>;
+  requestBodyOverride?: ZodOpenApiRequestBodyObject;
+  /** Sobrescreve o bloco `responses` gerado automaticamente. Usado para SSE e outros formatos especiais. */
+  responsesOverride?: ZodOpenApiResponsesObject;
 }
 
 /**
@@ -526,7 +530,7 @@ export const apiEndpoints: EndpointConfig[] = [
     description: "Recebe um PDF de edital via upload (multipart/form-data) e retorna um EventStream (SSE) com o progresso do processamento em tempo real.",
     successDescription: "Stream iniciado",
     method: "POST",
-    schemas: ExtractEditalDataControllerSchemas,
+    schemas: ExtractEditalDataStreamControllerSchemas,
     requestBodyOverride: {
       required: true,
       content: {
@@ -541,6 +545,19 @@ export const apiEndpoints: EndpointConfig[] = [
                 description: "Arquivo PDF do edital de licitação",
               },
             },
+          },
+        },
+      },
+    },
+    responsesOverride: {
+      200: {
+        description: "Stream SSE iniciado",
+        content: {
+          "text/event-stream": {
+            schema: {
+              $ref: "#/components/schemas/ExtractEditalDataStreamResponse",
+            },
+            example: "data: {\"type\":\"progress\",\"scope\":\"orchestration\",\"step\":\"orchestration.parse\",\"message\":\"Arquivo recebido, processando...\",\"percent\":8,\"pipelinePercent\":8}\n\n",
           },
         },
       },
