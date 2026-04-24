@@ -134,16 +134,16 @@ export class ExtractEditalData {
 
         tracker.emitSave(documentId);
         const saveStartedAt = performance.now();
-        await this.sessionStorage.saveArtifacts({
-            sessionId,
-            pdfBuffer: input.pdfBuffer,
-            parsedTextEntries: info.ingestionResult.entries,
-            parsedTableEntries: items.ingestionResult.entries,
-            fieldPayloads: info.infoChunks.payloads,
-            itemPayloads: items.itemChunks.payloads,
-            rawItems: items.itens,
-            extraction: licitacao,
-        });
+        /* await this.sessionStorage.saveArtifacts({
+             sessionId,
+             pdfBuffer: input.pdfBuffer,
+             parsedTextEntries: info.ingestionResult.entries,
+             parsedTableEntries: items.ingestionResult.entries,
+             fieldPayloads: info.infoChunks.payloads,
+             itemPayloads: items.itemChunks.payloads,
+             rawItems: items.itens,
+             extraction: licitacao,
+         });*/
         const saveTimeMs = performance.now() - saveStartedAt;
         const totalTimeMs = tracker.finishTotal({ sessionId });
         const detail = (label: string, value: string | number) => ({ label, value: String(value) });
