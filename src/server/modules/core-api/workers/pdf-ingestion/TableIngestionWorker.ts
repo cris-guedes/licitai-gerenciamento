@@ -7,6 +7,7 @@ import type { IIdentifierProvider } from "@/server/modules/core-api/domain/data/
 import type { IPromiseProvider } from "@/server/modules/core-api/domain/data/IPromiseProvider";
 import type { MetricsProvider } from "@/server/shared/infra/providers/metrics/metrics-provider";
 import type { ProcessedChunk } from "@/server/modules/core-api/domain/data/ProcessedChunk";
+import { performance } from "perf_hooks";
 
 export class TableIngestionWorker {
     private readonly MIN_EMBEDDING_BATCH_SIZE = 100;
@@ -28,14 +29,33 @@ export class TableIngestionWorker {
         storeConcurrency = 1,
         onProgress
     }: TableIngestionWorker.Input): Promise<TableIngestionWorker.Result> {
+        const ingestStartedAt = performance.now();
 
-        await this.stepEnsureVectorCollectionExists();
+        const ensureCollectionTimeMs = await this.stepEnsureVectorCollectionExists();
 
-        const response = await this.stepParseDocument(pdfBuffer, documentId);
+        const { response, timeMs: parseTimeMs } = await this.stepParseDocument(pdfBuffer, documentId);
         const { chunks } = response;
+        const raw = response.raw || chunks.map(chunk => chunk.content).join("\n");
+        const totalChars = raw.length;
+        const totalWords = this.countWords(raw);
+
+        onProgress?.onParsed?.(parseTimeMs);
 
         if (!chunks || chunks.length === 0) {
-            return { documentId, entriesCount: 0, timeMs: 0, raw: "", embeddingTokensUsed: 0, entries: [] };
+            return {
+                documentId,
+                ensureCollectionTimeMs,
+                parseTimeMs,
+                embeddingTimeMs: 0,
+                indexingTimeMs: 0,
+                totalTimeMs: performance.now() - ingestStartedAt,
+                raw,
+                totalChars,
+                totalWords,
+                embeddingTokensUsed: 0,
+                entriesCount: 0,
+                entries: [],
+            };
         }
 
         // Decisão de concorrência para Embeddings
@@ -50,16 +70,16 @@ export class TableIngestionWorker {
         const targetStoreConcurrency = this.calculateTargetConcurrency(embeddedEntries.length, storeConcurrency, this.MIN_STORAGE_BATCH_SIZE);
         const hasStoreConcurrency = targetStoreConcurrency > 1;
 
-        hasStoreConcurrency
-            ? await this.stepSavePointsToVectorStoreWithConcurrency(documentId, response, embeddedEntries, targetStoreConcurrency, onProgress)
-            : await this.stepSavePointsToVectorStore(documentId, response, embeddedEntries, onProgress);
+        const indexingTimeMs = hasStoreConcurrency
+            ? await this.stepSavePointsToVectorStoreWithConcurrency(documentId, embeddedEntries, targetStoreConcurrency, onProgress)
+            : await this.stepSavePointsToVectorStore(documentId, embeddedEntries, onProgress);
 
         // Mapear para ProcessedChunk garantindo que as propriedades obrigatórias existam
         const finalEntries: ProcessedChunk[] = chunks.map((c, i) => ({
             id: this.identifierProvider.generate(),
             embedInput: c.content,
             content: c.content,
-            raw: response.raw || c.content,
+            raw: c.content,
             metadata: {
                 ...c.metadata,
                 type: c.metadata.base?.type ?? "table_row",
@@ -70,25 +90,38 @@ export class TableIngestionWorker {
             }
         }));
 
+        const totalTimeMs = performance.now() - ingestStartedAt;
+
         return {
             documentId,
+            ensureCollectionTimeMs,
+            parseTimeMs,
+            embeddingTimeMs,
+            indexingTimeMs,
+            totalTimeMs,
             entriesCount: chunks.length,
-            timeMs: embeddingTimeMs,
-            raw: response.raw || "",
-            embeddingTokensUsed: embeddingTokensUsed,
+            raw,
+            totalChars,
+            totalWords,
+            embeddingTokensUsed,
             entries: finalEntries,
         };
     }
 
-    private async stepEnsureVectorCollectionExists(): Promise<void> {
+    private async stepEnsureVectorCollectionExists(): Promise<number> {
+        const stopTimer = this.metrics.startTimer("table-ingestion:ensure-collection");
         await this.vectorStore.ensureCollection(this.config.collectionName, {
             vectorSize: this.embeddingProvider.dimensions,
             payloadIndexFields: ["document_id", "metadata.base.type", "metadata.base.page"],
         });
+        return stopTimer({ collectionName: this.config.collectionName });
     }
 
-    private async stepParseDocument(buffer: Buffer, documentId: string): Promise<ExtractResponse> {
-        return this.documentParser.processTables(buffer, documentId);
+    private async stepParseDocument(buffer: Buffer, documentId: string): Promise<{ response: ExtractResponse; timeMs: number }> {
+        const stopTimer = this.metrics.startTimer("table-ingestion:parse-document");
+        const response = await this.documentParser.processTables(buffer, documentId);
+        const timeMs = stopTimer({ documentId, chunksCount: response.chunks.length });
+        return { response, timeMs };
     }
 
     private async stepGenerateEmbeddingsForChunks(chunks: ChunkSchema[], onProgress?: TableIngestionWorker.IngestionProgress) {
@@ -127,20 +160,20 @@ export class TableIngestionWorker {
         return { embeddedEntries, embeddingTokensUsed, timeMs };
     }
 
-    private async stepSavePointsToVectorStore(documentId: string, response: ExtractResponse, embeddedEntries: Array<{ entry: any; embedding: Float32Array }>, onProgress?: TableIngestionWorker.IngestionProgress): Promise<void> {
+    private async stepSavePointsToVectorStore(documentId: string, embeddedEntries: Array<{ entry: any; embedding: Float32Array }>, onProgress?: TableIngestionWorker.IngestionProgress): Promise<number> {
         const stopTimer = this.metrics.startTimer("table-ingestion:save-to-vector-store");
 
-        const points = this.mapToVectorPoints(documentId, response, embeddedEntries);
+        const points = this.mapToVectorPoints(documentId, embeddedEntries);
         await this.vectorStore.upsert(this.config.collectionName, points);
 
         onProgress?.onStored?.();
-        stopTimer({ pointsCount: points.length, documentId, concurrency: 1 });
+        return stopTimer({ pointsCount: points.length, documentId, concurrency: 1 });
     }
 
-    private async stepSavePointsToVectorStoreWithConcurrency(documentId: string, response: ExtractResponse, embeddedEntries: Array<{ entry: any; embedding: Float32Array }>, concurrency: number, onProgress?: TableIngestionWorker.IngestionProgress): Promise<void> {
+    private async stepSavePointsToVectorStoreWithConcurrency(documentId: string, embeddedEntries: Array<{ entry: any; embedding: Float32Array }>, concurrency: number, onProgress?: TableIngestionWorker.IngestionProgress): Promise<number> {
         const stopTimer = this.metrics.startTimer("table-ingestion:save-to-vector-store-parallel");
 
-        const points = this.mapToVectorPoints(documentId, response, embeddedEntries);
+        const points = this.mapToVectorPoints(documentId, embeddedEntries);
         const partitions = this.partitionItems(points, concurrency);
 
         await this.promiseProvider.runAll(
@@ -149,14 +182,14 @@ export class TableIngestionWorker {
         );
 
         onProgress?.onStored?.();
-        stopTimer({ pointsCount: points.length, documentId, concurrency });
+        return stopTimer({ pointsCount: points.length, documentId, concurrency });
     }
 
-    private mapToVectorPoints(documentId: string, response: ExtractResponse, embeddedEntries: Array<{ entry: any; embedding: Float32Array }>) {
+    private mapToVectorPoints(documentId: string, embeddedEntries: Array<{ entry: any; embedding: Float32Array }>) {
         return embeddedEntries.map(({ entry, embedding }) => ({
             id: entry.id,
             vector: Array.from(embedding),
-            payload: { ...entry.chunk, raw: response.raw, document_id: documentId },
+            payload: { ...entry.chunk, document_id: documentId },
         }));
     }
 
@@ -172,6 +205,11 @@ export class TableIngestionWorker {
         }
         return partitions;
     }
+
+    private countWords(text: string): number {
+        const matches = text.match(/\S+/g);
+        return matches?.length ?? 0;
+    }
 }
 
 export namespace TableIngestionWorker {
@@ -180,6 +218,7 @@ export namespace TableIngestionWorker {
     };
 
     export type IngestionProgress = {
+        onParsed?: (timeMs: number) => void;
         onEmbedded?: (count: number) => void;
         onStored?: () => void;
     };
@@ -193,9 +232,15 @@ export namespace TableIngestionWorker {
 
     export type Result = {
         documentId: string;
+        ensureCollectionTimeMs: number;
+        parseTimeMs: number;
+        embeddingTimeMs: number;
+        indexingTimeMs: number;
+        totalTimeMs: number;
         entriesCount: number;
-        timeMs: number;
         raw: string;
+        totalChars: number;
+        totalWords: number;
         embeddingTokensUsed: number;
         entries: ProcessedChunk[];
     };

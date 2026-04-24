@@ -2,10 +2,11 @@ import { generateObject } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { IAgent, IExtractionResult, IExtractionMetrics } from "@/server/modules/core-api/domain/data/IAgent";
 import { EDITAL_ITEM_SCHEMA } from "./schemas";
+import { ITEM_SEARCH_QUERIES } from "./queries";
 import { ITEM_EXTRACTOR_PROMPT, buildItemExtractionPrompt } from "./prompts";
 import { ITEM_EXTRACTOR_CONFIG } from "./config";
 
-export class EditalItemExtractorAgent implements IAgent<string, any[]> {
+export class EditalItemExtractorAgent implements IAgent<Record<string, any>[], any[]> {
     private readonly openai: ReturnType<typeof createOpenAI>;
 
     constructor() {
@@ -13,26 +14,22 @@ export class EditalItemExtractorAgent implements IAgent<string, any[]> {
     }
 
     getSearchQueries(): string[] {
-        return [
-            "lista de itens licitados quantidade unidade",
-            "tabela de materiais serviços objeto licitação",
-            "especificação técnica descrição item preço unitário",
-            "itens do edital valor total estimado",
-            "tabela lote grupo item código descrição",
-        ];
+        return ITEM_SEARCH_QUERIES;
     }
 
-    async extract(text: string): Promise<IExtractionResult<any[]>> {
-        if (!text || text.trim().length === 0) {
+    async extract(payloads: Record<string, any>[]): Promise<IExtractionResult<any[]>> {
+        if (payloads.length === 0) {
             return { data: [], metrics: this.emptyMetrics() };
         }
+
+        const context = JSON.stringify(payloads, null, 2);
 
         const run = async (temperature: number) => {
             const { object, usage } = await generateObject({
                 model:       this.openai(ITEM_EXTRACTOR_CONFIG.model),
                 schema:      EDITAL_ITEM_SCHEMA,
                 system:      ITEM_EXTRACTOR_PROMPT,
-                prompt:      buildItemExtractionPrompt(text),
+                prompt:      buildItemExtractionPrompt(context),
                 temperature,
             });
 

@@ -25,12 +25,12 @@ const CONFIG = {
     vectorStore: {
         COLLECTION_NAME: process.env.QDRANT_COLLECTION ?? "edital-v1-1536",
         FIELD_SEARCH_LIMIT: 200,
-        FIELD_SCORE_THRESHOLD: 0.38,
-        ITEM_SEARCH_LIMIT: 500,
-        ITEM_SCORE_THRESHOLD: 0.45,
+        FIELD_SCORE_THRESHOLD: 0.48,
+        ITEM_SEARCH_LIMIT: 800,
+        ITEM_SCORE_THRESHOLD: 0.30,
         ITEM_SCROLL_BATCH_SIZE: 1000,
         ITEM_SCROLL_SCORE: 1.0,
-        ITEM_EXTRACTION_CONCURRENCY: 5,
+        ITEM_EXTRACTION_CONCURRENCY: 8,
         EMBEDDING_CONCURRENCY: 5,
         STORE_CONCURRENCY: 5,
     },
@@ -84,6 +84,7 @@ function createUseCase() {
 
     const itemsPipeline = new ExtractItemsPipeline(
         tableIngestionWorker,
+        embeddingProvider,
         vectorStore,
         new EditalItemExtractorAgent(),
         promiseProvider,

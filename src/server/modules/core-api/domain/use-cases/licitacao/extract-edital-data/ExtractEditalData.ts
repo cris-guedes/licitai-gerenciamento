@@ -1,12 +1,12 @@
 import type { IEmbeddingProvider } from "@/server/modules/core-api/domain/data/IEmbeddingProvider";
-import type { IVectorStore } from "@/server/modules/core-api/domain/data/IVectorStore";
 import type { MetricsProvider } from "@/server/shared/infra/providers/metrics/metrics-provider";
 import type { ExtractionSessionProvider } from "@/server/shared/infra/providers/session/extraction-session-provider";
+import { performance } from "perf_hooks";
 import { ExtractEditalDataControllerSchemas } from "./ExtractEditalDataControllerSchemas";
 import { EditalExtractionMapper } from "./dtos/EditalExtractionMapper";
 import { ExtractEditalTracker } from "./utils/ExtractEditalTracker";
-import { ExtractInfoPipeline, ExtractInfoPipelineResult } from "./pipelines/ExtractInfoPipeline";
-import { ExtractItemsPipeline, ExtractItemsPipelineResult } from "./pipelines/ExtractItemsPipeline";
+import { ExtractInfoPipeline, type ExtractInfoPipelineResult } from "./pipelines/ExtractInfoPipeline";
+import { ExtractItemsPipeline, type ExtractItemsPipelineResult } from "./pipelines/ExtractItemsPipeline";
 
 export class ExtractEditalData {
     constructor(
@@ -25,11 +25,7 @@ export class ExtractEditalData {
 
         console.log(`[ExtractEditalData] Iniciando Pipelines em paralelo — documentId: ${documentId}`);
 
-        const context = { input, sessionId, documentId, tracker };
-
-        // Dispara as duas pipelines de maneira paralela. 
-        // Cada pipeline é independente e gerencia seu próprio worker (Pdf vs Table).
-        // As respostas permanecem separadas até o método finish.
+        const pipelinesStartedAt = performance.now();
         const [infoResult, itemsResult] = await Promise.all([
             this.infoPipeline.execute({
                 pdfBuffer: input.pdfBuffer,
@@ -44,98 +40,210 @@ export class ExtractEditalData {
                 config: this.vectorStoreConfig,
             }),
         ]);
+        const pipelinesTimeMs = performance.now() - pipelinesStartedAt;
 
-        return this.finish(infoResult, itemsResult, context);
+        return this.finish(infoResult, itemsResult, {
+            input,
+            sessionId,
+            documentId,
+            tracker,
+            pipelinesTimeMs,
+        });
     }
 
     private async finish(
         info: ExtractInfoPipelineResult,
         items: ExtractItemsPipelineResult,
-        context: { input: ExtractEditalData.Input; sessionId: string; documentId: string; tracker: ExtractEditalTracker }
+        context: {
+            input: ExtractEditalData.Input;
+            sessionId: string;
+            documentId: string;
+            tracker: ExtractEditalTracker;
+            pipelinesTimeMs: number;
+        }
     ): Promise<ExtractEditalData.Output> {
-        const { sessionId, documentId, tracker, input } = context;
-        const config = this.vectorStoreConfig;
+        const { sessionId, documentId, tracker, input, pipelinesTimeMs } = context;
 
         tracker.emitMap();
-        // União dos dados extraídos apenas após a conclusão de ambas as pipelines
+        const mapStartedAt = performance.now();
         const licitacao = EditalExtractionMapper.toLicitacao(info.extraction, items.itens);
+        const mapTimeMs = performance.now() - mapStartedAt;
+
+        const totalAgentTokens = {
+            prompt: info.tokensUsed.prompt + items.tokensUsed.prompt + info.prettifyMetrics.prompt + items.prettifyMetrics.prompt,
+            completion: info.tokensUsed.completion + items.tokensUsed.completion + info.prettifyMetrics.completion + items.prettifyMetrics.completion,
+            total: info.tokensUsed.total + items.tokensUsed.total + info.prettifyMetrics.total + items.prettifyMetrics.total,
+        };
+
+        const embeddingTokensUsed =
+            info.ingestionResult.embeddingTokensUsed +
+            items.ingestionResult.embeddingTokensUsed +
+            info.metrics.prepareQueries.embeddingTokensUsed +
+            items.metrics.prepareQueries.embeddingTokensUsed;
+
+        const mdContent = `${info.ingestionResult.prettifiedRaw || ""}\n\n${items.ingestionResult.prettifiedRaw || ""}`;
+        const artifacts = this.sessionStorage.artifactPathsFor(sessionId);
 
         tracker.emitSave(documentId);
+        const saveStartedAt = performance.now();
+        await this.sessionStorage.saveArtifacts({
+            sessionId,
+            pdfBuffer: input.pdfBuffer,
+            parsedTextEntries: info.ingestionResult.entries,
+            parsedTableEntries: items.ingestionResult.entries,
+            fieldPayloads: info.infoChunks.payloads,
+            itemPayloads: items.itemChunks.payloads,
+            rawItems: items.itens,
+            extraction: licitacao,
+        });
+        const saveTimeMs = performance.now() - saveStartedAt;
         const totalTimeMs = tracker.finishTotal({ sessionId });
-
-        // Cálculo de tokens (incluindo o passo de prettify de ambas as pipelines)
-        const embeddingTokensUsed = info.ingestionResult.embeddingTokensUsed + items.ingestionResult.embeddingTokensUsed;
+        const detail = (label: string, value: string | number) => ({ label, value: String(value) });
+        const infoPreparationTimeMs = Math.max(info.ingestionResult.totalTimeMs, info.metrics.prepareQueries.totalTimeMs);
+        const itemsPreparationTimeMs = Math.max(items.ingestionResult.totalTimeMs, items.metrics.prepareQueries.totalTimeMs);
 
         const metrics: ExtractEditalDataControllerSchemas.Metrics = {
             sessionId,
             timestamp: new Date().toISOString(),
-            pdfUrl: input.externalId ?? "upload-direto",
             pdfFilename: documentId,
             pdfFileSizeBytes: input.pdfBuffer.byteLength,
-            totalChars: info.ingestionResult.totalChars,
             totalWords: info.ingestionResult.totalWords,
-            totalTables: 0,
             entriesIndexed: info.ingestionResult.entriesCount + items.ingestionResult.entriesCount,
-            conversionTimeMs: info.ingestionResult.parseTimeMs,
-            indexingTimeMs: info.ingestionResult.indexingTimeMs,
-            embeddingTimeMs: info.ingestionResult.embeddingTimeMs,
-            prepareQueriesTimeMs: 0,
-            extractionTimeMs: info.timeMs + items.timeMs,
+            itemsExtracted: items.itens.length,
             totalTimeMs,
-            tempDir: this.sessionStorage.tempDirFor(sessionId),
-            tokensUsed: {
-                prompt: info.tokensUsed.prompt + items.tokensUsed.prompt + info.prettifyMetrics.prompt + items.prettifyMetrics.prompt,
-                completion: info.tokensUsed.completion + items.tokensUsed.completion + info.prettifyMetrics.completion + items.prettifyMetrics.completion,
-                total: info.tokensUsed.total + items.tokensUsed.total + info.prettifyMetrics.total + items.prettifyMetrics.total,
-            },
+            tokensUsed: totalAgentTokens,
             embeddingTokensUsed,
-            chunksEnviados: { agenteCampos: info.searchCount, agenteItens: items.itens.length },
-            vectorStoreConfig: {
-                collection: config.COLLECTION_NAME,
-                vectorSize: this.embeddingProvider.dimensions,
-                fieldSearchLimit: config.FIELD_SEARCH_LIMIT,
-                fieldScoreThreshold: config.FIELD_SCORE_THRESHOLD,
-                itemSearchLimit: config.ITEM_SEARCH_LIMIT,
-                itemScoreThreshold: config.ITEM_SCORE_THRESHOLD,
-                itemTypeFilter: ["table_row"],
+            chunksEnviados: {
+                agenteCampos: info.infoChunks.payloads.length,
+                agenteItens: items.itemChunks.payloads.length,
             },
-            config: {
-                embeddingModel: this.embeddingProvider.modelName,
-                aiModel: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
-                fileParser: "Pipelines Segregadas + Prettify",
-                extractionMode: "Info (PdfWorker) + Items (TableWorker)",
-                totalQueries: info.searchCount + items.itens.length,
+            artifacts,
+            steps: {
+                orchestration: {
+                    label: "Orquestração",
+                    totalTimeMs: pipelinesTimeMs + mapTimeMs + saveTimeMs,
+                    steps: [
+                        {
+                            id: "parallel_pipelines",
+                            label: "Executar pipelines em paralelo",
+                            timeMs: pipelinesTimeMs,
+                            details: [
+                                detail("Pipeline de campos", this.formatMs(info.metrics.totalTimeMs)),
+                                detail("Pipeline de itens", this.formatMs(items.metrics.totalTimeMs)),
+                                detail("Ganho do paralelismo", this.formatMs(Math.max(0, info.metrics.totalTimeMs + items.metrics.totalTimeMs - pipelinesTimeMs))),
+                            ],
+                        },
+                        {
+                            id: "map_result",
+                            label: "Mapear resultado final",
+                            timeMs: mapTimeMs,
+                            details: [
+                                detail("Itens consolidados", items.itens.length.toLocaleString("pt-BR")),
+                            ],
+                        },
+                    ],
+                },
+                info: {
+                    label: "Pipeline de campos",
+                    totalTimeMs: info.metrics.totalTimeMs,
+                    steps: [
+                        {
+                            id: "prepare_pipeline",
+                            label: "Preparar pipeline de campos",
+                            timeMs: infoPreparationTimeMs,
+                            details: [
+                                detail("PDF -> chunks", this.formatMs(info.ingestionResult.parseTimeMs)),
+                                detail("Embedding", this.formatMs(info.ingestionResult.embeddingTimeMs)),
+                                detail("Indexação", this.formatMs(info.ingestionResult.indexingTimeMs)),
+                                detail("Queries", this.formatMs(info.metrics.prepareQueries.totalTimeMs)),
+                                detail("Chunks indexados", info.ingestionResult.entriesCount.toLocaleString("pt-BR")),
+                                detail("Consultas", info.metrics.prepareQueries.queryCount.toLocaleString("pt-BR")),
+                            ],
+                        },
+                        {
+                            id: "search_chunks",
+                            label: "Buscar chunks para campos",
+                            timeMs: info.metrics.search.totalTimeMs,
+                            details: [
+                                detail("Chunks selecionados", info.metrics.search.selectedHits.toLocaleString("pt-BR")),
+                                detail("Chunks únicos", info.metrics.search.uniqueHits.toLocaleString("pt-BR")),
+                            ],
+                        },
+                        {
+                            id: "extract_fields",
+                            label: "Extrair campos com IA",
+                            timeMs: info.metrics.extraction.totalTimeMs,
+                            details: [
+                                detail("Chunks enviados", info.metrics.extraction.payloadCount.toLocaleString("pt-BR")),
+                                detail("Tokens de IA", info.metrics.extraction.totalTokens.toLocaleString("pt-BR")),
+                            ],
+                        },
+                    ],
+                },
+                items: {
+                    label: "Pipeline de itens",
+                    totalTimeMs: items.metrics.totalTimeMs,
+                    steps: [
+                        {
+                            id: "prepare_pipeline",
+                            label: "Preparar pipeline de itens",
+                            timeMs: itemsPreparationTimeMs,
+                            details: [
+                                detail("PDF -> linhas", this.formatMs(items.ingestionResult.parseTimeMs)),
+                                detail("Embedding", this.formatMs(items.ingestionResult.embeddingTimeMs)),
+                                detail("Indexação", this.formatMs(items.ingestionResult.indexingTimeMs)),
+                                detail("Queries", this.formatMs(items.metrics.prepareQueries.totalTimeMs)),
+                                detail("Linhas indexadas", items.ingestionResult.entriesCount.toLocaleString("pt-BR")),
+                                detail("Consultas", items.metrics.prepareQueries.queryCount.toLocaleString("pt-BR")),
+                            ],
+                        },
+                        {
+                            id: "search_chunks",
+                            label: "Buscar linhas para itens",
+                            timeMs: items.metrics.search.totalTimeMs,
+                            details: [
+                                detail("Linhas selecionadas", items.metrics.search.selectedHits.toLocaleString("pt-BR")),
+                                detail("Linhas válidas", items.metrics.search.filteredHits.toLocaleString("pt-BR")),
+                            ],
+                        },
+                        {
+                            id: "build_batches",
+                            label: "Montar lotes para IA",
+                            timeMs: items.metrics.batching.totalTimeMs,
+                            details: [
+                                detail("Lotes", items.metrics.batching.batchCount.toLocaleString("pt-BR")),
+                                detail("Carga total", `${Math.round(items.metrics.batching.totalPayloadChars / 1024)} KB`),
+                            ],
+                        },
+                        {
+                            id: "extract_items",
+                            label: "Extrair itens com IA",
+                            timeMs: items.metrics.extraction.totalTimeMs,
+                            details: [
+                                detail("Chunks enviados", items.metrics.extraction.payloadCount.toLocaleString("pt-BR")),
+                                detail("Itens extraídos", items.metrics.extraction.uniqueItemsCount.toLocaleString("pt-BR")),
+                                detail("Tokens de IA", items.metrics.extraction.totalTokens.toLocaleString("pt-BR")),
+                            ],
+                        },
+                    ],
+                },
             },
         };
 
-        // mdContent agora usa o RAW formatado (Prettified) vindo de ambas as pipelines
-        const mdContent = (info.ingestionResult.prettifiedRaw || "") + "\n\n" + (items.ingestionResult.prettifiedRaw || "");
-
-        /*await this.sessionStorage.save({
-             sessionId,
-             pdfBuffer: input.pdfBuffer,
-             mdContent,
-             parsedTextEntries: info.ingestionResult.entries,
-             parsedTableEntries: items.ingestionResult.entries,
-             fieldPayloads: info.infoChunks.payloads,
-             itemPayloads: items.itemChunks.payloads,
-             rawFields: info.extraction,
-             rawItems: items.itens,
-             extraction: licitacao,
-             metrics,
-             searchQueries: { field: [], item: [] },
-             qdrantConfig: {
-                 collection: config.COLLECTION_NAME,
-                 documentId,
-                 fieldSearchLimit: config.FIELD_SEARCH_LIMIT,
-                 fieldScoreThreshold: config.FIELD_SCORE_THRESHOLD,
-                 itemSearchLimit: config.ITEM_SEARCH_LIMIT,
-                 itemScoreThreshold: config.ITEM_SCORE_THRESHOLD,
-                 itemTypeFilter: ["table_row"],
-             },
-         });*/
+        await this.sessionStorage.saveMetrics({
+            sessionId,
+            metrics,
+            extraction: licitacao,
+            rawItems: items.itens,
+            fieldPayloads: info.infoChunks.payloads,
+            itemPayloads: items.itemChunks.payloads,
+        });
 
         return { sessionId, mdContent, licitacao, metrics };
+    }
+
+    private formatMs(ms: number): string {
+        return `${(ms / 1000).toFixed(1)}s`;
     }
 }
 
