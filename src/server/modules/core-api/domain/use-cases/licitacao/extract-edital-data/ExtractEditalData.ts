@@ -130,7 +130,7 @@ export class ExtractEditalData {
             items.metrics.prepareQueries.embeddingTokensUsed;
 
         const mdContent = `${info.ingestionResult.prettifiedRaw || ""}\n\n${items.ingestionResult.prettifiedRaw || ""}`;
-        const artifacts = this.sessionStorage.artifactPathsFor(sessionId);
+        // artifacts = this.sessionStorage.artifactPathsFor(sessionId);
 
         tracker.emitSave(documentId);
         const saveStartedAt = performance.now();
@@ -165,7 +165,14 @@ export class ExtractEditalData {
                 agenteCampos: info.infoChunks.payloads.length,
                 agenteItens: items.itemChunks.payloads.length,
             },
-            artifacts,
+            artifacts: {
+                directory: "",
+                originalPdf: "",
+                pdfProcessingResponse: "",
+                aiInputs: "",
+                extractionResult: "",
+                metrics: ""
+            },
             steps: {
                 orchestration: {
                     label: "Orquestração",
