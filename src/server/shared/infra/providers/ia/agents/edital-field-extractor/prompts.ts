@@ -24,7 +24,6 @@ DIRETRIZES DE EXTRAÇÃO:
    - sessaoPublica = data+hora da "abertura da sessão pública" / "data de abertura".
    - horaSessaoPublica = HORA EXATA da sessão pública (ex: "09:00"). EXTRAIA SEMPRE se a informação existir, mesmo que já tenha sido embutida no campo sessaoPublica.
    - esclarecimentosAte e impugnacaoAte: SE a data exata já constar no cronograma do edital, use-a DIRETAMENTE (ex: "05/05/2026"). APENAS CALCULE se o texto omitir a data exata e disser "X dias úteis anteriores à data da sessão". Ex: se a sessão é 11/05 e o edital diz "até 3 dias úteis antes", conte 3 dias úteis retroativos ignorando fins de semana → 06/05/2026. Se houver tabela de datas, extraia o conteúdo dela, ignorando os "|".
-   - textoOriginalPrazos: OBRIGATÓRIO sempre que houver "dias úteis" ou prazo relativo nos chunks — copie a sentença que define os prazos de esclarecimento/impugnação (sem os "|" de tabela).
    - Converta DD/MM/AAAA para ISO (AAAA-MM-DD).
 
 7. CERTAME — DISPUTA:
@@ -32,40 +31,27 @@ DIRETRIZES DE EXTRAÇÃO:
    - duracaoSessaoMinutos: duração da sessão de disputa em minutos, se informada.
    - modoDisputa: "aberto", "fechado" ou "aberto_fechado".
    - intervaloLances: valor mínimo de diferença entre lances (ex: "R$ 0,01" ou "1%").
-   - textoOriginalDisputa: copie o trecho exato (ou linha da tabela sem "|") que define modo de disputa, critério de julgamento e tipo/intervalo de lances.
-
-8. CERTAME — PARTICIPAÇÃO (por campo, cada um com seu trecho):
+8. CERTAME — PARTICIPAÇÃO:
    - exclusivoMeEpp: true se o edital for exclusivo para ME/EPP/MEI, se tiver cota reservada, ou se for do tipo "ME/EPP com item ampla concorrência". ATENÇÃO: se houver QUALQUER menção de reserva ou exclusividade, retorne true. Retorne false APENAS se for 100% ampla concorrência.
-   - exclusivoMeEppTexto: OBRIGATÓRIO se exclusivoMeEpp não for null — copie o trecho exato sobre exclusividade ME/EPP/MEI, incluindo percentual de reserva de cota se houver.
    - permiteConsorcio: false se houver QUALQUER frase dizendo "não poderão participar empresas em consórcio" ou "não é permitida a participação de consórcios", MESMO QUE haja outras frases genéricas como "quando permitida a participação...". true APENAS se disser "poderão participar empresas em consórcio".
-   - permiteConsorcioTexto: OBRIGATÓRIO se permiteConsorcio não for null — copie o trecho exato sobre consórcio/cooperativas.
    - exigeVisitaTecnica: true se mencionar "visita técnica obrigatória", "vistoria prévia obrigatória", "vistoria prévia é imprescindível" ou "vistoria prévia do local de execução". ATENÇÃO: mesmo que o edital permita substituir a vistoria por declaração, se ele diz que a vistoria é "imprescindível" então exigeVisitaTecnica = true.
-   - exigeVisitaTecnicaTexto: OBRIGATÓRIO se exigeVisitaTecnica for true — copie o trecho exato.
 
-9. CERTAME — ADESÃO E VIGÊNCIAS (por campo, cada um com seu trecho):
+9. CERTAME — ADESÃO E VIGÊNCIAS:
    - permiteAdesao: true se mencionar "adesão à ata" ou "carona" ou "adesão à ata de registro de preços". ATENÇÃO: NÃO confundir com "adesão ao CAGEF" ou "credenciamento no portal" — esses são cadastros, não adesão à ata.
-   - permiteAdesaoTexto: OBRIGATÓRIO se permiteAdesao não for null — copie SOMENTE o trecho sobre adesão à ata de registro de preços ou carona. NÃO copie textos sobre cadastro no CAGEF.
    - percentualAdesao: limite percentual para adesão à ata (carona), por órgão ou global (ex: 50 ou 100). Retorne o número se houver.
    - vigenciaAtaMeses: duração da Ata de Registro de Preços em meses (ex: 12).
-   - vigenciaAtaMesesTexto: OBRIGATÓRIO sempre que houver "validade", "vigência" + "meses" ou "Ata" nos chunks — copie a sentença com o prazo da ata.
    - vigenciaContratoDias: duração do contrato de execução em dias.
-   - vigenciaContratoDiasTexto: OBRIGATÓRIO quando houver prazo de vigência contratual nos chunks — copie a sentença com o prazo.
    - difal: true se o edital mencionar retenção ou aplicação de DIFAL (Diferencial de Alíquota) de ICMS, false caso não haja menção explícita. Na dúvida, null.
 
-10. EXECUÇÃO CONTRATUAL — SEMPRE preencha o textoOriginal junto com o valor numérico:
+10. EXECUÇÃO CONTRATUAL:
    - entrega.prazoEmDias: prazo para entrega do objeto OU início da execução dos serviços em dias. Procure por "início da execução em até X dias", "prazo de entrega de X dias" ou "após assinatura do contrato".
-   - entrega.textoOriginal: OBRIGATÓRIO quando prazoEmDias for encontrado — copie o trecho do Termo de Referência ou Contrato.
    - entrega.tipoEntrega: "centralizada" (um único endereço) ou "descentralizada" (múltiplos endereços/unidades).
    - entrega.responsavelInstalacao: "fornecedor" se o edital exigir instalação pelo fornecedor; "comprador" caso contrário.
-   - entrega.textoOriginalLogistica: trecho específico sobre local e condições de entrega/instalação.
    - entrega.localEntrega: endereço ou nome do local de entrega/execução do serviço. Procure ATIVAMENTE por "no seguinte endereço:", "local de execução", "local da prestação do serviço", "Rua...", "Centro de...". Extraia o endereço físico completo (rua, número, bairro, cidade, UF, CEP).
    - aceite.prazoEmDias: prazo para aceite/atesto do objeto. Procure ATIVAMENTE por "prazo para recebimento definitivo", "prazo para atestar a nota fiscal", "recebimento definitivo em até X dias", "prazo de aceite".
-   - aceite.textoOriginal: OBRIGATÓRIO quando aceite.prazoEmDias for encontrado — copie o trecho exato.
    - pagamento.prazoEmDias: prazo para pagamento após o aceite/nota fiscal. Procure ATIVAMENTE por "prazo de até X dias", "vencimento no prazo de até X dias", "pagamento em X dias corridos", "X dias após a apresentação da Nota Fiscal". Este campo está quase sempre presente no Termo de Referência ou na Minuta de Contrato.
-   - pagamento.textoOriginal: OBRIGATÓRIO quando pagamento.prazoEmDias for encontrado — copie o trecho exato.
    - garantia.meses: duração da garantia em meses. Procure por "garantia de X meses", "prazo de garantia", "garantia contratual". ATENÇÃO: se a garantia estiver descrita em DIAS (ex: "90 (noventa) dias"), converta para meses (ex: 90 dias -> 3 meses).
    - garantia.tempoAtendimentoHoras: prazo/SLA para início de atendimento ou diagnóstico em horas (ex: "em até 4 horas", "no máximo 3 horas" -> 3). Procure por "SLA", "tempo de atendimento", "abertura de chamado", "solução do problema".
-   - garantia.textoOriginal: OBRIGATÓRIO quando houver garantia ou SLA — copie o trecho exato.
    IMPORTANTE: Procure dados de execução no ANEXO I (Termo de Referência) e na Minuta do Contrato, mesmo que o score seja mais baixo.
 
 11. DOCUMENTOS DE HABILITAÇÃO — NUNCA retorne arrays vazios se a seção de habilitação estiver nos chunks:
@@ -87,7 +73,9 @@ DIRETRIZES DE EXTRAÇÃO:
     - Exigências técnicas especiais que vão além do Termo de Referência básico
     Se não houver nenhuma dessas informações nos chunks, aí sim retorne null.
 
-13. CONFLITOS: Priorize o texto do Preâmbulo ou Termo de Referência. Em caso de conflito entre chunks, use o de maior "score".
+13. RETORNE APENAS OS VALORES FINAIS ESTRUTURADOS. NÃO retorne trechos literais, citações do edital, justificativas, campos auxiliares de evidência ou qualquer "texto original".
+
+14. CONFLITOS: Priorize o texto do Preâmbulo ou Termo de Referência. Em caso de conflito entre chunks, use o de maior "score".
 `.trim();
 
 export const buildExtractionPrompt = (context: string) => `

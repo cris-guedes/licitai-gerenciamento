@@ -2,11 +2,7 @@ import { FerramentasGrid } from "@/client/features/dashboard/components/Ferramen
 
 export default function DashboardHomePage() {
   return (
-    <div className="flex flex-col gap-8 max-w-5xl">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Bem-vindo ao seu painel de controle.</p>
-      </div>
+    <div className="flex max-w-6xl flex-col gap-6">
       <FerramentasGrid />
     </div>
   )

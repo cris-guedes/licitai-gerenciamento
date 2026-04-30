@@ -13,14 +13,4 @@ export type CronogramaLicitacao = {
     horaSessaoPublica: string | null;
     esclarecimentosAte: string | null;
     impugnacaoAte: string | null;
-
-    /**
-     * Trecho exato do edital que define os prazos de esclarecimento e impugnação.
-     * Usado como fallback quando as datas foram calculadas (relativas) ou como
-     * evidência de auditoria.
-     */
-    textoOriginalPrazos: string | null;
-
-    /** Trecho geral de onde o cronograma foi extraído. */
-    textoOriginal: string | null;
 };

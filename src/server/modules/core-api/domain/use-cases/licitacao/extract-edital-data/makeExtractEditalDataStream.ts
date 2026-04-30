@@ -3,6 +3,7 @@ import { OpenAIEmbeddingProvider } from "@/server/shared/infra/providers/ia/embe
 import { QdrantVectorStore } from "@/server/shared/infra/providers/ia/vector/qdrant-vector-store";
 import { EditalFieldExtractorAgent } from "@/server/shared/infra/providers/ia/agents/edital-field-extractor";
 import { EditalItemExtractorAgent } from "@/server/shared/infra/providers/ia/agents/edital-item-extractor";
+import { OpenAIModel } from "@/server/shared/infra/providers/ia/models/openai-model";
 import { MetricsProvider } from "@/server/shared/infra/providers/metrics/metrics-provider";
 import { ExtractionSessionProvider } from "@/server/shared/infra/providers/session/extraction-session-provider";
 import { UuidIdentifierProvider } from "@/server/shared/infra/providers/identifier/uuid-identifier-provider";
@@ -17,6 +18,10 @@ import { ExtractInfoPipeline } from "./pipelines/ExtractInfoPipeline";
 import { ExtractItemsPipeline } from "./pipelines/ExtractItemsPipeline";
 
 const CONFIG = {
+    llm: {
+        fieldModel: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+        itemModel: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+    },
     embedding: {
         model: process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small",
         dimensions: 1536,
@@ -52,6 +57,8 @@ function createUseCase() {
     const promiseProvider = new PQueuePromiseProvider();
     const documentParser = new DocumentHandlerFileParsingProvider();
     const prettifyProvider = new LLMDocumentPrettifyProvider();
+    const fieldModel = new OpenAIModel({ model: CONFIG.llm.fieldModel });
+    const itemModel = new OpenAIModel({ model: CONFIG.llm.itemModel });
 
     // 1. Instancia os Workers
     const pdfIngestionWorker = new PdfIngestionWorker(
@@ -79,7 +86,7 @@ function createUseCase() {
         pdfIngestionWorker,
         embeddingProvider,
         vectorStore,
-        new EditalFieldExtractorAgent(),
+        new EditalFieldExtractorAgent(fieldModel),
         prettifyProvider,
     );
 
@@ -87,7 +94,7 @@ function createUseCase() {
         tableIngestionWorker,
         embeddingProvider,
         vectorStore,
-        new EditalItemExtractorAgent(),
+        new EditalItemExtractorAgent(itemModel),
         promiseProvider,
         prettifyProvider,
     );

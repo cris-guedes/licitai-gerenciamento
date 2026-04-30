@@ -80,7 +80,6 @@ const OrgaoPublicoSchema = z.object({
     esfera:           n(z.enum(["federal", "estadual", "municipal"])),
     poder:            n(z.enum(["executivo", "legislativo", "judiciario"])),
     itensSolicitados: n(z.array(z.object({ itemNumero: z.number(), quantidade: z.number() }))),
-    textoOriginal:    n(z.string()),
 });
 
 const CronogramaSchema = z.object({
@@ -91,8 +90,6 @@ const CronogramaSchema = z.object({
     horaSessaoPublica:   n(z.string()),
     esclarecimentosAte:  n(z.string()),
     impugnacaoAte:       n(z.string()),
-    textoOriginalPrazos: n(z.string()),
-    textoOriginal:       n(z.string()),
 });
 
 const CertameSchema = z.object({
@@ -101,28 +98,19 @@ const CertameSchema = z.object({
     tipoLance:                 n(z.enum(["unitario", "global", "percentual"])),
     intervaloLances:           n(z.string()),
     duracaoSessaoMinutos:      n(z.number()),
-    textoOriginalDisputa:      n(z.string()),
     exclusivoMeEpp:            n(z.boolean()),
-    exclusivoMeEppTexto:       n(z.string()),
     permiteConsorcio:          n(z.boolean()),
-    permiteConsorcioTexto:     n(z.string()),
     exigeVisitaTecnica:        n(z.boolean()),
-    exigeVisitaTecnicaTexto:   n(z.string()),
     permiteAdesao:             n(z.boolean()),
-    permiteAdesaoTexto:        n(z.string()),
     percentualAdesao:          n(z.number()),
     regionalidade:             n(z.string()),
     difal:                     n(z.boolean()),
     vigenciaAtaMeses:          n(z.number()),
-    vigenciaAtaMesesTexto:     n(z.string()),
     vigenciaContratoDias:      n(z.number()),
-    vigenciaContratoDiasTexto: n(z.string()),
-    textoOriginal:             n(z.string()),
 });
 
 const PrazoSchema = z.object({
-    prazoEmDias:   n(z.number()),
-    textoOriginal: n(z.string()),
+    prazoEmDias: n(z.number()),
 });
 
 const ExecucaoSchema = z.object({
@@ -130,7 +118,6 @@ const ExecucaoSchema = z.object({
         localEntrega:           n(z.string()),
         tipoEntrega:            n(z.enum(["centralizada", "descentralizada"])),
         responsavelInstalacao:  n(z.enum(["fornecedor", "comprador"])),
-        textoOriginalLogistica: n(z.string()),
     }),
     pagamento:        PrazoSchema,
     aceite:           PrazoSchema,
@@ -139,9 +126,7 @@ const ExecucaoSchema = z.object({
         tipo:                  n(z.enum(["onsite", "balcao", "sem_garantia", "remota"])),
         meses:                 n(z.number()),
         tempoAtendimentoHoras: n(z.number()),
-        textoOriginal:         n(z.string()),
     }),
-    textoOriginal: n(z.string()),
 });
 
 const ItemLicitadoSchema = z.object({
@@ -176,7 +161,6 @@ const EditalSchema = z.object({
     execucao:               ExecucaoSchema,
     habilitacao:            z.array(DocumentoHabilitacaoSchema),
     informacaoComplementar: n(z.string()),
-    textoOriginal:          n(z.string()),
 });
 
 const LicitacaoSchema = z.object({
