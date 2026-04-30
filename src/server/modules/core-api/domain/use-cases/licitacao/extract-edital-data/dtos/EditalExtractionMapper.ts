@@ -9,166 +9,138 @@ import type {
     DocumentoHabilitacao,
 } from "@/server/modules/core-api/domain/entities";
 
-// ─── Tipos internos (saída bruta dos extratores) ──────────────────────────────
-
 type RawExtraction = Record<string, any>;
 
 type RawItem = {
-    numero:                  number | null;
-    lote:                    string | null;
-    descricao:               string;
-    quantidade:              number | null;
-    unidade:                 string | null;
-    valor_unitario_estimado: number | null;
-    valor_total_estimado:    number | null;
-    catmat_catser:           string | null;
-    texto_original:          string | null;
+    numero:                  number | { value?: number | null } | null;
+    lote:                    string | { value?: string | null } | null;
+    descricao:               string | { value?: string | null };
+    quantidade:              number | { value?: number | null } | null;
+    unidade:                 string | { value?: string | null } | null;
+    valor_unitario_estimado: number | { value?: number | null } | null;
+    valor_total_estimado:    number | { value?: number | null } | null;
+    catmat_catser:           string | { value?: string | null } | null;
+    texto_original?:         string | null;
 };
 
-// ─── Mapper ───────────────────────────────────────────────────────────────────
-
-/**
- * Converte a saída do extrator de IA para o modelo de domínio.
- *
- * O schema Zod (EDITAL_FIELD_SCHEMA) já usa a mesma nomenclatura do domínio,
- * portanto este mapper realiza passagem direta sem conversão de nomes.
- */
 export class EditalExtractionMapper {
-
     static toLicitacao(rawExtraction: RawExtraction, rawItems: RawItem[]): Licitacao {
-        const e   = rawExtraction;
+        const e = rawExtraction;
         const org = e.orgaoGerenciador ?? {};
 
         return {
-            // ─── Identidade do processo ───────────────────────────────────────
-            numeroLicitacao:       e.numeroLicitacao              ?? null,
-            ano:                   e.ano                          ?? null,
-            processo:              e.numeroProcesso               ?? null,
-            modalidade:            e.modalidade                   ?? null,
-            objeto:                e.objetoResumido ?? e.objeto   ?? null,
+            numeroLicitacao:       unwrapValue(e.numeroLicitacao),
+            ano:                   unwrapValue(e.ano),
+            processo:              unwrapValue(e.numeroProcesso),
+            modalidade:            unwrapValue(e.modalidade),
+            objeto:                unwrapValue(e.objetoResumido) ?? unwrapValue(e.objeto),
             orgaoGerenciador:      mapOrgaoPublico(org),
-            valorTotalEstimado:    e.valorTotalEstimado            ?? null,
-            srp:                   e.srp                          ?? null,
-
-            // ─── Rastreamento (preenchido fora da extração de PDF) ────────────
+            valorTotalEstimado:    unwrapValue(e.valorTotalEstimado),
+            srp:                   unwrapValue(e.srp),
             valorTotalHomologado:  null,
             situacao:              null,
-            dataPublicacao:        e.dataPublicacao               ?? null,
+            dataPublicacao:        unwrapValue(e.dataPublicacao),
             dataUltimaAtualizacao: null,
-            linkProcesso:          org.portal                     ?? null,
-            identificadorExterno:  org.codigoUnidade              ?? null,
-
-            // ─── Edital completo ──────────────────────────────────────────────
-            edital: mapEdital(e, rawItems),
+            linkProcesso:          unwrapValue(org.portal),
+            identificadorExterno:  unwrapValue(org.codigoUnidade),
+            edital:                mapEdital(e, rawItems),
         };
     }
 }
 
-// ─── Mapeamentos auxiliares ───────────────────────────────────────────────────
-
 function mapOrgaoPublico(raw: Record<string, any>): OrgaoPublico {
     return {
-        cnpj:             raw.cnpj          ?? null,
-        nome:             raw.nome          ?? null,
-        codigoUnidade:    raw.codigoUnidade ?? null,
-        nomeUnidade:      raw.nomeUnidade   ?? null,
-        municipio:        raw.municipio     ?? null,
-        uf:               raw.uf            ?? null,
-        esfera:           raw.esfera        ?? null,
-        poder:            raw.poder         ?? null,
+        cnpj:             unwrapValue(raw.cnpj),
+        nome:             unwrapValue(raw.nome),
+        codigoUnidade:    unwrapValue(raw.codigoUnidade),
+        nomeUnidade:      unwrapValue(raw.nomeUnidade),
+        municipio:        unwrapValue(raw.municipio),
+        uf:               unwrapValue(raw.uf),
+        esfera:           unwrapValue(raw.esfera),
+        poder:            unwrapValue(raw.poder),
         itensSolicitados: null,
-        textoOriginal:    raw.textoOriginal ?? null,
     };
 }
 
 function mapEdital(e: Record<string, any>, rawItems: RawItem[]): Edital {
     return {
-        amparoLegal:            e.amparoLegal                                ?? null,
+        amparoLegal:            unwrapValue(e.amparoLegal),
         orgaosParticipantes:    mapOrgaosParticipantes(e.orgaosParticipantes ?? []),
-        cronograma:             mapCronograma(e.cronograma                   ?? {}),
-        certame:                mapCertame(e.certame                         ?? {}),
+        cronograma:             mapCronograma(e.cronograma ?? {}),
+        certame:                mapCertame(e.certame ?? {}),
         itens:                  rawItems.map(mapItemLicitado),
-        execucao:               mapExecucao(e.execucao                       ?? {}),
-        habilitacao:            mapHabilitacao(e.documentosHabilitacao       ?? {}),
-        informacaoComplementar: e.observacoes                                ?? null,
-        textoOriginal:          e.textoOriginal                              ?? null,
+        execucao:               mapExecucao(e.execucao ?? {}),
+        habilitacao:            mapHabilitacao(e.documentosHabilitacao ?? {}),
+        informacaoComplementar: unwrapValue(e.observacoes),
     };
 }
 
 function mapOrgaosParticipantes(raw: any[]): OrgaoPublico[] {
     return raw.map(o => ({
-        cnpj:             o.cnpj          ?? null,
-        nome:             o.nome          ?? null,
-        codigoUnidade:    o.codigoUnidade ?? null,
+        cnpj:             unwrapValue(o.cnpj),
+        nome:             unwrapValue(o.nome),
+        codigoUnidade:    unwrapValue(o.codigoUnidade),
         nomeUnidade:      null,
-        municipio:        o.municipio     ?? null,
-        uf:               o.uf            ?? null,
+        municipio:        unwrapValue(o.municipio),
+        uf:               unwrapValue(o.uf),
         esfera:           null,
         poder:            null,
         itensSolicitados: Array.isArray(o.itensSolicitados) && o.itensSolicitados.length > 0
-            ? o.itensSolicitados.map((it: any) => ({ itemNumero: it.itemNumero, quantidade: it.quantidade }))
+            ? o.itensSolicitados.map((it: any) => ({
+                itemNumero: unwrapValue(it.itemNumero) ?? 0,
+                quantidade: unwrapValue(it.quantidade) ?? 0,
+            }))
             : null,
-        textoOriginal:    null,
     }));
 }
 
 function mapCronograma(c: Record<string, any>): CronogramaLicitacao {
     return {
-        acolhimentoInicio:   c.acolhimentoInicio   ?? null,
-        acolhimentoFim:      c.acolhimentoFim      ?? null,
-        horaLimite:          c.horaLimite          ?? null,
-        sessaoPublica:       c.sessaoPublica        ?? null,
-        horaSessaoPublica:   c.horaSessaoPublica    ?? null,
-        esclarecimentosAte:  c.esclarecimentosAte  ?? null,
-        impugnacaoAte:       c.impugnacaoAte       ?? null,
-        textoOriginalPrazos: c.textoOriginalPrazos ?? null,
-        textoOriginal:       c.textoOriginal       ?? null,
+        acolhimentoInicio:   unwrapValue(c.acolhimentoInicio),
+        acolhimentoFim:      unwrapValue(c.acolhimentoFim),
+        horaLimite:          unwrapValue(c.horaLimite),
+        sessaoPublica:       unwrapValue(c.sessaoPublica),
+        horaSessaoPublica:   unwrapValue(c.horaSessaoPublica),
+        esclarecimentosAte:  unwrapValue(c.esclarecimentosAte),
+        impugnacaoAte:       unwrapValue(c.impugnacaoAte),
     };
 }
 
 function mapCertame(c: Record<string, any>): RegrasCertame {
     return {
-        modoDisputa:               c.modoDisputa               ?? null,
-        criterioJulgamento:        c.criterioJulgamento        ?? null,
-        tipoLance:                 c.tipoLance                 ?? null,
-        intervaloLances:           c.intervaloLances           ?? null,
-        duracaoSessaoMinutos:      c.duracaoSessaoMinutos      ?? null,
-        textoOriginalDisputa:      c.textoOriginalDisputa      ?? null,
-        exclusivoMeEpp:            c.exclusivoMeEpp            ?? null,
-        exclusivoMeEppTexto:       c.exclusivoMeEppTexto       ?? null,
-        permiteConsorcio:          c.permiteConsorcio          ?? null,
-        permiteConsorcioTexto:     c.permiteConsorcioTexto     ?? null,
-        exigeVisitaTecnica:        c.exigeVisitaTecnica        ?? null,
-        exigeVisitaTecnicaTexto:   c.exigeVisitaTecnicaTexto   ?? null,
-        regionalidade:             c.regionalidade             ?? null,
-        permiteAdesao:             c.permiteAdesao             ?? null,
-        permiteAdesaoTexto:        c.permiteAdesaoTexto        ?? null,
-        percentualAdesao:          c.percentualAdesao          ?? null,
-        vigenciaAtaMeses:          c.vigenciaAtaMeses          ?? null,
-        vigenciaAtaMesesTexto:     c.vigenciaAtaMesesTexto     ?? null,
-        vigenciaContratoDias:      c.vigenciaContratoDias      ?? null,
-        vigenciaContratoDiasTexto: c.vigenciaContratoDiasTexto ?? null,
-        difal:                     c.difal                     ?? null,
-        textoOriginal:             c.textoOriginal             ?? null,
+        modoDisputa:               unwrapValue(c.modoDisputa),
+        criterioJulgamento:        unwrapValue(c.criterioJulgamento),
+        tipoLance:                 unwrapValue(c.tipoLance),
+        intervaloLances:           unwrapValue(c.intervaloLances),
+        duracaoSessaoMinutos:      unwrapValue(c.duracaoSessaoMinutos),
+        exclusivoMeEpp:            unwrapValue(c.exclusivoMeEpp),
+        permiteConsorcio:          unwrapValue(c.permiteConsorcio),
+        exigeVisitaTecnica:        unwrapValue(c.exigeVisitaTecnica),
+        regionalidade:             unwrapValue(c.regionalidade),
+        permiteAdesao:             unwrapValue(c.permiteAdesao),
+        percentualAdesao:          unwrapValue(c.percentualAdesao),
+        vigenciaAtaMeses:          unwrapValue(c.vigenciaAtaMeses),
+        vigenciaContratoDias:      unwrapValue(c.vigenciaContratoDias),
+        difal:                     unwrapValue(c.difal),
     };
 }
 
 function mapItemLicitado(raw: RawItem): ItemLicitado {
     return {
-        numero:                raw.numero                  ?? 0,
-        descricao:             raw.descricao               ?? null,
-        tipo:                  (raw as any).tipo           ?? null,
-        lote:                  raw.lote                    ?? null,
-        quantidade:            raw.quantidade              ?? null,
-        unidadeMedida:         raw.unidade                 ?? null,
-        valorUnitarioEstimado: raw.valor_unitario_estimado ?? null,
-        valorTotal:            raw.valor_total_estimado    ?? null,
-        codigoNcmNbs:          (raw as any).ncm_nbs        ?? null,
-        descricaoNcmNbs:       (raw as any).descricao_ncm_nbs ?? null,
-        codigoCatmatCatser:    raw.catmat_catser           ?? null,
-        criterioJulgamento:    (raw as any).criterio_julgamento ?? null,
-        beneficioTributario:   (raw as any).beneficio_tributario ?? null,
-        observacao:            (raw as any).observacao          ?? null,
+        numero:                unwrapValue(raw.numero) ?? 0,
+        descricao:             unwrapValue(raw.descricao),
+        tipo:                  unwrapValue((raw as any).tipo),
+        lote:                  unwrapValue(raw.lote),
+        quantidade:            unwrapValue(raw.quantidade),
+        unidadeMedida:         unwrapValue(raw.unidade),
+        valorUnitarioEstimado: unwrapValue(raw.valor_unitario_estimado),
+        valorTotal:            unwrapValue(raw.valor_total_estimado),
+        codigoNcmNbs:          unwrapValue((raw as any).ncm_nbs),
+        descricaoNcmNbs:       unwrapValue((raw as any).descricao_ncm_nbs),
+        codigoCatmatCatser:    unwrapValue(raw.catmat_catser),
+        criterioJulgamento:    unwrapValue((raw as any).criterio_julgamento),
+        beneficioTributario:   unwrapValue((raw as any).beneficio_tributario),
+        observacao:            unwrapValue((raw as any).observacao),
     };
 }
 
@@ -180,29 +152,23 @@ function mapExecucao(e: Record<string, any>): ExecucaoContratual {
 
     return {
         entrega: {
-            prazoEmDias:            entrega.prazoEmDias           ?? null,
-            textoOriginal:          entrega.textoOriginal         ?? null,
-            localEntrega:           entrega.localEntrega          ?? null,
-            tipoEntrega:            entrega.tipoEntrega           ?? null,
-            responsavelInstalacao:  entrega.responsavelInstalacao ?? null,
-            textoOriginalLogistica: entrega.textoOriginalLogistica ?? null,
+            prazoEmDias:            unwrapValue(entrega.prazoEmDias),
+            localEntrega:           unwrapValue(entrega.localEntrega),
+            tipoEntrega:            unwrapValue(entrega.tipoEntrega),
+            responsavelInstalacao:  unwrapValue(entrega.responsavelInstalacao),
         },
         aceite: {
-            prazoEmDias:   aceite.prazoEmDias   ?? null,
-            textoOriginal: aceite.textoOriginal ?? null,
+            prazoEmDias: unwrapValue(aceite.prazoEmDias),
         },
         pagamento: {
-            prazoEmDias:   pagamento.prazoEmDias   ?? null,
-            textoOriginal: pagamento.textoOriginal ?? null,
+            prazoEmDias: unwrapValue(pagamento.prazoEmDias),
         },
-        validadeProposta: e.validadeProposta ?? null,
+        validadeProposta: unwrapValue(e.validadeProposta),
         garantia: {
-            tipo:                  garantia.tipo                  ?? null,
-            meses:                 garantia.meses                 ?? null,
-            tempoAtendimentoHoras: garantia.tempoAtendimentoHoras ?? null,
-            textoOriginal:         garantia.textoOriginal         ?? null,
+            tipo:                  unwrapValue(garantia.tipo),
+            meses:                 unwrapValue(garantia.meses),
+            tempoAtendimentoHoras: unwrapValue(garantia.tempoAtendimentoHoras),
         },
-        textoOriginal: e.textoOriginal ?? null,
     };
 }
 
@@ -216,9 +182,17 @@ function mapHabilitacao(docs: Record<string, string[]>): DocumentoHabilitacao[] 
 
     return categorias.flatMap(([categoria, itens]) =>
         itens.map(doc => ({
-            tipo:        doc,
+            tipo:        unwrapValue(doc) ?? "",
             categoria:   categoria,
             obrigatorio: true,
         })),
     );
+}
+
+function unwrapValue<T>(value: T | { value?: T | null } | null | undefined): T | null {
+    if (value && typeof value === "object" && "value" in value) {
+        return value.value ?? null;
+    }
+
+    return (value ?? null) as T | null;
 }

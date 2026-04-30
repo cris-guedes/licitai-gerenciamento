@@ -4,10 +4,10 @@ import React from "react"
 import Link from "next/link"
 import {
   Search, Bell, Target, Users, FileText,
-  Bot, Scale, FileSearch, MessageSquare, Zap,
+  Bot, Scale, MessageSquare, Zap,
   User, Lock, Radar, Building2, Settings
 } from "lucide-react"
-import { useAppContext } from "@/client/hooks/app"
+import { useDashboard } from "@/client/features/dashboard/context/dashboard-context"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,6 +23,7 @@ interface Ferramenta {
 interface Categoria {
   icon:        React.ElementType
   title:       string
+  description: string
   highlight?:  boolean
   ferramentas: Ferramenta[]
 }
@@ -54,41 +55,48 @@ function ToolCard({ icon: Icon, label, href, badge }: Ferramenta) {
   const disabled = !href || badge === "em-breve" || badge === "assine"
 
   const inner = (
-    <div className={`relative flex flex-col items-center justify-center gap-2.5 rounded-xl border px-4 py-5 min-w-[110px] transition-all select-none
+    <div className={`relative flex h-full min-h-[128px] flex-col items-start justify-between gap-4 rounded-[1.2rem] px-4 py-4 transition-all select-none
       ${disabled
-        ? "border-border/40 bg-background/60 opacity-60 cursor-default"
-        : "border-border/50 bg-background hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm cursor-pointer"
+        ? "bg-surface-container-lowest/72 opacity-62 cursor-default shadow-[inset_0_0_0_1px_rgba(196,198,205,0.14)]"
+        : "bg-surface-container-lowest hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_14px_34px_rgba(4,22,39,0.08)] cursor-pointer shadow-[inset_0_0_0_1px_rgba(196,198,205,0.12)]"
       }`}
     >
       {badge && <ToolBadge type={badge} />}
-      <Icon className={`size-6 ${disabled ? "text-muted-foreground/50" : "text-primary/70"}`} strokeWidth={1.5} />
-      <span className={`text-[11px] font-medium text-center leading-snug ${disabled ? "text-muted-foreground/60" : "text-foreground/80"}`}>
+      <div className={`flex size-11 items-center justify-center rounded-[1rem] ${disabled ? "bg-surface-container-low text-muted-foreground/50" : "bg-surface-container-high text-primary"}`}>
+        <Icon className="size-5" strokeWidth={1.7} />
+      </div>
+      <span className={`text-sm font-medium leading-snug ${disabled ? "text-muted-foreground/60" : "text-foreground/84"}`}>
         {label}
       </span>
     </div>
   )
 
   if (href && !disabled) {
-    return <Link href={href}>{inner}</Link>
+    return <Link href={href} className="block h-full">{inner}</Link>
   }
   return inner
 }
 
 // ─── Category card ────────────────────────────────────────────────────────────
 
-function CategoryCard({ icon: Icon, title, highlight, ferramentas }: Categoria) {
+function CategoryCard({ icon: Icon, title, description, highlight, ferramentas }: Categoria) {
   return (
-    <div className={`rounded-2xl border p-5 flex flex-col gap-4
+    <div className={`flex h-full flex-col gap-5 rounded-[1.7rem] p-5
       ${highlight
-        ? "bg-emerald-50/60 border-emerald-200/60 dark:bg-emerald-950/20 dark:border-emerald-900/40"
-        : "bg-card border-border/50"
+        ? "bg-[linear-gradient(180deg,rgba(231,246,241,0.95),rgba(240,249,246,0.88))] shadow-[inset_0_0_0_1px_rgba(160,205,188,0.35)]"
+        : "bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,255,0.86))] shadow-[inset_0_0_0_1px_rgba(196,198,205,0.16)]"
       }`}
     >
-      <h3 className={`flex items-center gap-2 text-sm font-bold ${highlight ? "text-emerald-800 dark:text-emerald-300" : "text-foreground/80"}`}>
-        <Icon className="size-4" />
-        {title}
-      </h3>
-      <div className="flex flex-wrap gap-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className={`flex items-center gap-2 text-base font-semibold ${highlight ? "text-emerald-900" : "text-primary"}`}>
+            <Icon className="size-4" />
+            {title}
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      <div className="grid flex-1 auto-rows-fr grid-cols-2 gap-3 xl:grid-cols-3">
         {ferramentas.map(f => (
           <ToolCard key={f.label} {...f} />
         ))}
@@ -100,13 +108,14 @@ function CategoryCard({ icon: Icon, title, highlight, ferramentas }: Categoria) 
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function FerramentasGrid() {
-  const { orgAtiva, empresaAtiva } = useAppContext()
-  const base = `/org/${orgAtiva?.id}/${empresaAtiva?.id}`
+  const { orgId, companyId } = useDashboard()
+  const base = `/org/${orgId}/${companyId}`
 
   const categorias: Categoria[] = [
     {
       icon: Radar,
       title: "Captação",
+      description: "Descubra oportunidades e acompanhe novas frentes de atuação.",
       ferramentas: [
         { icon: Search,      label: "Encontrar Licitações",    href: `${base}/search` },
         { icon: Bell,        label: "Alertas Personalizados",  badge: "em-breve" },
@@ -116,6 +125,7 @@ export function FerramentasGrid() {
     {
       icon: Bot,
       title: "Inteligência Artificial",
+      description: "Ferramentas de leitura, consulta e apoio estratégico ao edital.",
       highlight: true,
       ferramentas: [
         { icon: Bot,          label: "Assistente IA",      badge: "em-breve" },
@@ -127,6 +137,7 @@ export function FerramentasGrid() {
     {
       icon: Building2,
       title: "Minha Empresa",
+      description: "Administre estrutura interna, contas e dados operacionais.",
       ferramentas: [
         { icon: Users,    label: "Gerenciar Time",       href: `${base}/time` },
         { icon: Settings, label: "Gerenciar Empresas",    href: `${base}/empresa` },
@@ -137,6 +148,7 @@ export function FerramentasGrid() {
     {
       icon: Zap,
       title: "Automação",
+      description: "Recursos futuros para monitoramento e execução assistida.",
       ferramentas: [
         { icon: Zap,  label: "Robô de Lance",    badge: "em-breve" },
         { icon: Lock, label: "Monitorar Portais", badge: "em-breve" },
@@ -145,8 +157,20 @@ export function FerramentasGrid() {
   ]
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="flex flex-col gap-5">
+      <div className="space-y-1">
+        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+          Acesso rápido
+        </p>
+        <h2 className="font-display text-[1.85rem] font-semibold text-primary">
+          Ferramentas da operação
+        </h2>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          Navegue pelos módulos principais da plataforma a partir de um painel mais direto e estratégico.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 xl:auto-rows-fr xl:grid-cols-2">
         {categorias.map(c => (
           <CategoryCard key={c.title} {...c} />
         ))}

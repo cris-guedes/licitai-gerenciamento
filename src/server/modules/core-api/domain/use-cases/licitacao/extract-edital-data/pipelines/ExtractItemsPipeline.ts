@@ -1,7 +1,7 @@
 import type { IVectorStore } from "@/server/modules/core-api/domain/data/IVectorStore";
 import type { IEmbeddingProvider } from "@/server/modules/core-api/domain/data/IEmbeddingProvider";
+import type { IAgent } from "@/server/modules/core-api/domain/data/IAgent";
 import type { TableIngestionWorker } from "@/server/modules/core-api/workers/pdf-ingestion/TableIngestionWorker";
-import type { EditalItemExtractorAgent } from "@/server/shared/infra/providers/ia/agents/edital-item-extractor";
 import type { IPromiseProvider } from "@/server/modules/core-api/domain/data/IPromiseProvider";
 import type { IDocumentPrettifyProvider } from "@/server/modules/core-api/domain/data/IDocumentPrettifyProvider";
 import type { ExtractEditalTracker } from "../utils/ExtractEditalTracker";
@@ -106,7 +106,7 @@ export class ExtractItemsPipeline {
         private readonly ingestionWorker: TableIngestionWorker,
         private readonly embeddingProvider: IEmbeddingProvider,
         private readonly vectorStore: IVectorStore.Contract,
-        private readonly itemExtractor: EditalItemExtractorAgent,
+        private readonly itemExtractor: IAgent<Record<string, any>[], any[]>,
         private readonly promiseProvider: IPromiseProvider,
         private readonly prettifyProvider: IDocumentPrettifyProvider,
     ) { }
@@ -412,8 +412,10 @@ export class ExtractItemsPipeline {
     private deduplicateExtractedItems(items: any[]): any[] {
         const seen = new Set<string>();
         return items.filter(item => {
-            const desc = (item.descricao || "").toLowerCase().replace(/[^a-z0-9]/g, "").substring(0, 100);
-            const key = `${item.numero}-${desc}`;
+            const numero = this.unwrapExtractedValue(item.numero);
+            const descricao = this.unwrapExtractedValue(item.descricao);
+            const desc = String(descricao ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").substring(0, 100);
+            const key = `${numero}-${desc}`;
 
             if (seen.has(key)) return false;
             seen.add(key);
@@ -553,6 +555,14 @@ export class ExtractItemsPipeline {
     private average(values: number[]): number {
         if (values.length === 0) return 0;
         return values.reduce((sum, value) => sum + value, 0) / values.length;
+    }
+
+    private unwrapExtractedValue<T>(field: { value?: T | null } | T | null | undefined): T | null {
+        if (field && typeof field === "object" && "value" in field) {
+            return field.value ?? null;
+        }
+
+        return (field ?? null) as T | null;
     }
 }
 

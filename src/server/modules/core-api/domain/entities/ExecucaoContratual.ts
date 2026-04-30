@@ -25,20 +25,11 @@ export type ExecucaoContratual = {
 
     /** Garantia do produto ou serviço após a entrega */
     garantia: GarantiaContratual;
-
-    /** Trecho original do edital referente à execução contratual */
-    textoOriginal: string | null;
 };
 
-/**
- * Condições de prazo com texto original do edital para rastreabilidade.
- */
 export type PrazoContratual = {
     /** Prazo em dias (corridos ou úteis, conforme o edital) */
     prazoEmDias: number | null;
-
-    /** Texto exato do edital que define o prazo, preservado para auditoria */
-    textoOriginal: string | null;
 };
 
 /**
@@ -61,9 +52,6 @@ export type EntregaContratual = PrazoContratual & {
      * - "comprador": o órgão comprador é responsável
      */
     responsavelInstalacao: "fornecedor" | "comprador" | null;
-
-    /** Trecho original do edital referente à logística de entrega */
-    textoOriginalLogistica: string | null;
 };
 
 /**
@@ -84,7 +72,4 @@ export type GarantiaContratual = {
 
     /** Tempo máximo de resposta/atendimento para chamados de garantia, em horas */
     tempoAtendimentoHoras: number | null;
-
-    /** Trecho original do edital referente à garantia e assistência técnica */
-    textoOriginal: string | null;
 };

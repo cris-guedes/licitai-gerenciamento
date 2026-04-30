@@ -2,35 +2,58 @@
 @plugin "@tailwindcss/typography";
 
 :root {
-  --background: #f7fafc;
-  --foreground: #4a5568;
+  --background: #f8f9ff;
+  --foreground: #102033;
 
-  --primary: #2b2e35;
-  --primary-foreground: #ffffff;
+  --primary: #041627;
+  --primary-foreground: #f8fbff;
 
-  --secondary: #edf2f7;
-  --secondary-foreground: #2b2e35;
+  --secondary: #0058be;
+  --secondary-foreground: #ffffff;
+  --secondary-container: #2170e4;
 
-  --accent: #E2F32B;
-  --accent-foreground: #2b2e35;
+  --accent: #dce9ff;
+  --accent-foreground: #041627;
 
-  --muted: #edf2f7;
-  --muted-foreground: #718096;
+  --muted: #eff4ff;
+  --muted-foreground: #5f6777;
 
   --card: #ffffff;
-  --card-foreground: #4a5568;
+  --card-foreground: #102033;
 
-  --popover: #ffffff;
-  --popover-foreground: #4a5568;
+  --popover: rgba(255, 255, 255, 0.84);
+  --popover-foreground: #102033;
 
-  --destructive: #e53e3e;
+  --destructive: #ba1a1a;
   --destructive-foreground: #ffffff;
 
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #2b2e35;
+  --border: rgba(196, 198, 205, 0.2);
+  --input: rgba(196, 198, 205, 0.2);
+  --ring: rgba(0, 88, 190, 0.28);
 
-  --radius: 0.5rem;
+  --surface: #f8f9ff;
+  --surface-dim: #e9edf8;
+  --surface-container-low: #eff4ff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-high: #dce9ff;
+  --surface-container-highest: #ccd8f3;
+  --outline-variant: rgba(196, 198, 205, 0.2);
+
+  --tertiary: #38260b;
+  --tertiary-foreground: #fff8ef;
+  --success: #177245;
+  --success-foreground: #f5fff8;
+
+  --sidebar: #041627;
+  --sidebar-foreground: #dfe9f8;
+  --sidebar-primary: #0058be;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #0c63ce;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(220, 233, 255, 0.12);
+  --sidebar-ring: rgba(33, 112, 228, 0.34);
+
+  --radius: 1rem;
 }
 
 @theme inline {
@@ -62,15 +85,101 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --color-brand-obsidian: #2b2e35;
-  --color-brand-yellow: #E2F32B;
-  --color-neutral-soft: #f7fafc;
+  --color-surface: var(--surface);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-outline-variant: var(--outline-variant);
 
-  --font-sans: 'Inter', var(--font-geist-sans);
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-foreground: var(--tertiary-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-brand-obsidian: #041627;
+  --color-brand-blue: #0058be;
+  --color-brand-blue-bright: #2170e4;
+  --color-brand-umber: #38260b;
+  --color-neutral-soft: #f8f9ff;
+
+  --font-sans: var(--font-inter), var(--font-geist-sans);
+  --font-display: var(--font-manrope), var(--font-inter), sans-serif;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  background: var(--surface);
 }
 
 body {
-  background: var(--background);
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(33, 112, 228, 0.12), transparent 28%),
+    radial-gradient(circle at 85% 15%, rgba(4, 22, 39, 0.06), transparent 22%),
+    linear-gradient(180deg, #fbfcff 0%, #f3f7ff 55%, #eef3ff 100%);
   color: var(--foreground);
   font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgba(0, 88, 190, 0.18);
+  color: var(--primary);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  color: var(--primary);
+  letter-spacing: -0.03em;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+[data-slot="card"] {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.86));
+  backdrop-filter: blur(12px);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.text-numeric {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.sovereign-panel {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 250, 255, 0.78));
+  backdrop-filter: blur(12px);
+  box-shadow: 0 12px 40px rgba(4, 22, 39, 0.06);
+}
+
+.sovereign-cta {
+  background-image: linear-gradient(135deg, var(--secondary), var(--secondary-container));
+  box-shadow: 0 18px 36px rgba(0, 88, 190, 0.18);
 }

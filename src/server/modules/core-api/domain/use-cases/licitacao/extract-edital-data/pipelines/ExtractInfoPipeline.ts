@@ -1,7 +1,7 @@
 import type { IVectorStore } from "@/server/modules/core-api/domain/data/IVectorStore";
 import type { IEmbeddingProvider } from "@/server/modules/core-api/domain/data/IEmbeddingProvider";
+import type { IAgent } from "@/server/modules/core-api/domain/data/IAgent";
 import type { PdfIngestionWorker } from "@/server/modules/core-api/workers/pdf-ingestion/PdfIngestionWorker";
-import type { EditalFieldExtractorAgent } from "@/server/shared/infra/providers/ia/agents/edital-field-extractor";
 import type { IDocumentPrettifyProvider } from "@/server/modules/core-api/domain/data/IDocumentPrettifyProvider";
 import type { ExtractEditalTracker } from "../utils/ExtractEditalTracker";
 import type { ExtractEditalData } from "../ExtractEditalData";
@@ -71,7 +71,7 @@ export class ExtractInfoPipeline {
         private readonly ingestionWorker: PdfIngestionWorker,
         private readonly embeddingProvider: IEmbeddingProvider,
         private readonly vectorStore: IVectorStore.Contract,
-        private readonly fieldExtractor: EditalFieldExtractorAgent,
+        private readonly fieldExtractor: IAgent<Record<string, any>[], Record<string, any>>,
         private readonly prettifyProvider: IDocumentPrettifyProvider,
     ) { }
 
