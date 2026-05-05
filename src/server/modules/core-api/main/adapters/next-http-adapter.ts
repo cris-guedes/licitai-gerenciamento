@@ -37,6 +37,7 @@ async function parsePostBody(request: NextRequest): Promise<unknown> {
             if (value instanceof File) {
                 result[`${key}Buffer`]   = Buffer.from(await value.arrayBuffer());
                 result[`${key}Filename`] = value.name;
+                result[`${key}MimeType`] = value.type;
                 result[`${key}Size`]     = value.size;
             } else {
                 result[key] = value;
@@ -47,25 +48,54 @@ async function parsePostBody(request: NextRequest): Promise<unknown> {
     return request.json().catch(() => undefined);
 }
 
+function buildBaseHttpRequest(request: NextRequest): HttpRequest {
+    return {
+        body: undefined,
+        query: buildQueryParams(request.nextUrl.searchParams),
+        params: undefined,
+        headers: Object.fromEntries(request.headers),
+    };
+}
+
+function getErrorStatusCode(error: unknown): number {
+    if (error && typeof error === "object" && "statusCode" in error && typeof error.statusCode === "number") {
+        return error.statusCode;
+    }
+
+    return 500;
+}
+
+function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    return "Erro interno do servidor.";
+}
+
 export function adaptNextRoute(config: RouteConfig) {
     return async (request: NextRequest): Promise<NextResponse> => {
-        // Controllers de streaming retornam Response diretamente (ex: SSE)
-        if (config.makeStream) {
-            return config.makeStream().handleStream(request) as Promise<NextResponse>;
+        try {
+            let httpRequest = buildBaseHttpRequest(request);
+
+            for (const handler of config.preHandlers ?? []) {
+                httpRequest = await handler(httpRequest);
+            }
+
+            // Controllers de streaming retornam Response diretamente (ex: SSE)
+            if (config.makeStream) {
+                return config.makeStream().handleStream(request, httpRequest) as Promise<NextResponse>;
+            }
+
+            httpRequest = {
+                ...httpRequest,
+                body: request.method === "POST" ? await parsePostBody(request) : undefined,
+            };
+
+            const { statusCode, data } = await config.make!().handle(httpRequest);
+            return NextResponse.json(data, { status: statusCode });
+        } catch (error) {
+            return NextResponse.json(
+                { message: getErrorMessage(error) },
+                { status: getErrorStatusCode(error) },
+            );
         }
-
-        let httpRequest: HttpRequest = {
-            body:    request.method === "POST" ? await parsePostBody(request) : undefined,
-            query:   buildQueryParams(request.nextUrl.searchParams),
-            params:  undefined,
-            headers: Object.fromEntries(request.headers),
-        };
-
-        for (const handler of config.preHandlers ?? []) {
-            httpRequest = await handler(httpRequest);
-        }
-
-        const { statusCode, data } = await config.make!().handle(httpRequest);
-        return NextResponse.json(data, { status: statusCode });
     };
 }

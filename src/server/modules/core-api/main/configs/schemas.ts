@@ -30,6 +30,11 @@ import { CreateMemberControllerSchemas, CreateMemberResponseSchema } from "../..
 import { CreateInviteControllerSchemas, CreateInviteResponseSchema } from "../../domain/use-cases/team/create-invite/CreateInviteControllerSchemas";
 import { ExtractEditalDataControllerSchemas } from "../../domain/use-cases/licitacao/extract-edital-data/ExtractEditalDataControllerSchemas";
 import { ExtractEditalDataStreamControllerSchemas } from "../../domain/use-cases/licitacao/extract-edital-data/ExtractEditalDataStreamControllerSchemas";
+import { ExtractEditalDataPostEmbedingControllerSchemas } from "../../domain/use-cases/licitacao/extract-edital-data-post-embeding/ExtractEditalDataPostEmbedingControllerSchemas";
+import { ExtractEditalDataPostEmbedingStreamControllerSchemas } from "../../domain/use-cases/licitacao/extract-edital-data-post-embeding/ExtractEditalDataPostEmbedingStreamControllerSchemas";
+import { DeleteLicitacaoDocumentControllerSchemas } from "../../domain/use-cases/licitacao/delete-licitacao-document/DeleteLicitacaoDocumentControllerSchemas";
+import { UploadEditalDocumentControllerSchemas } from "../../domain/use-cases/licitacao/upload-edital-document/UploadEditalDocumentControllerSchemas";
+import { UploadLicitacaoDocumentStreamControllerSchemas } from "../../domain/use-cases/licitacao/upload-licitacao-document-stream/UploadLicitacaoDocumentStreamControllerSchemas";
 import { GetInviteControllerSchemas, GetInviteResponseSchema } from "../../domain/use-cases/team/get-invite/GetInviteControllerSchemas";
 import { AcceptInviteControllerSchemas, AcceptInviteResponseSchema } from "../../domain/use-cases/team/accept-invite/AcceptInviteControllerSchemas";
 import { UpdateMemberRoleControllerSchemas, UpdateMemberRoleResponseSchema } from "../../domain/use-cases/team/update-member-role/UpdateMemberRoleControllerSchemas";
@@ -495,6 +500,89 @@ export const apiEndpoints: EndpointConfig[] = [
     extraSchemas: { RemoveMemberResponse: RemoveMemberResponseSchema },
   },
   {
+    path: "/upload-edital-document",
+    operationId: "uploadEditalDocument",
+    tag: "Licitacao",
+    summary: "Faz upload simples do edital",
+    description: "Recebe o PDF principal do edital em multipart/form-data, armazena o documento e retorna os metadados necessários para preview no cadastro.",
+    successDescription: "Edital enviado com sucesso",
+    method: "POST",
+    schemas: UploadEditalDocumentControllerSchemas,
+    requestBodyOverride: {
+      required: true,
+      content: {
+        "multipart/form-data": {
+          schema: {
+            type: "object",
+            required: ["companyId", "file"],
+            properties: {
+              companyId: {
+                type: "string",
+                description: "ID da empresa dona do edital enviado",
+              },
+              file: {
+                type: "string",
+                format: "binary",
+                description: "Arquivo PDF do edital de licitação",
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  {
+    path: "/upload-licitacao-document/stream",
+    operationId: "uploadLicitacaoDocumentStream",
+    tag: "Licitacao",
+    summary: "Faz upload e processa um documento da licitação em stream",
+    description: "Recebe um PDF de edital, anexo ou outro documento via upload (multipart/form-data), persiste no R2, executa chunking + embeddings e retorna um SSE com o andamento do processamento.",
+    successDescription: "Stream iniciado",
+    method: "POST",
+    schemas: UploadLicitacaoDocumentStreamControllerSchemas,
+    requestBodyOverride: {
+      required: true,
+      content: {
+        "multipart/form-data": {
+          schema: {
+            type: "object",
+            required: ["file"],
+            properties: {
+              file: {
+                type: "string",
+                format: "binary",
+                description: "Arquivo PDF do documento da licitação",
+              },
+            },
+          },
+        },
+      },
+    },
+    responsesOverride: {
+      200: {
+        description: "Stream SSE iniciado",
+        content: {
+          "text/event-stream": {
+            schema: {
+              $ref: "#/components/schemas/UploadLicitacaoDocumentStreamResponse",
+            },
+            example: "data: {\"type\":\"progress\",\"step\":\"storage.upload\",\"message\":\"Enviando documento para o armazenamento seguro.\",\"percent\":16,\"status\":\"UPLOADING\"}\n\n",
+          },
+        },
+      },
+    },
+  },
+  {
+    path: "/delete-licitacao-document",
+    operationId: "deleteLicitacaoDocument",
+    tag: "Licitacao",
+    summary: "Exclui um documento da licitação",
+    description: "Remove o documento do banco, do armazenamento e do índice vetorial.",
+    successDescription: "Documento excluído com sucesso",
+    method: "POST",
+    schemas: DeleteLicitacaoDocumentControllerSchemas,
+  },
+  {
     path: "/extract-edital-data",
     operationId: "extractEditalData",
     tag: "Licitacao",
@@ -558,6 +646,39 @@ export const apiEndpoints: EndpointConfig[] = [
               $ref: "#/components/schemas/ExtractEditalDataStreamResponse",
             },
             example: "data: {\"type\":\"progress\",\"scope\":\"orchestration\",\"step\":\"orchestration.parse\",\"message\":\"Arquivo recebido, processando...\",\"percent\":8,\"pipelinePercent\":8}\n\n",
+          },
+        },
+      },
+    },
+  },
+  {
+    path: "/extract-edital-data-post-embeding",
+    operationId: "extractEditalDataPostEmbeding",
+    tag: "Licitacao",
+    summary: "Extrai dados de um edital já pré-processado",
+    description: "Reutiliza um documento já indexado no banco vetorial e executa a extração estruturada sem reenviar nem reprocessar o PDF.",
+    successDescription: "Dados extraídos com sucesso a partir do documento pré-processado",
+    method: "POST",
+    schemas: ExtractEditalDataPostEmbedingControllerSchemas,
+  },
+  {
+    path: "/extract-edital-data-post-embeding/stream",
+    operationId: "extractEditalDataPostEmbedingStream",
+    tag: "Licitacao",
+    summary: "Extrai dados de um edital já pré-processado (Stream SSE)",
+    description: "Reutiliza um documento já indexado e retorna um EventStream (SSE) com o progresso da extração pós-embedding em tempo real.",
+    successDescription: "Stream iniciado",
+    method: "POST",
+    schemas: ExtractEditalDataPostEmbedingStreamControllerSchemas,
+    responsesOverride: {
+      200: {
+        description: "Stream SSE iniciado",
+        content: {
+          "text/event-stream": {
+            schema: {
+              $ref: "#/components/schemas/ExtractEditalDataPostEmbedingStreamResponse",
+            },
+            example: "data: {\"type\":\"progress\",\"scope\":\"orchestration\",\"step\":\"orchestration.recover_preprocessed\",\"message\":\"Documento pré-processado localizado. Reutilizando índice vetorial...\",\"percent\":8,\"pipelinePercent\":8}\n\n",
           },
         },
       },

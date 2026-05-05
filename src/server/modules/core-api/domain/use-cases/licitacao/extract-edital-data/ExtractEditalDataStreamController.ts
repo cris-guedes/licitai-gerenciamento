@@ -1,4 +1,4 @@
-import type { StreamController } from "@/server/modules/core-api/main/adapters/http-adapter";
+import type { HttpRequest, StreamController } from "@/server/modules/core-api/main/adapters/http-adapter";
 import { ExtractEditalData } from "./ExtractEditalData";
 
 const encoder = new TextEncoder();
@@ -7,18 +7,28 @@ function sseEvent(data: object): Uint8Array {
     return encoder.encode(`data: ${JSON.stringify(data)}\n\n`);
 }
 
-function errorResponse(message: string): Response {
+function errorResponse(message: string, status = 400): Response {
     return new Response(
         JSON.stringify({ message }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status, headers: { "Content-Type": "application/json" } },
     );
 }
 
 export class ExtractEditalDataStreamController implements StreamController {
     constructor(private readonly useCase: ExtractEditalData) {}
 
-    async handleStream(request: Request): Promise<Response> {
+    async handleStream(request: Request, httpRequest: HttpRequest): Promise<Response> {
         const contentType = request.headers.get("content-type") ?? "";
+        const companyId = httpRequest.query?.companyId;
+        const user = httpRequest.user;
+
+        if (!user) {
+            return errorResponse("Usuário não autenticado.", 401);
+        }
+
+        if (!companyId || typeof companyId !== "string") {
+            return errorResponse("companyId é obrigatório.");
+        }
 
         if (!contentType.includes("multipart/form-data")) {
             return errorResponse("Envie o edital como multipart/form-data com o campo 'file'.");
@@ -54,6 +64,12 @@ export class ExtractEditalDataStreamController implements StreamController {
 
                     const result = await useCase.execute({
                         pdfBuffer,
+                        pdfFilename: file.name,
+                        pdfMimeType: file.type || "application/pdf",
+                        pdfFileSizeBytes: file.size,
+                        companyId,
+                        userId: user.id,
+                        createdById: user.id,
                         onProgress: send,
                         onInfoPartial: send,
                         onItemsBatchPartial: send,

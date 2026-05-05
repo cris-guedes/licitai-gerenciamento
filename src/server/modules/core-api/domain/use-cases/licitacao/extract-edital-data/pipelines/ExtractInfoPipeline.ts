@@ -8,10 +8,12 @@ import type { ExtractEditalData } from "../ExtractEditalData";
 import { performance } from "perf_hooks";
 
 export type ExtractInfoPipelineInput = {
-    pdfBuffer: Buffer;
     documentId: string;
     tracker: ExtractEditalTracker;
     config: ExtractEditalData.VectorStoreConfig;
+    collectionName?: string;
+    pdfBuffer?: Buffer;
+    preprocessedIngestionResult?: PdfIngestionWorker.Result;
 };
 
 type QueryPreparationMetrics = {
@@ -76,16 +78,17 @@ export class ExtractInfoPipeline {
     ) { }
 
     async execute(input: ExtractInfoPipelineInput): Promise<ExtractInfoPipelineResult> {
-        const { pdfBuffer, documentId, tracker, config } = input;
+        const { documentId, tracker, config } = input;
+        const collectionName = input.collectionName ?? config.COLLECTION_NAME;
         const pipelineStartedAt = performance.now();
 
         const [ingestionResult, queries] = await Promise.all([
-            this.runIngestion(pdfBuffer, documentId, tracker, config),
+            this.resolveIngestion(input),
             this.prepareFieldQueries(tracker),
         ]);
 
         const vectorSearchStartedAt = performance.now();
-        const { hits, hitsPerQuery } = await this.searchTextChunks(documentId, queries.fieldVectors, config);
+        const { hits, hitsPerQuery } = await this.searchTextChunks(collectionName, documentId, queries.fieldVectors, config);
         const vectorSearchTimeMs = performance.now() - vectorSearchStartedAt;
 
         const postProcessStartedAt = performance.now();
@@ -145,6 +148,18 @@ export class ExtractInfoPipeline {
         };
     }
 
+    private async resolveIngestion(input: ExtractInfoPipelineInput): Promise<PdfIngestionWorker.Result> {
+        if (input.preprocessedIngestionResult) {
+            return input.preprocessedIngestionResult;
+        }
+
+        if (!input.pdfBuffer) {
+            throw new Error("pdfBuffer é obrigatório quando o pipeline de campos não recebe um documento pré-processado.");
+        }
+
+        return this.runIngestion(input.pdfBuffer, input.documentId, input.tracker, input.config);
+    }
+
     private async runIngestion(pdfBuffer: Buffer, documentId: string, tracker: ExtractEditalTracker, config: ExtractEditalData.VectorStoreConfig) {
         const progress = tracker.ingest("info");
         const result = await this.ingestionWorker.ingest(documentId, {
@@ -176,6 +191,7 @@ export class ExtractInfoPipeline {
     }
 
     private async searchTextChunks(
+        collectionName: string,
         documentId: string,
         vectors: Float32Array[],
         config: ExtractEditalData.VectorStoreConfig
@@ -188,7 +204,7 @@ export class ExtractInfoPipeline {
         };
 
         const hitsPerQuery = 5;
-        const allHits = await this.vectorStore.searchBatch(config.COLLECTION_NAME, vectors, {
+        const allHits = await this.vectorStore.searchBatch(collectionName, vectors, {
             filter,
             limit: hitsPerQuery,
             minScore: config.FIELD_SCORE_THRESHOLD,

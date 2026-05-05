@@ -1,3 +1,4 @@
+import { PrismaCompanyRepository } from "@/server/shared/infra/repositories/company.repository";
 import { PrismaMembershipRepository } from "@/server/shared/infra/repositories/membership.repository";
 
 export async function assertUserBelongsToOrganization(params: {
@@ -15,4 +16,25 @@ export async function assertUserBelongsToOrganization(params: {
     }
 
     return membership;
+}
+
+export async function assertUserCanAccessCompany(params: {
+    companyRepository: PrismaCompanyRepository;
+    membershipRepository: PrismaMembershipRepository;
+    userId: string;
+    companyId: string;
+}) {
+    const company = await params.companyRepository.findById({ id: params.companyId });
+
+    if (!company) {
+        throw new Error("Empresa não encontrada.");
+    }
+
+    await assertUserBelongsToOrganization({
+        membershipRepository: params.membershipRepository,
+        userId: params.userId,
+        organizationId: company.organizationId,
+    });
+
+    return company;
 }

@@ -1,22 +1,12 @@
 import { QdrantClient } from "@qdrant/js-client-rest";
 import type { IVectorStore } from "@/server/modules/core-api/domain/data/IVectorStore";
+import { createQdrantClient } from "./qdrant-client";
 
 export class QdrantVectorStore implements IVectorStore.Contract {
     private readonly client: QdrantClient;
 
     constructor(options: { url?: string; apiKey?: string } = {}) {
-        const qdrantUrl = options.url ?? process.env.QDRANT_URL ?? "http://localhost:6333";
-        const isHttps = qdrantUrl.startsWith("https");
-        const host = qdrantUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "").split(":")[0];
-        const port = isHttps ? 443 : 6333;
-
-        this.client = new QdrantClient({
-            host,
-            port,
-            https: isHttps,
-            apiKey: options.apiKey ?? process.env.QDRANT_API_KEY,
-            checkCompatibility: false,
-        });
+        this.client = createQdrantClient(options);
     }
 
     async ensureCollection(name: string, config: { vectorSize: number; payloadIndexFields?: string[] }): Promise<void> {
@@ -37,8 +27,9 @@ export class QdrantVectorStore implements IVectorStore.Contract {
                     )
                 ).catch(() => { /* índices já existem — ignorado silenciosamente */ });
             }
-        } catch (err: any) {
-            console.error(`[QdrantVectorStore] Erro ao garantir collection ${name}:`, err.message);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`[QdrantVectorStore] Erro ao garantir collection ${name}:`, message);
             throw err;
         }
     }
@@ -104,19 +95,49 @@ export class QdrantVectorStore implements IVectorStore.Contract {
     ): Promise<{ points: IVectorStore.ScrollPoint[]; nextOffset: string | number | null }> {
         const response = await this.client.scroll(name, {
             limit: options?.limit ?? 1000,
-            filter: options?.filter as any,
-            offset: options?.offset as any,
+            filter: options?.filter as unknown as Record<string, unknown> | undefined,
+            offset: options?.offset as unknown as string | number | undefined,
             with_payload: true,
             with_vector: false,
         });
 
         return {
-            points: response.points.map(pt => ({ id: pt.id, payload: (pt.payload ?? {}) as Record<string, any> })),
+            points: response.points.map(pt => ({ id: pt.id, payload: (pt.payload ?? {}) as Record<string, unknown> })),
             nextOffset: (response.next_page_offset ?? null) as string | number | null,
         };
+    }
+
+    async deleteByFilter(name: string, filter: IVectorStore.Filter): Promise<void> {
+        try {
+            await this.client.delete(name, {
+                wait: true,
+                filter,
+            });
+        } catch (err: unknown) {
+            if (isCollectionNotFoundError(err)) {
+                console.warn(`[QdrantVectorStore] Coleção '${name}' ainda não existe. deleteByFilter ignorado.`);
+                return;
+            }
+
+            throw err;
+        }
     }
 
     async deleteCollection(name: string): Promise<void> {
         await this.client.deleteCollection(name);
     }
+}
+
+function isCollectionNotFoundError(error: unknown): boolean {
+    if (!error || typeof error !== "object") return false;
+
+    const candidate = error as {
+        status?: number;
+        data?: { status?: { error?: string } };
+    };
+
+    if (candidate.status === 404) return true;
+
+    const message = candidate.data?.status?.error;
+    return typeof message === "string" && message.toLowerCase().includes("not found");
 }

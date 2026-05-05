@@ -7,6 +7,7 @@ import type { IPromiseProvider } from "@/server/modules/core-api/domain/data/IPr
 import type { MetricsProvider } from "@/server/shared/infra/providers/metrics/metrics-provider";
 import type { ProcessedChunk } from "@/server/modules/core-api/domain/data/ProcessedChunk";
 import { performance } from "perf_hooks";
+import { buildDocumentChunkPayload } from "./build-document-chunk-payload";
 
 export class PdfIngestionWorker {
     private readonly MIN_EMBEDDING_BATCH_SIZE = 100;
@@ -101,7 +102,7 @@ export class PdfIngestionWorker {
         const stopTimer = this.metrics.startTimer("pdf-ingestion:ensure-collection");
         await this.vectorStore.ensureCollection(this.config.collectionName, {
             vectorSize: this.embeddingProvider.dimensions,
-            payloadIndexFields: ["document_id", "metadata.base.type", "metadata.base.page"],
+            payloadIndexFields: ["document_id", "documentId", "metadata.base.type", "metadata.base.page", "page", "heading"],
         });
         return stopTimer({ collectionName: this.config.collectionName });
     }
@@ -230,7 +231,16 @@ export class PdfIngestionWorker {
         return embeddedEntries.map(({ entry, embedding }) => ({
             id: entry.id,
             vector: Array.from(embedding),
-            payload: { ...entry.original, document_id: documentId },
+            payload: buildDocumentChunkPayload({
+                documentId,
+                chunkId: entry.id,
+                content: entry.original.content,
+                raw: entry.original.raw,
+                page: entry.original.metadata?.base?.page,
+                heading: entry.original.header ?? entry.original.metadata?.base?.section,
+                metadata: entry.original.metadata,
+                payload: entry.original,
+            }),
         }));
     }
 

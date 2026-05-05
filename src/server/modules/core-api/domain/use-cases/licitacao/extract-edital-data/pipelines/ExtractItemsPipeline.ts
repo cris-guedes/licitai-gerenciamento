@@ -9,10 +9,12 @@ import type { ExtractEditalData } from "../ExtractEditalData";
 import { performance } from "perf_hooks";
 
 export type ExtractItemsPipelineInput = {
-    pdfBuffer: Buffer;
     documentId: string;
     tracker: ExtractEditalTracker;
     config: ExtractEditalData.VectorStoreConfig;
+    collectionName?: string;
+    pdfBuffer?: Buffer;
+    preprocessedIngestionResult?: TableIngestionWorker.Result;
     onBatchCompleted?: (event: ExtractItemsPipeline.BatchCompletedEvent) => void | Promise<void>;
 };
 
@@ -112,16 +114,17 @@ export class ExtractItemsPipeline {
     ) { }
 
     async execute(input: ExtractItemsPipelineInput): Promise<ExtractItemsPipelineResult> {
-        const { pdfBuffer, documentId, tracker, config, onBatchCompleted } = input;
+        const { documentId, tracker, config, onBatchCompleted } = input;
+        const collectionName = input.collectionName ?? config.COLLECTION_NAME;
         const pipelineStartedAt = performance.now();
 
         const [ingestionResult, queries] = await Promise.all([
-            this.runIngestion(pdfBuffer, documentId, tracker, config),
+            this.resolveIngestion(input),
             this.prepareItemQueries(tracker),
         ]);
 
         const vectorSearchStartedAt = performance.now();
-        const { hits, hitsPerQuery } = await this.searchItemChunks(documentId, queries.itemVectors, config);
+        const { hits, hitsPerQuery } = await this.searchItemChunks(collectionName, documentId, queries.itemVectors, config);
         const vectorSearchTimeMs = performance.now() - vectorSearchStartedAt;
 
         const postProcessStartedAt = performance.now();
@@ -323,6 +326,18 @@ export class ExtractItemsPipeline {
         };
     }
 
+    private async resolveIngestion(input: ExtractItemsPipelineInput): Promise<TableIngestionWorker.Result> {
+        if (input.preprocessedIngestionResult) {
+            return input.preprocessedIngestionResult;
+        }
+
+        if (!input.pdfBuffer) {
+            throw new Error("pdfBuffer é obrigatório quando o pipeline de itens não recebe um documento pré-processado.");
+        }
+
+        return this.runIngestion(input.pdfBuffer, input.documentId, input.tracker, input.config);
+    }
+
     private async runIngestion(pdfBuffer: Buffer, documentId: string, tracker: ExtractEditalTracker, config: ExtractEditalData.VectorStoreConfig) {
         const progress = tracker.ingest("items");
         const result = await this.ingestionWorker.ingest(documentId, {
@@ -355,6 +370,7 @@ export class ExtractItemsPipeline {
     }
 
     private async searchItemChunks(
+        collectionName: string,
         documentId: string,
         vectors: Float32Array[],
         config: ExtractEditalData.VectorStoreConfig
@@ -369,7 +385,7 @@ export class ExtractItemsPipeline {
         };
 
         const hitsPerQuery = Math.max(10, Math.ceil(config.ITEM_SEARCH_LIMIT / Math.max(vectors.length, 1)));
-        const allHits = await this.vectorStore.searchBatch(config.COLLECTION_NAME, vectors, {
+        const allHits = await this.vectorStore.searchBatch(collectionName, vectors, {
             filter,
             limit: hitsPerQuery,
             minScore: config.ITEM_SCORE_THRESHOLD,

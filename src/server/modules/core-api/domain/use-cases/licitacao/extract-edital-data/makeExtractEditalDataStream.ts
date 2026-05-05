@@ -8,9 +8,14 @@ import { MetricsProvider } from "@/server/shared/infra/providers/metrics/metrics
 import { ExtractionSessionProvider } from "@/server/shared/infra/providers/session/extraction-session-provider";
 import { UuidIdentifierProvider } from "@/server/shared/infra/providers/identifier/uuid-identifier-provider";
 import { PQueuePromiseProvider } from "@/server/shared/infra/providers/promise/p-queue-promise-provider";
+import { CloudflareR2ObjectStorageProvider } from "@/server/shared/infra/providers/storage/cloudflare-r2-object-storage-provider";
 import { PdfIngestionWorker } from "@/server/modules/core-api/workers/pdf-ingestion/PdfIngestionWorker";
 import { TableIngestionWorker } from "@/server/modules/core-api/workers/pdf-ingestion/TableIngestionWorker";
 import { LLMDocumentPrettifyProvider } from "@/server/shared/infra/providers/ia/prettify/llm-document-prettify-provider";
+import { PrismaCompanyRepository } from "@/server/shared/infra/repositories/company.repository";
+import { PrismaDocumentAnalysisRepository } from "@/server/shared/infra/repositories/document-analysis.repository";
+import { PrismaDocumentRepository } from "@/server/shared/infra/repositories/document.repository";
+import { PrismaMembershipRepository } from "@/server/shared/infra/repositories/membership.repository";
 import { ExtractEditalData } from "./ExtractEditalData";
 import { ExtractEditalDataController } from "./ExtractEditalDataController";
 import { ExtractEditalDataStreamController } from "./ExtractEditalDataStreamController";
@@ -29,7 +34,7 @@ const CONFIG = {
         maxConcurrency: 5,
     },
     vectorStore: {
-        COLLECTION_NAME: process.env.QDRANT_COLLECTION ?? "edital-v1-1536",
+        COLLECTION_NAME: process.env.QDRANT_COLLECTION ?? "document_chunks",
         FIELD_SEARCH_LIMIT: 200,
         FIELD_SCORE_THRESHOLD: 0.48,
         ITEM_SEARCH_LIMIT: 800,
@@ -57,6 +62,11 @@ function createUseCase() {
     const promiseProvider = new PQueuePromiseProvider();
     const documentParser = new DocumentHandlerFileParsingProvider();
     const prettifyProvider = new LLMDocumentPrettifyProvider();
+    const objectStorageProvider = new CloudflareR2ObjectStorageProvider();
+    const documentRepository = new PrismaDocumentRepository();
+    const documentAnalysisRepository = new PrismaDocumentAnalysisRepository();
+    const companyRepository = new PrismaCompanyRepository();
+    const membershipRepository = new PrismaMembershipRepository();
     const fieldModel = new OpenAIModel({ model: CONFIG.llm.fieldModel });
     const itemModel = new OpenAIModel({ model: CONFIG.llm.itemModel });
 
@@ -103,10 +113,15 @@ function createUseCase() {
     return new ExtractEditalData(
         infoPipeline,
         itemsPipeline,
-        embeddingProvider,
         new ExtractionSessionProvider(),
         metricsProvider,
         CONFIG.vectorStore,
+        identifierProvider,
+        objectStorageProvider,
+        documentRepository,
+        documentAnalysisRepository,
+        companyRepository,
+        membershipRepository,
     );
 }
 

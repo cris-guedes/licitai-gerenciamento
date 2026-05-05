@@ -22,6 +22,10 @@ model User {
   sessions       Session[]
   accounts       Account[]
   createdInvites Invite[]
+  createdLicitacoes        Licitacao[]
+  createdEditais           Edital[]
+  createdDocuments         Document[]
+  createdDocumentAnalyses  DocumentAnalysis[]
 }
 
 model Session {
@@ -60,8 +64,8 @@ model Verification {
   identifier String
   value      String
   expiresAt  DateTime
-  createdAt  DateTime? @default(now())
-  updatedAt  DateTime? @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
 
 // ─── Tenant ───────────────────────────────────────────────────────────────────
@@ -73,9 +77,10 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships Membership[]
-  companies   Company[]
-  invites     Invite[]
+  memberships   Membership[]
+  companies     Company[]
+  invites       Invite[]
+  documentChats DocumentChat[]
 }
 
 model Company {
@@ -110,6 +115,10 @@ model Company {
   organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   companyMemberships CompanyMembership[]
   invites            Invite[]
+  licitacoes         Licitacao[]
+  editais            Edital[]
+  documents          Document[]
+  documentAnalyses   DocumentAnalysis[]
 }
 
 // ─── Membership ───────────────────────────────────────────────────────────────
@@ -136,6 +145,7 @@ model CompanyMembership {
   membershipId String
   companyId    String
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
   company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -156,6 +166,7 @@ model Invite {
   expiresAt      DateTime
   usedAt         DateTime?
   createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -164,53 +175,212 @@ model Invite {
 
 // ─── Licitação ────────────────────────────────────────────────────────────────
 
-/// Processo licitatório oficial.
-/// Campos de domínio preenchidos via edital PDF ou PNCP.
-/// Campo `metadados` armazena dados exclusivos do PNCP para consultas em tempo real.
-/**
- * model Licitacao {
- * id String @id @default(cuid())
- * // Órgão
- * orgaoCnpj        String
- * orgaoRazaoSocial String?
- * orgaoEsfera      String?  // "Federal", "Estadual", "Municipal", "Distrital"
- * orgaoPoder       String?  // "Executivo", "Legislativo", "Judiciário"
- * // Unidade
- * unidadeCodigo String?
- * unidadeNome   String?
- * municipio     String?
- * uf            String?
- * // Identificação
- * numero    String   // ex: "001/2024"
- * processo  String?  // ex: "00000.000123/2024-56"
- * // Classificação
- * modalidade      String?  // "Pregão Eletrônico", "Concorrência"
- * tipoInstrumento String?  // "Edital", "Aviso de Contratação Direta"
- * modoDisputa     String?  // "Aberto", "Fechado", "Aberto-Fechado"
- * amparoLegal     String?
- * srp             Boolean  @default(false)
- * // Conteúdo
- * objeto                 String
- * informacaoComplementar String?
- * // Datas
- * dataAbertura     DateTime?
- * dataEncerramento DateTime?
- * // Valor
- * valorEstimado Decimal? @db.Decimal(15, 2)
- * /// Metadados exclusivos do PNCP.
- * /// Presentes apenas quando o processo foi importado via API do PNCP.
- * /// Habilitam consultas e sincronizações em tempo real com o portal.
- * /// Estrutura: { ano, sequencial, numeroControle, situacao, dataPublicacao,
- * ///              dataAtualizacao, linkSistema, linkProcesso, valorHomologado, syncedAt }
- * metadados Json?
- * createdAt DateTime @default(now())
- * updatedAt DateTime @updatedAt
- * }
- */
+model Licitacao {
+  id                   String          @id @default(cuid())
+  companyId            String
+  createdById          String?
+  status               LicitacaoStatus @default(IN_PROGRESS)
+  metadados            Json?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy  User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  edital     Edital?
+
+  @@index([companyId, createdAt])
+  @@index([createdById, createdAt])
+  @@index([status, createdAt])
+}
+
+model Edital {
+  id                     String       @id @default(cuid())
+  licitacaoId            String       @unique
+  companyId              String
+  createdById            String?
+  status                 EditalStatus @default(IN_PROGRESS)
+  orgaoCnpj              String?
+  orgaoRazaoSocial       String?
+  orgaoEsfera            String?
+  orgaoPoder             String?
+  unidadeCodigo          String?
+  unidadeNome            String?
+  municipio              String?
+  uf                     String?
+  numero                 String?
+  processo               String?
+  modalidade             String?
+  tipoInstrumento        String?
+  modoDisputa            String?
+  amparoLegal            String?
+  srp                    Boolean      @default(false)
+  objeto                 String?
+  informacaoComplementar String?
+  dataAbertura           DateTime?
+  dataEncerramento       DateTime?
+  valorEstimado          Decimal?     @db.Decimal(15, 2)
+  dadosExtraidos         Json?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  licitacao  Licitacao  @relation(fields: [licitacaoId], references: [id], onDelete: Cascade)
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy  User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  documents  Document[]
+
+  @@index([companyId, createdAt])
+  @@index([createdById, createdAt])
+  @@index([status, createdAt])
+}
+
+model Document {
+  id                   String         @id @default(cuid())
+  companyId            String
+  editalId             String?
+  createdById          String?
+  type                 DocumentType   @default(EDITAL)
+  originalName         String
+  mimeType             String
+  sizeBytes            Int
+  storageProvider      String         @default("cloudflare_r2")
+  storageBucket        String
+  storageKey           String         @unique
+  storageUrl           String
+  vectorDocumentId     String         @unique
+  vectorCollectionName String
+  status               DocumentStatus @default(PROCESSING)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  company    Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  edital     Edital?            @relation(fields: [editalId], references: [id], onDelete: SetNull)
+  createdBy  User?              @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  analyses   DocumentAnalysis[]
+  chat       DocumentChat?
+
+  @@index([companyId, createdAt])
+  @@index([editalId, createdAt])
+  @@index([createdById, createdAt])
+  @@index([status, createdAt])
+  @@index([type, createdAt])
+}
+
+model DocumentAnalysis {
+  id              String                 @id @default(cuid())
+  documentId      String
+  companyId       String
+  createdById     String?
+  type            DocumentAnalysisType
+  status          DocumentAnalysisStatus @default(PENDING)
+  markdownContent String?
+  result          Json?
+  metrics         Json?
+  errorMessage    String?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  document  Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([documentId, type, createdAt])
+  @@index([createdById, createdAt])
+  @@index([status, createdAt])
+}
+
+model DocumentChat {
+  id             String   @id @default(cuid())
+  documentId     String   @unique
+  organizationId String
+  title          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  document     Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  messages     ChatMessage[]
+
+  @@index([organizationId, createdAt])
+}
+
+model ChatMessage {
+  id        String          @id @default(cuid())
+  chatId    String
+  role      ChatMessageRole
+  content   String
+  metadata  Json?
+  createdAt DateTime        @default(now())
+
+  chat    DocumentChat        @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sources ChatMessageSource[]
+
+  @@index([chatId, createdAt])
+}
+
+model ChatMessageSource {
+  id        String   @id @default(cuid())
+  messageId String
+  chunkId   String
+  page      Int?
+  score     Float
+  snippet   String
+  heading   String?
+  createdAt DateTime @default(now())
+
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId, createdAt])
+  @@index([chunkId, createdAt])
+}
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
 enum OrganizationRole {
   OWNER
   ADMIN
   MEMBER
+}
+
+enum DocumentStatus {
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum DocumentType {
+  EDITAL
+  ANEXO
+  OUTRO
+}
+
+enum LicitacaoStatus {
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum EditalStatus {
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum DocumentAnalysisType {
+  EXTRACT_EDITAL
+  SUMMARY
+}
+
+enum DocumentAnalysisStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum ChatMessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
 }
