@@ -5,11 +5,11 @@ import { Button } from "@/client/components/ui/button"
 import { Card, CardContent } from "@/client/components/ui/card"
 import { FileText, Plus } from "lucide-react"
 import { DashboardHeaderActions } from "@/client/features/dashboard/components/DashboardShell"
-import { useDashboard } from "@/client/features/dashboard/context/dashboard-context"
+import { useApp } from "@/client/hooks/app/useApp"
 
 export function LicitacoesPage() {
-    const { orgId, companyId } = useDashboard()
-    const base = `/org/${orgId}/${companyId}`
+    const { empresaAtiva, orgAtiva } = useApp()
+    const base = `/org/${orgAtiva?.id}/${empresaAtiva?.id}`
 
     return (
         <div className="space-y-6">

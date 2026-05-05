@@ -65,6 +65,7 @@ export type { SearchPublicProcurementsResponse } from './models/SearchPublicProc
 export type { UpdateCompanyResponse } from './models/UpdateCompanyResponse';
 export type { UpdateMemberRoleResponse } from './models/UpdateMemberRoleResponse';
 export type { UpdateUserResponse } from './models/UpdateUserResponse';
+export type { UploadEditalDocumentResponse } from './models/UploadEditalDocumentResponse';
 export type { User } from './models/User';
 
 export { AuthService } from './services/AuthService';

@@ -420,6 +420,10 @@ interface Props {
 }
 
 function resolvePageMeta(pathname: string, base: string) {
+  if (pathname.includes("/licitacoes/nova")) {
+    return null
+  }
+
   if (pathname === base || pathname === `${base}/`) {
     return { title: "Dashboard", subtitle: "Panorama estratégico da operação." }
   }
@@ -471,24 +475,31 @@ function DashboardShellFrame({ children }: Pick<Props, "children">) {
         <SidebarInset>
           <div className="flex min-h-svh flex-col gap-4 px-4 py-4 md:px-6 md:py-4">
             <SidebarDockToggle />
-            <header className="flex items-start justify-between gap-4 bg-transparent px-1 py-1">
-              <div className="flex items-start gap-3">
-                <SidebarTrigger className="mt-0.5 size-8 rounded-[0.75rem] bg-surface-container-high text-primary hover:bg-surface-container-highest md:hidden" />
-                <div className="min-w-0">
-                  <h1 className="font-display text-[1.65rem] font-semibold leading-[0.98] text-primary md:text-[1.95rem]">
-                    {pageMeta.title}
-                  </h1>
-                  <p className="mt-1 max-w-2xl text-[0.92rem] leading-snug text-muted-foreground">
-                    {pageMeta.subtitle}
-                  </p>
+            {pageMeta ? (
+              <header className="flex items-start justify-between gap-4 bg-transparent px-1 py-1">
+                <div className="flex items-start gap-3">
+                  <SidebarTrigger className="mt-0.5 size-8 rounded-[0.75rem] bg-surface-container-high text-primary hover:bg-surface-container-highest md:hidden" />
+                  <div className="min-w-0">
+                    <h1 className="font-display text-[1.65rem] font-semibold leading-[0.98] text-primary md:text-[1.95rem]">
+                      {pageMeta.title}
+                    </h1>
+                    <p className="mt-1 max-w-2xl text-[0.92rem] leading-snug text-muted-foreground">
+                      {pageMeta.subtitle}
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <div
-                ref={setHeaderActionsTarget}
-                className="flex shrink-0 flex-wrap items-center justify-end gap-2"
-              />
-            </header>
+                <div
+                  ref={setHeaderActionsTarget}
+                  className="flex shrink-0 flex-wrap items-center justify-end gap-2"
+                />
+              </header>
+            ) : (
+              <div className="flex items-center justify-between px-1 py-1 md:hidden">
+                <SidebarTrigger className="size-8 rounded-[0.75rem] bg-surface-container-high text-primary hover:bg-surface-container-highest" />
+                <div ref={setHeaderActionsTarget} className="flex shrink-0 flex-wrap items-center justify-end gap-2" />
+              </div>
+            )}
 
             <div className="min-w-0 flex flex-1 flex-col">
               {children}

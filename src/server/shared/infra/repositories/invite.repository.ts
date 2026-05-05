@@ -51,6 +51,7 @@ export namespace PrismaInviteRepository {
         expiresAt:      Date;
         usedAt:         Date | null;
         createdAt:      Date;
+        updatedAt:      Date;
     };
 
     export type InviteWithRelations = InviteResponse & {

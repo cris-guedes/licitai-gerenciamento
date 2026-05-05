@@ -5,6 +5,9 @@ import { z } from "zod";
 // O body JSON não é utilizado — a validação ocorre no controller via FormData.
 
 const ExtractEditalDataBodySchema = z.null();
+const ExtractEditalDataQuerySchema = z.object({
+    companyId: z.string().describe("ID da empresa dona do documento enviado."),
+});
 
 // ─── Métricas de processamento ────────────────────────────────────────────────
 
@@ -195,7 +198,7 @@ const ExtractEditalDataResponseSchema = z.object({
 export namespace ExtractEditalDataControllerSchemas {
     export const Headers  = z.object({ authorization: z.string().optional() }).optional();
     export const Body     = ExtractEditalDataBodySchema;
-    export const Query    = z.null();
+    export const Query    = ExtractEditalDataQuerySchema;
     export const Params   = z.null();
     export const Response = ExtractEditalDataResponseSchema;
 

@@ -27,7 +27,7 @@ export interface Controller<T extends ControllerContract = any> {
 export type PreHandler = (req: HttpRequest) => Promise<HttpRequest>;
 
 export interface StreamController {
-    handleStream(request: Request): Promise<Response>;
+    handleStream(request: Request, httpRequest: HttpRequest): Promise<Response>;
 }
 
 export interface RouteConfig {

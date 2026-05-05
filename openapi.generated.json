@@ -2682,6 +2682,54 @@
         }
       }
     },
+    "/upload-edital-document": {
+      "post": {
+        "summary": "Faz upload simples do edital",
+        "description": "Recebe o PDF principal do edital em multipart/form-data, armazena o documento e retorna os metadados necessários para preview no cadastro.",
+        "operationId": "uploadEditalDocument",
+        "tags": [
+          "Licitacao"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "companyId",
+                  "file"
+                ],
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "description": "ID da empresa dona do edital enviado"
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Arquivo PDF do edital de licitação"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Edital enviado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadEditalDocumentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/extract-edital-data": {
       "post": {
         "summary": "Extrai dados de um edital de licitação",
@@ -2690,7 +2738,17 @@
         "tags": [
           "Licitacao"
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "ID da empresa dona do documento enviado."
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2733,7 +2791,17 @@
         "tags": [
           "Licitacao"
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "ID da empresa dona do documento enviado."
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -7522,6 +7590,94 @@
         ],
         "additionalProperties": false
       },
+      "UploadEditalDocumentResponse": {
+        "type": "object",
+        "properties": {
+          "licitacaoId": {
+            "type": "string",
+            "description": "ID interno do processo licitatório criado para acompanhar o fluxo global da licitação."
+          },
+          "licitacaoStatus": {
+            "type": "string",
+            "enum": [
+              "IN_PROGRESS"
+            ],
+            "description": "Status global inicial do processo licitatório após o upload do edital."
+          },
+          "editalId": {
+            "type": "string",
+            "description": "ID interno do edital criado para concentrar os dados ricos e documentos do certame."
+          },
+          "editalStatus": {
+            "type": "string",
+            "enum": [
+              "IN_PROGRESS"
+            ],
+            "description": "Status inicial do edital criado junto ao processo licitatório."
+          },
+          "documentId": {
+            "type": "string",
+            "description": "ID interno do documento armazenado."
+          },
+          "documentType": {
+            "type": "string",
+            "const": "edital",
+            "description": "Tipo de documento aceito neste fluxo inicial."
+          },
+          "originalName": {
+            "type": "string",
+            "description": "Nome original do arquivo enviado."
+          },
+          "mimeType": {
+            "type": "string",
+            "description": "MIME type persistido para o documento."
+          },
+          "sizeBytes": {
+            "type": "number",
+            "description": "Tamanho do arquivo armazenado em bytes."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "READY"
+            ],
+            "description": "Status final do documento após o upload simples."
+          },
+          "documentUrl": {
+            "type": "string",
+            "description": "URL pública do documento armazenado para preview e consumo posterior."
+          },
+          "previewUrl": {
+            "type": "string",
+            "description": "URL utilizada pelo frontend para renderizar o preview do edital."
+          },
+          "previewUrlExpiresAt": {
+            "type": "string",
+            "description": "Data/hora ISO de expiração da URL temporária de preview do documento."
+          },
+          "uploadedAt": {
+            "type": "string",
+            "description": "Data/hora ISO em que o documento foi persistido."
+          }
+        },
+        "required": [
+          "licitacaoId",
+          "licitacaoStatus",
+          "editalId",
+          "editalStatus",
+          "documentId",
+          "documentType",
+          "originalName",
+          "mimeType",
+          "sizeBytes",
+          "status",
+          "documentUrl",
+          "previewUrl",
+          "previewUrlExpiresAt",
+          "uploadedAt"
+        ],
+        "additionalProperties": false
+      },
       "ExtractEditalDataResponse": {
         "type": "object",
         "properties": {
@@ -7704,16 +7860,6 @@
                             "type": "null"
                           }
                         ]
-                      },
-                      "textoOriginal": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
                       }
                     },
                     "required": [
@@ -7725,8 +7871,7 @@
                       "uf",
                       "esfera",
                       "poder",
-                      "itensSolicitados",
-                      "textoOriginal"
+                      "itensSolicitados"
                     ],
                     "additionalProperties": false
                   },
@@ -7950,16 +8095,6 @@
                                   "type": "null"
                                 }
                               ]
-                            },
-                            "textoOriginal": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
                             }
                           },
                           "required": [
@@ -7971,8 +8106,7 @@
                             "uf",
                             "esfera",
                             "poder",
-                            "itensSolicitados",
-                            "textoOriginal"
+                            "itensSolicitados"
                           ],
                           "additionalProperties": false
                         }
@@ -8049,26 +8183,6 @@
                                 "type": "null"
                               }
                             ]
-                          },
-                          "textoOriginalPrazos": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "textoOriginal": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
                           }
                         },
                         "required": [
@@ -8078,9 +8192,7 @@
                           "sessaoPublica",
                           "horaSessaoPublica",
                           "esclarecimentosAte",
-                          "impugnacaoAte",
-                          "textoOriginalPrazos",
-                          "textoOriginal"
+                          "impugnacaoAte"
                         ],
                         "additionalProperties": false
                       },
@@ -8142,30 +8254,10 @@
                               }
                             ]
                           },
-                          "textoOriginalDisputa": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
                           "exclusivoMeEpp": {
                             "anyOf": [
                               {
                                 "type": "boolean"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "exclusivoMeEppTexto": {
-                            "anyOf": [
-                              {
-                                "type": "string"
                               },
                               {
                                 "type": "null"
@@ -8182,16 +8274,6 @@
                               }
                             ]
                           },
-                          "permiteConsorcioTexto": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
                           "exigeVisitaTecnica": {
                             "anyOf": [
                               {
@@ -8202,30 +8284,10 @@
                               }
                             ]
                           },
-                          "exigeVisitaTecnicaTexto": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
                           "permiteAdesao": {
                             "anyOf": [
                               {
                                 "type": "boolean"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "permiteAdesaoTexto": {
-                            "anyOf": [
-                              {
-                                "type": "string"
                               },
                               {
                                 "type": "null"
@@ -8272,40 +8334,10 @@
                               }
                             ]
                           },
-                          "vigenciaAtaMesesTexto": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
                           "vigenciaContratoDias": {
                             "anyOf": [
                               {
                                 "type": "number"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "vigenciaContratoDiasTexto": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "textoOriginal": {
-                            "anyOf": [
-                              {
-                                "type": "string"
                               },
                               {
                                 "type": "null"
@@ -8319,23 +8351,15 @@
                           "tipoLance",
                           "intervaloLances",
                           "duracaoSessaoMinutos",
-                          "textoOriginalDisputa",
                           "exclusivoMeEpp",
-                          "exclusivoMeEppTexto",
                           "permiteConsorcio",
-                          "permiteConsorcioTexto",
                           "exigeVisitaTecnica",
-                          "exigeVisitaTecnicaTexto",
                           "permiteAdesao",
-                          "permiteAdesaoTexto",
                           "percentualAdesao",
                           "regionalidade",
                           "difal",
                           "vigenciaAtaMeses",
-                          "vigenciaAtaMesesTexto",
-                          "vigenciaContratoDias",
-                          "vigenciaContratoDiasTexto",
-                          "textoOriginal"
+                          "vigenciaContratoDias"
                         ],
                         "additionalProperties": false
                       },
@@ -8524,16 +8548,6 @@
                                   }
                                 ]
                               },
-                              "textoOriginal": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
                               "localEntrega": {
                                 "anyOf": [
                                   {
@@ -8571,25 +8585,13 @@
                                     "type": "null"
                                   }
                                 ]
-                              },
-                              "textoOriginalLogistica": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
                               }
                             },
                             "required": [
                               "prazoEmDias",
-                              "textoOriginal",
                               "localEntrega",
                               "tipoEntrega",
-                              "responsavelInstalacao",
-                              "textoOriginalLogistica"
+                              "responsavelInstalacao"
                             ],
                             "additionalProperties": false
                           },
@@ -8605,21 +8607,10 @@
                                     "type": "null"
                                   }
                                 ]
-                              },
-                              "textoOriginal": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
                               }
                             },
                             "required": [
-                              "prazoEmDias",
-                              "textoOriginal"
+                              "prazoEmDias"
                             ],
                             "additionalProperties": false
                           },
@@ -8635,21 +8626,10 @@
                                     "type": "null"
                                   }
                                 ]
-                              },
-                              "textoOriginal": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
                               }
                             },
                             "required": [
-                              "prazoEmDias",
-                              "textoOriginal"
+                              "prazoEmDias"
                             ],
                             "additionalProperties": false
                           },
@@ -8701,35 +8681,14 @@
                                     "type": "null"
                                   }
                                 ]
-                              },
-                              "textoOriginal": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
                               }
                             },
                             "required": [
                               "tipo",
                               "meses",
-                              "tempoAtendimentoHoras",
-                              "textoOriginal"
+                              "tempoAtendimentoHoras"
                             ],
                             "additionalProperties": false
-                          },
-                          "textoOriginal": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
                           }
                         },
                         "required": [
@@ -8737,8 +8696,7 @@
                           "pagamento",
                           "aceite",
                           "validadeProposta",
-                          "garantia",
-                          "textoOriginal"
+                          "garantia"
                         ],
                         "additionalProperties": false
                       },
@@ -8774,16 +8732,6 @@
                             "type": "null"
                           }
                         ]
-                      },
-                      "textoOriginal": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
                       }
                     },
                     "required": [
@@ -8794,8 +8742,7 @@
                       "itens",
                       "execucao",
                       "habilitacao",
-                      "informacaoComplementar",
-                      "textoOriginal"
+                      "informacaoComplementar"
                     ],
                     "additionalProperties": false
                   },

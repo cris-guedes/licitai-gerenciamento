@@ -72,6 +72,9 @@ export namespace IVectorStore {
         /** Busca paginada sem vetor — retorna todos os pontos que satisfazem o filtro. */
         scroll(name: string, options?: ScrollOptions): Promise<{ points: ScrollPoint[]; nextOffset: string | number | null }>;
 
+        /** Remove pontos com base em um filtro de payload. */
+        deleteByFilter(name: string, filter: Filter): Promise<void>;
+
         /** Remove a collection inteira. */
         deleteCollection(name: string): Promise<void>;
     }

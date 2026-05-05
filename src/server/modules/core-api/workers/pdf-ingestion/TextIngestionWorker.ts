@@ -6,6 +6,7 @@ import type { ChunkSchema } from "@/server/shared/lib/document-handler/generated
 import type { IIdentifierProvider } from "@/server/modules/core-api/domain/data/IIdentifierProvider";
 import type { IPromiseProvider } from "@/server/modules/core-api/domain/data/IPromiseProvider";
 import type { MetricsProvider } from "@/server/shared/infra/providers/metrics/metrics-provider";
+import { buildDocumentChunkPayload } from "./build-document-chunk-payload";
 
 export class TextIngestionWorker {
     private readonly MIN_EMBEDDING_BATCH_SIZE = 100;
@@ -64,7 +65,7 @@ export class TextIngestionWorker {
     private async stepEnsureVectorCollectionExists(): Promise<void> {
         await this.vectorStore.ensureCollection(this.config.collectionName, {
             vectorSize:         this.embeddingProvider.dimensions,
-            payloadIndexFields: ["document_id", "metadata.base.type", "metadata.base.page"],
+            payloadIndexFields: ["document_id", "documentId", "metadata.base.type", "metadata.base.page", "page", "heading"],
         });
     }
 
@@ -135,7 +136,16 @@ export class TextIngestionWorker {
         return embeddedEntries.map(({ entry, embedding }) => ({
             id:      entry.id,
             vector:  Array.from(embedding),
-            payload: { ...entry.chunk, raw: response.raw, document_id: documentId },
+            payload: buildDocumentChunkPayload({
+                documentId,
+                chunkId: entry.id,
+                content: entry.chunk.content,
+                raw: response.raw,
+                page: entry.chunk.metadata?.base?.page,
+                heading: entry.chunk.header ?? entry.chunk.metadata?.base?.section,
+                metadata: entry.chunk.metadata,
+                payload: entry.chunk,
+            }),
         }));
     }
 
