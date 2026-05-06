@@ -123,6 +123,7 @@ model Company {
   documentAnalyses   DocumentAnalysis[]
   editalAnalyses     EditalAnalysis[]
   oportunidades      Oportunidade[]
+  workflowDefinitions WorkflowDefinition[]
 }
 
 // ─── Membership ───────────────────────────────────────────────────────────────
@@ -358,26 +359,42 @@ model EditalAnalysis {
 }
 
 model Oportunidade {
-    id                String             @id @default(cuid())
-    companyId         String
-    licitacaoId       String?
-    editalId          String?
+  id                    String             @id @default(cuid())
+  companyId             String
+  licitacaoId           String?
+  editalId              String?
+  workflowDefinitionId  String?
+  currentNodeId         String?
+  currentPhaseNodeId    String?
+  currentStatusNodeId   String?
+  currentSituationNodeId String?
   responsavelUserId String?
   status            OportunidadeStatus @default(DRAFT)
   metadata          Json?
+  workflowUpdatedAt DateTime?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
-    company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-    licitacao   Licitacao?         @relation(fields: [licitacaoId], references: [id], onDelete: Cascade)
-    edital      Edital?            @relation(fields: [editalId], references: [id], onDelete: Cascade)
-  responsavel User?              @relation("OportunidadeResponsavel", fields: [responsavelUserId], references: [id], onDelete: SetNull)
-  itens       OportunidadeItem[]
+  company             Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  licitacao           Licitacao?          @relation(fields: [licitacaoId], references: [id], onDelete: Cascade)
+  edital              Edital?             @relation(fields: [editalId], references: [id], onDelete: Cascade)
+  workflowDefinition  WorkflowDefinition? @relation(fields: [workflowDefinitionId], references: [id], onDelete: SetNull)
+  currentNode         WorkflowNode?       @relation("OportunidadeCurrentNode", fields: [currentNodeId], references: [id], onDelete: SetNull)
+  currentPhaseNode    WorkflowNode?       @relation("OportunidadeCurrentPhaseNode", fields: [currentPhaseNodeId], references: [id], onDelete: SetNull)
+  currentStatusNode   WorkflowNode?       @relation("OportunidadeCurrentStatusNode", fields: [currentStatusNodeId], references: [id], onDelete: SetNull)
+  currentSituationNode WorkflowNode?      @relation("OportunidadeCurrentSituationNode", fields: [currentSituationNodeId], references: [id], onDelete: SetNull)
+  responsavel         User?               @relation("OportunidadeResponsavel", fields: [responsavelUserId], references: [id], onDelete: SetNull)
+  itens               OportunidadeItem[]
 
   @@unique([companyId, licitacaoId])
   @@index([companyId, createdAt])
   @@index([licitacaoId, createdAt])
   @@index([editalId, createdAt])
+  @@index([workflowDefinitionId, createdAt])
+  @@index([currentNodeId, createdAt])
+  @@index([currentPhaseNodeId, createdAt])
+  @@index([currentStatusNodeId, createdAt])
+  @@index([currentSituationNodeId, createdAt])
   @@index([responsavelUserId, createdAt])
   @@index([status, createdAt])
 }
@@ -395,6 +412,106 @@ model OportunidadeItem {
   @@unique([oportunidadeId, editalItemId])
   @@index([oportunidadeId, createdAt])
   @@index([editalItemId, createdAt])
+}
+
+model WorkflowDefinition {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  slug      String
+  version   Int      @default(1)
+  isActive  Boolean  @default(true)
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company      Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  nodeKinds    WorkflowNodeKind[]
+  nodes        WorkflowNode[]
+  transitions  WorkflowTransition[]
+  oportunidades Oportunidade[]
+
+  @@unique([companyId, slug, version])
+  @@index([companyId, isActive, createdAt])
+}
+
+model WorkflowNodeKind {
+  id                  String   @id @default(cuid())
+  workflowDefinitionId String
+  key                 String
+  label               String
+  description         String?
+  order               Int      @default(0)
+  parentKindId        String?
+  color               String?
+  metadata            Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  workflowDefinition WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
+  parentKind         WorkflowNodeKind?  @relation("WorkflowNodeKindHierarchy", fields: [parentKindId], references: [id], onDelete: SetNull)
+  childKinds         WorkflowNodeKind[] @relation("WorkflowNodeKindHierarchy")
+  nodes              WorkflowNode[]
+
+  @@unique([workflowDefinitionId, key])
+  @@index([workflowDefinitionId, order])
+  @@index([parentKindId, order])
+}
+
+model WorkflowNode {
+  id                  String   @id @default(cuid())
+  workflowDefinitionId String
+  kindId              String
+  parentId            String?
+  key                 String
+  label               String
+  description         String?
+  order               Int      @default(0)
+  depth               Int      @default(0)
+  path                String
+  color               String?
+  isInitial           Boolean  @default(false)
+  isTerminal          Boolean  @default(false)
+  metadata            Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  workflowDefinition     WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
+  kind                   WorkflowNodeKind   @relation(fields: [kindId], references: [id], onDelete: Cascade)
+  parent                 WorkflowNode?      @relation("WorkflowNodeHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children               WorkflowNode[]     @relation("WorkflowNodeHierarchy")
+  transitionsFrom        WorkflowTransition[] @relation("WorkflowTransitionFrom")
+  transitionsTo          WorkflowTransition[] @relation("WorkflowTransitionTo")
+  currentForOportunidades Oportunidade[]    @relation("OportunidadeCurrentNode")
+  currentPhaseForOportunidades Oportunidade[] @relation("OportunidadeCurrentPhaseNode")
+  currentStatusForOportunidades Oportunidade[] @relation("OportunidadeCurrentStatusNode")
+  currentSituationForOportunidades Oportunidade[] @relation("OportunidadeCurrentSituationNode")
+
+  @@unique([workflowDefinitionId, path])
+  @@index([workflowDefinitionId, order])
+  @@index([kindId, order])
+  @@index([parentId, order])
+  @@index([workflowDefinitionId, key])
+}
+
+model WorkflowTransition {
+  id                  String   @id @default(cuid())
+  workflowDefinitionId String
+  fromNodeId          String
+  toNodeId            String
+  transitionType      String?
+  metadata            Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  workflowDefinition WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
+  fromNode           WorkflowNode       @relation("WorkflowTransitionFrom", fields: [fromNodeId], references: [id], onDelete: Cascade)
+  toNode             WorkflowNode       @relation("WorkflowTransitionTo", fields: [toNodeId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowDefinitionId, fromNodeId, toNodeId])
+  @@index([workflowDefinitionId, createdAt])
+  @@index([fromNodeId, createdAt])
+  @@index([toNodeId, createdAt])
 }
 
 model OrgaoPublico {

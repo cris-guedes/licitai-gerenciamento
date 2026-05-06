@@ -1,9 +1,28 @@
 /* eslint-disable @typescript-eslint/no-namespace */
-import { EditalItemTipo, EditalOrgaoPapel, EditalStatus, EditalTipoVersao, LicitacaoSourceSystem, LicitacaoStatus, OportunidadeStatus, Prisma } from "@prisma/client";
+import { EditalItemTipo, EditalOrgaoPapel, EditalStatus, EditalTipoVersao, LicitacaoSourceSystem, LicitacaoStatus, OportunidadeStatus, Prisma, type Edital, type Licitacao, type Oportunidade } from "@prisma/client";
 import type { PrismaDocumentRepository } from "./document.repository";
 import { prisma } from "../db/client";
 
 export class PrismaOportunidadeRepository {
+    private readonly boardInclude = {
+        licitacao: {
+            include: {
+                orgaoGerenciador: true,
+            },
+        },
+        edital: true,
+        responsavel: true,
+        currentNode: true,
+        currentPhaseNode: true,
+        currentStatusNode: true,
+        currentSituationNode: true,
+        _count: {
+            select: {
+                itens: true,
+            },
+        },
+    } satisfies Prisma.OportunidadeInclude;
+
     async createDraft(
         params: PrismaOportunidadeRepository.CreateDraftParams,
     ): Promise<PrismaOportunidadeRepository.OportunidadeResponse> {
@@ -186,6 +205,104 @@ export class PrismaOportunidadeRepository {
         });
     }
 
+    async listBoardByCompanyId(
+        params: PrismaOportunidadeRepository.ListBoardByCompanyIdParams,
+    ): Promise<PrismaOportunidadeRepository.OportunidadeBoardRecord[]> {
+        const q = params.q?.trim();
+
+        return prisma.oportunidade.findMany({
+            where: {
+                companyId: params.companyId,
+                status: OportunidadeStatus.ACTIVE,
+                ...(params.currentPhaseNodeId ? { currentPhaseNodeId: params.currentPhaseNodeId } : {}),
+                ...(params.currentStatusNodeId ? { currentStatusNodeId: params.currentStatusNodeId } : {}),
+                ...(params.currentSituationNodeId ? { currentSituationNodeId: params.currentSituationNodeId } : {}),
+                ...(params.responsavelUserId ? { responsavelUserId: params.responsavelUserId } : {}),
+                ...(q ? {
+                    OR: [
+                        {
+                            edital: {
+                                is: {
+                                    numero: { contains: q, mode: "insensitive" },
+                                },
+                            },
+                        },
+                        {
+                            edital: {
+                                is: {
+                                    objeto: { contains: q, mode: "insensitive" },
+                                },
+                            },
+                        },
+                        {
+                            edital: {
+                                is: {
+                                    orgaoRazaoSocial: { contains: q, mode: "insensitive" },
+                                },
+                            },
+                        },
+                        {
+                            licitacao: {
+                                is: {
+                                    numeroLicitacao: { contains: q, mode: "insensitive" },
+                                },
+                            },
+                        },
+                        {
+                            licitacao: {
+                                is: {
+                                    objetoResumo: { contains: q, mode: "insensitive" },
+                                },
+                            },
+                        },
+                        {
+                            licitacao: {
+                                is: {
+                                    orgaoGerenciador: {
+                                        is: {
+                                            razaoSocial: { contains: q, mode: "insensitive" },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        {
+                            responsavel: {
+                                is: {
+                                    name: { contains: q, mode: "insensitive" },
+                                },
+                            },
+                        },
+                        {
+                            responsavel: {
+                                is: {
+                                    email: { contains: q, mode: "insensitive" },
+                                },
+                            },
+                        },
+                    ],
+                } : {}),
+            },
+            include: this.boardInclude,
+            orderBy: [
+                { workflowUpdatedAt: "desc" },
+                { updatedAt: "desc" },
+            ],
+        });
+    }
+
+    async findBoardById(
+        params: PrismaOportunidadeRepository.FindBoardByIdParams,
+    ): Promise<PrismaOportunidadeRepository.OportunidadeBoardRecord | null> {
+        return prisma.oportunidade.findFirst({
+            where: {
+                id: params.oportunidadeId,
+                companyId: params.companyId,
+            },
+            include: this.boardInclude,
+        });
+    }
+
     async update(
         params: PrismaOportunidadeRepository.UpdateParams,
     ): Promise<PrismaOportunidadeRepository.OportunidadeResponse> {
@@ -225,9 +342,15 @@ export class PrismaOportunidadeRepository {
                 companyId: params.companyId,
                 licitacaoId: params.licitacaoId ?? null,
                 editalId: params.editalId ?? null,
+                workflowDefinitionId: null,
+                currentNodeId: null,
+                currentPhaseNodeId: null,
+                currentStatusNodeId: null,
+                currentSituationNodeId: null,
                 responsavelUserId: params.responsavelUserId ?? null,
                 status: OportunidadeStatus.DRAFT,
                 metadata: null,
+                workflowUpdatedAt: null,
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
@@ -538,6 +661,12 @@ export class PrismaOportunidadeRepository {
                     licitacaoId: licitacao.id,
                     editalId: edital.id,
                     responsavelUserId: params.responsavelUserId,
+                    workflowDefinitionId: params.workflowPlacement.workflowDefinitionId,
+                    currentNodeId: params.workflowPlacement.currentNodeId,
+                    currentPhaseNodeId: params.workflowPlacement.currentPhaseNodeId,
+                    currentStatusNodeId: params.workflowPlacement.currentStatusNodeId,
+                    currentSituationNodeId: params.workflowPlacement.currentSituationNodeId,
+                    workflowUpdatedAt: new Date(),
                     status: OportunidadeStatus.ACTIVE,
                 },
             });
@@ -608,17 +737,7 @@ export class PrismaOportunidadeRepository {
 }
 
 export namespace PrismaOportunidadeRepository {
-    export type OportunidadeResponse = {
-        id: string;
-        companyId: string;
-        licitacaoId: string | null;
-        editalId: string | null;
-        responsavelUserId: string | null;
-        status: OportunidadeStatus;
-        metadata: Prisma.JsonValue | null;
-        createdAt: Date;
-        updatedAt: Date;
-    };
+    export type OportunidadeResponse = Oportunidade;
 
     export type DraftLicitacaoParams = {
         id: string;
@@ -655,66 +774,9 @@ export namespace PrismaOportunidadeRepository {
         document: PrismaDocumentRepository.CreateParams;
     };
 
-    export type LicitacaoResponse = {
-        id: string;
-        companyId: string;
-        createdById: string | null;
-        status: LicitacaoStatus;
-        metadados: Prisma.JsonValue | null;
-        sourceSystem: LicitacaoSourceSystem | null;
-        sourceReference: string | null;
-        numeroControlePncp: string | null;
-        anoCompra: number | null;
-        sequencialCompra: number | null;
-        numeroLicitacao: string | null;
-        processoAdministrativo: string | null;
-        modalidadeNome: string | null;
-        tipoInstrumentoNome: string | null;
-        objetoResumo: string | null;
-        situacaoOficial: string | null;
-        valorEstimadoTotal: Prisma.Decimal | null;
-        valorHomologadoTotal: Prisma.Decimal | null;
-        dataPublicacao: Date | null;
-        dataAberturaProposta: Date | null;
-        dataEncerramentoProposta: Date | null;
-        linkSistemaOrigem: string | null;
-        linkProcessoEletronico: string | null;
-        ultimaAtualizacaoOficial: Date | null;
-        orgaoGerenciadorId: string | null;
-        createdAt: Date;
-        updatedAt: Date;
-    };
+    export type LicitacaoResponse = Licitacao;
 
-    export type EditalResponse = {
-        id: string;
-        licitacaoId: string;
-        companyId: string;
-        createdById: string | null;
-        status: EditalStatus;
-        orgaoCnpj: string | null;
-        orgaoRazaoSocial: string | null;
-        orgaoEsfera: string | null;
-        orgaoPoder: string | null;
-        unidadeCodigo: string | null;
-        unidadeNome: string | null;
-        municipio: string | null;
-        uf: string | null;
-        numero: string | null;
-        processo: string | null;
-        modalidade: string | null;
-        tipoInstrumento: string | null;
-        modoDisputa: string | null;
-        amparoLegal: string | null;
-        srp: boolean;
-        objeto: string | null;
-        informacaoComplementar: string | null;
-        dataAbertura: Date | null;
-        dataEncerramento: Date | null;
-        valorEstimado: Prisma.Decimal | null;
-        dadosExtraidos: Prisma.JsonValue | null;
-        createdAt: Date;
-        updatedAt: Date;
-    };
+    export type EditalResponse = Edital;
 
     export type CreateDraftWithLicitacaoEditalResponse = {
         oportunidade: OportunidadeResponse;
@@ -740,12 +802,32 @@ export namespace PrismaOportunidadeRepository {
         companyId: string;
     };
 
+    export type ListBoardByCompanyIdParams = {
+        companyId: string;
+        currentPhaseNodeId?: string;
+        currentStatusNodeId?: string;
+        currentSituationNodeId?: string;
+        responsavelUserId?: string;
+        q?: string;
+    };
+
+    export type FindBoardByIdParams = {
+        companyId: string;
+        oportunidadeId: string;
+    };
+
     export type UpdateData = {
         licitacaoId?: string | null;
         editalId?: string | null;
+        workflowDefinitionId?: string | null;
+        currentNodeId?: string | null;
+        currentPhaseNodeId?: string | null;
+        currentStatusNodeId?: string | null;
+        currentSituationNodeId?: string | null;
         responsavelUserId?: string | null;
         status?: OportunidadeStatus;
         metadata?: Prisma.InputJsonValue | null;
+        workflowUpdatedAt?: Date | null;
     };
 
     export type UpdateParams = {
@@ -772,6 +854,27 @@ export namespace PrismaOportunidadeRepository {
     };
 
     export type OportunidadeWorkspaceRecord = OportunidadeDraftRecord;
+
+    export type OportunidadeBoardRecord = Prisma.OportunidadeGetPayload<{
+        include: {
+            licitacao: {
+                include: {
+                    orgaoGerenciador: true;
+                };
+            };
+            edital: true;
+            responsavel: true;
+            currentNode: true;
+            currentPhaseNode: true;
+            currentStatusNode: true;
+            currentSituationNode: true;
+            _count: {
+                select: {
+                    itens: true;
+                };
+            };
+        };
+    }>;
 
     export type FinalizeRegistrationItemSolicitadoData = {
         itemReferenceId: string | null;
@@ -901,6 +1004,13 @@ export namespace PrismaOportunidadeRepository {
         oportunidadeId?: string;
         responsavelUserId: string;
         createdById: string;
+        workflowPlacement: {
+            workflowDefinitionId: string;
+            currentNodeId: string;
+            currentPhaseNodeId: string | null;
+            currentStatusNodeId: string | null;
+            currentSituationNodeId: string | null;
+        };
         formSnapshot: Record<string, unknown>;
         licitacao: FinalizeRegistrationLicitacaoData;
         edital: FinalizeRegistrationEditalData;

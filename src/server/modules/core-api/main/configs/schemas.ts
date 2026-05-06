@@ -37,8 +37,13 @@ import { DeleteLicitacaoDocumentControllerSchemas } from "../../domain/use-cases
 import { UploadEditalDocumentControllerSchemas } from "../../domain/use-cases/licitacao/upload-edital-document/UploadEditalDocumentControllerSchemas";
 import { UploadLicitacaoDocumentStreamControllerSchemas } from "../../domain/use-cases/licitacao/upload-licitacao-document-stream/UploadLicitacaoDocumentStreamControllerSchemas";
 import { ListLicitacaoDraftsControllerSchemas } from "../../domain/use-cases/licitacao/list-licitacao-drafts/ListLicitacaoDraftsControllerSchemas";
+import { GetCompanyWorkflowControllerSchemas } from "../../domain/use-cases/licitacao/get-company-workflow/GetCompanyWorkflowControllerSchemas";
 import { GetLicitacaoWorkspaceControllerSchemas } from "../../domain/use-cases/licitacao/get-licitacao-workspace/GetLicitacaoWorkspaceControllerSchemas";
+import { ListOportunidadesBoardControllerSchemas } from "../../domain/use-cases/licitacao/list-oportunidades-board/ListOportunidadesBoardControllerSchemas";
+import { MoveOportunidadeWorkflowControllerSchemas } from "../../domain/use-cases/licitacao/move-oportunidade-workflow/MoveOportunidadeWorkflowControllerSchemas";
 import { FinalizeOportunidadeRegistrationControllerSchemas } from "../../domain/use-cases/licitacao/finalize-oportunidade-registration/FinalizeOportunidadeRegistrationControllerSchemas";
+import { WorkflowDefinitionSchema, WorkflowNodeKindSchema, WorkflowNodeSchema, WorkflowTransitionSchema } from "../../domain/use-cases/licitacao/_shared/workflowSchemas";
+import { OportunidadeBoardItemSchema, OportunidadeBoardNodeSchema, OportunidadeBoardResponsavelSchema, OportunidadeBoardResponseSchema } from "../../domain/use-cases/licitacao/_shared/oportunidadeBoardSchemas";
 import { GetInviteControllerSchemas, GetInviteResponseSchema } from "../../domain/use-cases/team/get-invite/GetInviteControllerSchemas";
 import { AcceptInviteControllerSchemas, AcceptInviteResponseSchema } from "../../domain/use-cases/team/accept-invite/AcceptInviteControllerSchemas";
 import { UpdateMemberRoleControllerSchemas, UpdateMemberRoleResponseSchema } from "../../domain/use-cases/team/update-member-role/UpdateMemberRoleControllerSchemas";
@@ -504,6 +509,22 @@ export const apiEndpoints: EndpointConfig[] = [
     extraSchemas: { RemoveMemberResponse: RemoveMemberResponseSchema },
   },
   {
+    path: "/get-company-workflow",
+    operationId: "getCompanyWorkflow",
+    tag: "Oportunidade",
+    summary: "Recupera o workflow ativo da empresa",
+    description: "Retorna a definição relacional completa do workflow ativo da empresa, incluindo kinds, nós e transições, pronta para board e editor visual.",
+    successDescription: "Workflow carregado com sucesso",
+    method: "GET",
+    schemas: GetCompanyWorkflowControllerSchemas,
+    extraSchemas: {
+      WorkflowDefinition: WorkflowDefinitionSchema,
+      WorkflowNodeKind: WorkflowNodeKindSchema,
+      WorkflowNode: WorkflowNodeSchema,
+      WorkflowTransition: WorkflowTransitionSchema,
+    },
+  },
+  {
     path: "/list-licitacao-drafts",
     operationId: "listLicitacaoDrafts",
     tag: "Licitacao",
@@ -512,6 +533,37 @@ export const apiEndpoints: EndpointConfig[] = [
     successDescription: "Rascunhos encontrados",
     method: "GET",
     schemas: ListLicitacaoDraftsControllerSchemas,
+  },
+  {
+    path: "/list-oportunidades-board",
+    operationId: "listOportunidadesBoard",
+    tag: "Oportunidade",
+    summary: "Lista oportunidades ativas para o board da empresa",
+    description: "Retorna as oportunidades ativas da empresa com fase, status, situação, responsável e dados principais para as visualizações em kanban e lista.",
+    successDescription: "Board carregado com sucesso",
+    method: "GET",
+    schemas: ListOportunidadesBoardControllerSchemas,
+    extraSchemas: {
+      OportunidadeBoardNode: OportunidadeBoardNodeSchema,
+      OportunidadeBoardResponsavel: OportunidadeBoardResponsavelSchema,
+      OportunidadeBoardItem: OportunidadeBoardItemSchema,
+      OportunidadeBoardResponse: OportunidadeBoardResponseSchema,
+    },
+  },
+  {
+    path: "/move-oportunidade-workflow",
+    operationId: "moveOportunidadeWorkflow",
+    tag: "Oportunidade",
+    summary: "Move uma oportunidade dentro do workflow",
+    description: "Atualiza o nó atual do workflow de uma oportunidade ativa. Apenas o responsável pela oportunidade pode executar a movimentação.",
+    successDescription: "Oportunidade movida com sucesso",
+    method: "POST",
+    schemas: MoveOportunidadeWorkflowControllerSchemas,
+    extraSchemas: {
+      OportunidadeBoardNode: OportunidadeBoardNodeSchema,
+      OportunidadeBoardResponsavel: OportunidadeBoardResponsavelSchema,
+      OportunidadeBoardItem: OportunidadeBoardItemSchema,
+    },
   },
   {
     path: "/get-licitacao-workspace",

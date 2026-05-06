@@ -1,6 +1,7 @@
 import { PrismaOrganizationRepository } from "@/server/shared/infra/repositories/organization.repository";
 import { PrismaCompanyRepository }      from "@/server/shared/infra/repositories/company.repository";
 import { PrismaMembershipRepository }   from "@/server/shared/infra/repositories/membership.repository";
+import { PrismaWorkflowRepository } from "@/server/shared/infra/repositories/workflow.repository";
 import type { OnboardingControllerSchemas } from "./OnboardingControllerSchemas";
 
 export class Onboarding {
@@ -8,6 +9,7 @@ export class Onboarding {
         private readonly organizationRepository: PrismaOrganizationRepository,
         private readonly companyRepository:      PrismaCompanyRepository,
         private readonly membershipRepository:   PrismaMembershipRepository,
+        private readonly workflowRepository: PrismaWorkflowRepository,
     ) {}
 
     async execute(params: Onboarding.Params): Promise<Onboarding.Response> {
@@ -34,6 +36,10 @@ export class Onboarding {
             userId,
             organizationId: organization.id,
             companyId:      company.id,
+        });
+
+        await this.workflowRepository.ensureDefaultWorkflowForCompany({
+            companyId: company.id,
         });
 
         return { companyId: company.id, organizationId: organization.id };

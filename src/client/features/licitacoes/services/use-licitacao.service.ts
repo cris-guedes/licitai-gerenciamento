@@ -289,6 +289,121 @@ export type LicitacaoWorkspaceResponse = {
   documents: LicitacaoWorkspaceDocument[]
 }
 
+export type WorkflowNodeKind = {
+  id: string
+  key: string
+  label: string
+  description: string | null
+  order: number
+  parentKindId: string | null
+  color: string | null
+  metadata: unknown
+  createdAt: string
+  updatedAt: string
+}
+
+export type WorkflowNode = {
+  id: string
+  kindId: string
+  parentId: string | null
+  key: string
+  label: string
+  description: string | null
+  order: number
+  depth: number
+  path: string
+  color: string | null
+  isInitial: boolean
+  isTerminal: boolean
+  metadata: unknown
+  createdAt: string
+  updatedAt: string
+  kind: {
+    id: string
+    key: string
+    label: string
+    order: number
+    parentKindId: string | null
+    color: string | null
+  }
+}
+
+export type WorkflowTransition = {
+  id: string
+  fromNodeId: string
+  toNodeId: string
+  transitionType: string | null
+  metadata: unknown
+  createdAt: string
+  updatedAt: string
+}
+
+export type CompanyWorkflowResponse = {
+  workflow: {
+    id: string
+    companyId: string
+    name: string
+    slug: string
+    version: number
+    isActive: boolean
+    metadata: unknown
+    createdAt: string
+    updatedAt: string
+    nodeKinds: WorkflowNodeKind[]
+    nodes: WorkflowNode[]
+    transitions: WorkflowTransition[]
+  }
+}
+
+export type OportunidadeBoardNode = {
+  id: string
+  key: string
+  label: string
+  color: string | null
+  path: string
+  isInitial: boolean
+  isTerminal: boolean
+}
+
+export type OportunidadeBoardItem = {
+  oportunidadeId: string
+  oportunidadeStatus: "DRAFT" | "ACTIVE" | "CANCELLED"
+  licitacaoId: string | null
+  editalId: string | null
+  workflowDefinitionId: string | null
+  title: string
+  numero: string | null
+  modalidade: string | null
+  objetoResumo: string | null
+  valorEstimado: string | null
+  orgaoNome: string | null
+  responsavel: {
+    id: string
+    name: string
+    email: string
+  } | null
+  workflow: {
+    currentNode: OportunidadeBoardNode | null
+    phase: OportunidadeBoardNode | null
+    status: OportunidadeBoardNode | null
+    situation: OportunidadeBoardNode | null
+    updatedAt: string | null
+  }
+  itemCount: number
+  createdAt: string
+  updatedAt: string
+  canMove: boolean
+}
+
+export type ListOportunidadesBoardResponse = {
+  items: OportunidadeBoardItem[]
+  total: number
+}
+
+export type MoveOportunidadeWorkflowResponse = {
+  item: OportunidadeBoardItem
+}
+
 type ExtractedItem = NonNullable<NonNullable<ExtractEditalDataResponse["licitacao"]["edital"]>["itens"]>[number]
 
 type PartialExtractionResponse = Pick<ExtractEditalDataResponse, "sessionId" | "mdContent" | "licitacao">
@@ -461,6 +576,85 @@ export function useLicitacaoService(_api: CoreApiClient) {
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       throw new Error(body.message ?? `Erro ${res.status} ao recuperar o workspace`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const getCompanyWorkflow = useCallback(async ({
+    companyId,
+  }: {
+    companyId: string
+  }): Promise<CompanyWorkflowResponse> => {
+    const res = await fetch(`/api/core/get-company-workflow?companyId=${encodeURIComponent(companyId)}`, {
+      method: "GET",
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao carregar o workflow da empresa`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const listOportunidadesBoard = useCallback(async ({
+    companyId,
+    currentPhaseNodeId,
+    currentStatusNodeId,
+    currentSituationNodeId,
+    responsavelUserId,
+    q,
+  }: {
+    companyId: string
+    currentPhaseNodeId?: string
+    currentStatusNodeId?: string
+    currentSituationNodeId?: string
+    responsavelUserId?: string
+    q?: string
+  }): Promise<ListOportunidadesBoardResponse> => {
+    const query = new URLSearchParams({ companyId })
+
+    if (currentPhaseNodeId) query.set("currentPhaseNodeId", currentPhaseNodeId)
+    if (currentStatusNodeId) query.set("currentStatusNodeId", currentStatusNodeId)
+    if (currentSituationNodeId) query.set("currentSituationNodeId", currentSituationNodeId)
+    if (responsavelUserId) query.set("responsavelUserId", responsavelUserId)
+    if (q?.trim()) query.set("q", q.trim())
+
+    const res = await fetch(`/api/core/list-oportunidades-board?${query.toString()}`, {
+      method: "GET",
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao carregar o board de oportunidades`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const moveOportunidadeWorkflow = useCallback(async ({
+    companyId,
+    oportunidadeId,
+    targetNodeId,
+  }: {
+    companyId: string
+    oportunidadeId: string
+    targetNodeId: string
+  }): Promise<MoveOportunidadeWorkflowResponse> => {
+    const res = await fetch("/api/core/move-oportunidade-workflow", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        companyId,
+        oportunidadeId,
+        targetNodeId,
+      }),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao mover a oportunidade no workflow`)
     }
 
     return await res.json()
@@ -897,6 +1091,9 @@ export function useLicitacaoService(_api: CoreApiClient) {
   return {
     listDrafts,
     getWorkspace,
+    getCompanyWorkflow,
+    listOportunidadesBoard,
+    moveOportunidadeWorkflow,
     deleteDraft,
     finalizeRegistration,
     useUploadEdital,

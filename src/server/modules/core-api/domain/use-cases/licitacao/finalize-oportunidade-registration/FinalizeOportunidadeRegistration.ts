@@ -3,6 +3,7 @@ import { EditalOrgaoPapel, EditalTipoVersao, LicitacaoSourceSystem, OrgaoEsfera,
 import type { PrismaCompanyRepository } from "@/server/shared/infra/repositories/company.repository";
 import { PrismaMembershipRepository } from "@/server/shared/infra/repositories/membership.repository";
 import { PrismaOportunidadeRepository } from "@/server/shared/infra/repositories/oportunidade.repository";
+import { PrismaWorkflowRepository } from "@/server/shared/infra/repositories/workflow.repository";
 import { assertUserCanAccessCompany } from "../../company/_shared/assertCompanyAccess";
 import type {
     FinalizeOportunidadeRegistrationDTO,
@@ -21,6 +22,7 @@ export class FinalizeOportunidadeRegistration {
         private readonly oportunidadeRepository: PrismaOportunidadeRepository,
         private readonly companyRepository: PrismaCompanyRepository,
         private readonly membershipRepository: PrismaMembershipRepository,
+        private readonly workflowRepository: PrismaWorkflowRepository,
     ) {}
 
     async execute(params: FinalizeOportunidadeRegistration.Params): Promise<FinalizeOportunidadeRegistration.Response> {
@@ -32,6 +34,9 @@ export class FinalizeOportunidadeRegistration {
         });
 
         const normalized = this.normalizeForm(params.form);
+        const workflowPlacement = await this.workflowRepository.ensureDefaultWorkflowForCompany({
+            companyId: params.companyId,
+        });
 
         const result = await this.oportunidadeRepository.finalizeRegistration({
             companyId: params.companyId,
@@ -95,6 +100,7 @@ export class FinalizeOportunidadeRegistration {
             execucao: normalized.execucao,
             itens: normalized.itens,
             habilitacoes: normalized.habilitacoes,
+            workflowPlacement,
         });
 
         return FinalizeOportunidadeRegistrationMapper.toView(result);
