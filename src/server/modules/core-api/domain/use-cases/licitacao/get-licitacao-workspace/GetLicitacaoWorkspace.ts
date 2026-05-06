@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-namespace */
 import { DocumentAnalysisType } from "@prisma/client";
 import { PrismaCompanyRepository } from "@/server/shared/infra/repositories/company.repository";
 import { PrismaDocumentAnalysisRepository } from "@/server/shared/infra/repositories/document-analysis.repository";
-import { PrismaLicitacaoRepository } from "@/server/shared/infra/repositories/licitacao.repository";
 import { PrismaMembershipRepository } from "@/server/shared/infra/repositories/membership.repository";
+import { PrismaOportunidadeRepository } from "@/server/shared/infra/repositories/oportunidade.repository";
 import { CloudflareR2ObjectStorageProvider } from "@/server/shared/infra/providers/storage/cloudflare-r2-object-storage-provider";
 import { assertUserCanAccessCompany } from "../../company/_shared/assertCompanyAccess";
 import { LicitacaoWorkspaceViewMapper } from "../_shared/licitacaoWorkspaceView";
@@ -11,7 +12,7 @@ import type { GetLicitacaoWorkspaceView } from "./dtos/GetLicitacaoWorkspaceView
 
 export class GetLicitacaoWorkspace {
     constructor(
-        private readonly licitacaoRepository: PrismaLicitacaoRepository,
+        private readonly oportunidadeRepository: PrismaOportunidadeRepository,
         private readonly documentAnalysisRepository: PrismaDocumentAnalysisRepository,
         private readonly companyRepository: PrismaCompanyRepository,
         private readonly membershipRepository: PrismaMembershipRepository,
@@ -26,12 +27,12 @@ export class GetLicitacaoWorkspace {
             companyId: params.companyId,
         });
 
-        const workspace = await this.licitacaoRepository.findWorkspaceById({
-            licitacaoId: params.licitacaoId,
+        const workspace = await this.oportunidadeRepository.findWorkspaceById({
+            oportunidadeId: params.oportunidadeId,
             companyId: params.companyId,
         });
 
-        if (!workspace || workspace.status !== "IN_PROGRESS") {
+        if (!workspace || workspace.status !== "DRAFT") {
             return null;
         }
 

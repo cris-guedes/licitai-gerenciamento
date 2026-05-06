@@ -3,7 +3,7 @@ import { LicitacaoWorkspaceSchema } from "../_shared/licitacaoWorkspaceSchemas";
 
 const GetLicitacaoWorkspaceQuerySchema = z.object({
     companyId: z.string().describe("ID da empresa dona da licitação."),
-    licitacaoId: z.string().describe("ID da licitação em andamento cujo workspace será restaurado."),
+    oportunidadeId: z.string().describe("ID da oportunidade em rascunho cujo workspace será restaurado."),
 });
 
 export namespace GetLicitacaoWorkspaceControllerSchemas {

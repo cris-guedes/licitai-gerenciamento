@@ -3,8 +3,8 @@ import { DocumentStatus, DocumentType, EditalStatus, LicitacaoStatus } from "@pr
 import type { IIdentifierProvider } from "@/server/modules/core-api/domain/data/IIdentifierProvider";
 import type { IObjectStorageProvider } from "@/server/modules/core-api/domain/data/IObjectStorageProvider";
 import { PrismaCompanyRepository } from "@/server/shared/infra/repositories/company.repository";
-import { PrismaLicitacaoRepository } from "@/server/shared/infra/repositories/licitacao.repository";
 import { PrismaMembershipRepository } from "@/server/shared/infra/repositories/membership.repository";
+import { PrismaOportunidadeRepository } from "@/server/shared/infra/repositories/oportunidade.repository";
 import { assertUserCanAccessCompany } from "../../company/_shared/assertCompanyAccess";
 import { DraftPreviewExtractor } from "../_shared/DraftPreviewExtractor";
 import { withDraftPreview } from "../_shared/draftPreview";
@@ -15,7 +15,7 @@ export class UploadEditalDocument {
     constructor(
         private readonly identifierProvider: IIdentifierProvider,
         private readonly objectStorageProvider: IObjectStorageProvider.Contract,
-        private readonly licitacaoRepository: PrismaLicitacaoRepository,
+        private readonly oportunidadeRepository: PrismaOportunidadeRepository,
         private readonly companyRepository: PrismaCompanyRepository,
         private readonly membershipRepository: PrismaMembershipRepository,
         private readonly draftPreviewExtractor: DraftPreviewExtractor,
@@ -33,6 +33,7 @@ export class UploadEditalDocument {
         this.assertSupportedFile(params);
 
         const documentId = this.identifierProvider.generate();
+        const oportunidadeId = this.identifierProvider.generate();
         const licitacaoId = this.identifierProvider.generate();
         const editalId = this.identifierProvider.generate();
         const originalFilename = params.fileFilename.trim();
@@ -55,7 +56,18 @@ export class UploadEditalDocument {
                 },
             });
 
-            const { document, edital, licitacao: createdLicitacao } = await this.licitacaoRepository.createDraftWithEditalAndDocument({
+            const {
+                oportunidade: createdOportunidade,
+                document,
+                edital,
+                licitacao: createdLicitacao,
+            } = await this.oportunidadeRepository.createDraftWithLicitacaoEditalAndDocument({
+                oportunidade: {
+                    id: oportunidadeId,
+                    companyId: company.id,
+                    responsavelUserId: params.createdById,
+                    status: "DRAFT",
+                },
                 licitacao: {
                     id: licitacaoId,
                     companyId: company.id,
@@ -92,14 +104,14 @@ export class UploadEditalDocument {
                 filename: originalFilename,
             });
 
-            const licitacao = draftPreview
-                ? await this.licitacaoRepository.update({
-                    id: createdLicitacao.id,
+            const oportunidade = draftPreview
+                ? await this.oportunidadeRepository.update({
+                    id: createdOportunidade.id,
                     data: {
-                        metadados: withDraftPreview(createdLicitacao.metadados, draftPreview),
+                        metadata: withDraftPreview(createdOportunidade.metadata, draftPreview),
                     },
                 })
-                : createdLicitacao;
+                : createdOportunidade;
 
             const temporaryUrl = await this.objectStorageProvider.getDocumentTemporaryUrl({
                 key: document.storageKey,
@@ -109,7 +121,8 @@ export class UploadEditalDocument {
             });
 
             return UploadEditalDocumentMapper.toView({
-                licitacao,
+                oportunidade,
+                licitacao: createdLicitacao,
                 edital,
                 document,
                 documentUrl: temporaryUrl.url,

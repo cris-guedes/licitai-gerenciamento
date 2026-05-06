@@ -1,5 +1,5 @@
 export interface GetLicitacaoWorkspaceDTO {
     companyId: string;
-    licitacaoId: string;
+    oportunidadeId: string;
     userId: string;
 }

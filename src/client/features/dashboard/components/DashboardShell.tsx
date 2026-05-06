@@ -6,26 +6,21 @@ import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import {
   Bell,
-  Bot,
   Building2,
   Clock3,
   ChevronsUpDown,
   ChevronRight,
   FileText,
   LayoutDashboard,
-  Lock,
   LogOut,
   Menu,
-  MessageSquare,
   Plus,
   Radar,
-  Scale,
   Search,
   Settings,
   Target,
   User,
   Users,
-  Zap,
 } from "lucide-react"
 
 import {
@@ -345,21 +340,6 @@ function NavMain() {
           </SidebarMenuSubButton>
         </SidebarMenuSubItem>
       </NavCollapsible>
-
-      {/* Inteligência Artificial */}
-      <NavCollapsible id="ia" icon={Bot} label="Inteligência Artificial" active={false} badge="em-breve" disabled highlight>
-        <DisabledSubItem icon={Bot}          label="Assistente IA"       badge="em-breve" />
-        <DisabledSubItem icon={Scale}        label="Consultor Jurídico"  badge="em-breve" />
-        <DisabledSubItem icon={FileText}     label="Resumo do Edital"    badge="em-breve" />
-        <DisabledSubItem icon={MessageSquare} label="Pergunte ao Edital" badge="em-breve" />
-      </NavCollapsible>
-
-      {/* Automação */}
-      <NavCollapsible id="automacao" icon={Zap} label="Automação" active={false} badge="em-breve" disabled>
-        <DisabledSubItem icon={Zap}  label="Robô de Lance"    badge="em-breve" />
-        <DisabledSubItem icon={Lock} label="Monitorar Portais" badge="em-breve" />
-      </NavCollapsible>
-
       </SidebarMenu>
     </div>
   )

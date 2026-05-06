@@ -137,6 +137,24 @@ export class PrismaLicitacaoRepository {
         });
     }
 
+    async deleteDraftById(
+        params: PrismaLicitacaoRepository.DeleteDraftByIdParams,
+    ): Promise<PrismaLicitacaoRepository.LicitacaoResponse> {
+        return prisma.$transaction(async (tx) => {
+            if (params.documentIds.length > 0) {
+                await tx.document.deleteMany({
+                    where: {
+                        id: { in: params.documentIds },
+                    },
+                });
+            }
+
+            return tx.licitacao.delete({
+                where: { id: params.licitacaoId },
+            });
+        });
+    }
+
     private toJsonInput(value: Prisma.InputJsonValue | null | undefined) {
         if (value === undefined) return undefined;
         if (value === null) return Prisma.JsonNull;
@@ -245,6 +263,11 @@ export namespace PrismaLicitacaoRepository {
     export type UpdateParams = {
         id: string;
         data: UpdateData;
+    };
+
+    export type DeleteDraftByIdParams = {
+        licitacaoId: string;
+        documentIds: string[];
     };
 
     export type DraftDocumentRecord = PrismaDocumentRepository.DocumentResponse;

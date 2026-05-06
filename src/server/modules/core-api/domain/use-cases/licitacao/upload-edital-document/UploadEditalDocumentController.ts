@@ -20,7 +20,7 @@ interface UploadEditalDocumentControllerTypes {
 }
 
 export class UploadEditalDocumentController implements Controller<UploadEditalDocumentControllerTypes> {
-    constructor(private readonly useCase: UploadEditalDocument) {}
+    constructor(private readonly useCase: UploadEditalDocument) { }
 
     async handle(
         request: HttpRequest<UploadEditalDocumentControllerTypes>,
@@ -42,6 +42,7 @@ export class UploadEditalDocumentController implements Controller<UploadEditalDo
             });
 
             return created(result);
+
         } catch (error: unknown) {
             if (error instanceof z.ZodError) {
                 return badRequest(new Error(error.message));

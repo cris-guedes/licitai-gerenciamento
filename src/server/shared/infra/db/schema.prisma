@@ -18,14 +18,16 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  memberships    Membership[]
-  sessions       Session[]
-  accounts       Account[]
-  createdInvites Invite[]
+  memberships              Membership[]
+  sessions                 Session[]
+  accounts                 Account[]
+  createdInvites           Invite[]
   createdLicitacoes        Licitacao[]
   createdEditais           Edital[]
   createdDocuments         Document[]
   createdDocumentAnalyses  DocumentAnalysis[]
+  createdEditalAnalyses    EditalAnalysis[]
+  responsibleOportunidades Oportunidade[]     @relation("OportunidadeResponsavel")
 }
 
 model Session {
@@ -60,12 +62,12 @@ model Account {
 }
 
 model Verification {
-  id         String    @id @default(cuid())
+  id         String   @id @default(cuid())
   identifier String
   value      String
   expiresAt  DateTime
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 // ─── Tenant ───────────────────────────────────────────────────────────────────
@@ -119,6 +121,8 @@ model Company {
   editais            Edital[]
   documents          Document[]
   documentAnalyses   DocumentAnalysis[]
+  editalAnalyses     EditalAnalysis[]
+  oportunidades      Oportunidade[]
 }
 
 // ─── Membership ───────────────────────────────────────────────────────────────
@@ -176,29 +180,56 @@ model Invite {
 // ─── Licitação ────────────────────────────────────────────────────────────────
 
 model Licitacao {
-  id                   String          @id @default(cuid())
-  companyId            String
-  createdById          String?
-  status               LicitacaoStatus @default(IN_PROGRESS)
-  metadados            Json?
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
+  id                       String                 @id @default(cuid())
+  companyId                String
+  createdById              String?
+  status                   LicitacaoStatus        @default(IN_PROGRESS)
+  metadados                Json?
+  sourceSystem             LicitacaoSourceSystem?
+  sourceReference          String?
+  numeroControlePncp       String?                @unique
+  anoCompra                Int?
+  sequencialCompra         Int?
+  numeroLicitacao          String?
+  processoAdministrativo   String?
+  modalidadeNome           String?
+  tipoInstrumentoNome      String?
+  objetoResumo             String?
+  situacaoOficial          String?
+  valorEstimadoTotal       Decimal?               @db.Decimal(15, 2)
+  valorHomologadoTotal     Decimal?               @db.Decimal(15, 2)
+  dataPublicacao           DateTime?
+  dataAberturaProposta     DateTime?
+  dataEncerramentoProposta DateTime?
+  linkSistemaOrigem        String?
+  linkProcessoEletronico   String?
+  ultimaAtualizacaoOficial DateTime?
+  orgaoGerenciadorId       String?
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
 
-  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdBy  User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  edital     Edital?
+  company          Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy        User?          @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  orgaoGerenciador OrgaoPublico?  @relation(fields: [orgaoGerenciadorId], references: [id], onDelete: SetNull)
+  edital           Edital?
+  oportunidades    Oportunidade[]
 
   @@index([companyId, createdAt])
   @@index([createdById, createdAt])
+  @@index([orgaoGerenciadorId, createdAt])
   @@index([status, createdAt])
 }
 
 model Edital {
-  id                     String       @id @default(cuid())
-  licitacaoId            String       @unique
+  id                     String           @id @default(cuid())
+  licitacaoId            String           @unique
   companyId              String
   createdById            String?
-  status                 EditalStatus @default(IN_PROGRESS)
+  status                 EditalStatus     @default(IN_PROGRESS)
+  versao                 Int              @default(1)
+  isAtual                Boolean          @default(true)
+  tipoVersao             EditalTipoVersao @default(ORIGINAL)
+  documentoPrincipalId   String?
   orgaoCnpj              String?
   orgaoRazaoSocial       String?
   orgaoEsfera            String?
@@ -213,23 +244,32 @@ model Edital {
   tipoInstrumento        String?
   modoDisputa            String?
   amparoLegal            String?
-  srp                    Boolean      @default(false)
+  srp                    Boolean          @default(false)
   objeto                 String?
   informacaoComplementar String?
   dataAbertura           DateTime?
   dataEncerramento       DateTime?
-  valorEstimado          Decimal?     @db.Decimal(15, 2)
+  valorEstimado          Decimal?         @db.Decimal(15, 2)
   dadosExtraidos         Json?
-  createdAt              DateTime     @default(now())
-  updatedAt              DateTime     @updatedAt
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 
-  licitacao  Licitacao  @relation(fields: [licitacaoId], references: [id], onDelete: Cascade)
-  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdBy  User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  documents  Document[]
+  licitacao          Licitacao                    @relation(fields: [licitacaoId], references: [id], onDelete: Cascade)
+  company            Company                      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy          User?                        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  documentoPrincipal Document?                    @relation("EditalDocumentoPrincipal", fields: [documentoPrincipalId], references: [id], onDelete: SetNull)
+  documents          Document[]                   @relation("EditalDocumentos")
+  cronograma         EditalCronograma?
+  certame            EditalCertame?
+  itensDetalhados    EditalItem[]
+  orgaos             EditalOrgao[]
+  habilitacoes       EditalHabilitacaoExigencia[]
+  analyses           EditalAnalysis[]
+  oportunidades      Oportunidade[]
 
   @@index([companyId, createdAt])
   @@index([createdById, createdAt])
+  @@index([documentoPrincipalId])
   @@index([status, createdAt])
 }
 
@@ -252,11 +292,12 @@ model Document {
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
-  company    Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  edital     Edital?            @relation(fields: [editalId], references: [id], onDelete: SetNull)
-  createdBy  User?              @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  analyses   DocumentAnalysis[]
-  chat       DocumentChat?
+  company              Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  edital               Edital?            @relation("EditalDocumentos", fields: [editalId], references: [id], onDelete: SetNull)
+  createdBy            User?              @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  analyses             DocumentAnalysis[]
+  chat                 DocumentChat?
+  documentoPrincipalDe Edital[]           @relation("EditalDocumentoPrincipal")
 
   @@index([companyId, createdAt])
   @@index([editalId, createdAt])
@@ -291,6 +332,203 @@ model DocumentAnalysis {
   @@index([status, createdAt])
 }
 
+model EditalAnalysis {
+  id           String               @id @default(cuid())
+  editalId     String
+  companyId    String
+  createdById  String?
+  type         EditalAnalysisType
+  status       EditalAnalysisStatus @default(PENDING)
+  result       Json?
+  metrics      Json?
+  errorMessage String?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  edital    Edital  @relation(fields: [editalId], references: [id], onDelete: Cascade)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([createdById, createdAt])
+  @@index([editalId, type, createdAt])
+  @@index([status, createdAt])
+}
+
+model Oportunidade {
+    id                String             @id @default(cuid())
+    companyId         String
+    licitacaoId       String?
+    editalId          String?
+  responsavelUserId String?
+  status            OportunidadeStatus @default(DRAFT)
+  metadata          Json?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+    company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+    licitacao   Licitacao?         @relation(fields: [licitacaoId], references: [id], onDelete: Cascade)
+    edital      Edital?            @relation(fields: [editalId], references: [id], onDelete: Cascade)
+  responsavel User?              @relation("OportunidadeResponsavel", fields: [responsavelUserId], references: [id], onDelete: SetNull)
+  itens       OportunidadeItem[]
+
+  @@unique([companyId, licitacaoId])
+  @@index([companyId, createdAt])
+  @@index([licitacaoId, createdAt])
+  @@index([editalId, createdAt])
+  @@index([responsavelUserId, createdAt])
+  @@index([status, createdAt])
+}
+
+model OportunidadeItem {
+  id             String   @id @default(cuid())
+  oportunidadeId String
+  editalItemId   String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  oportunidade Oportunidade @relation(fields: [oportunidadeId], references: [id], onDelete: Cascade)
+  editalItem   EditalItem   @relation(fields: [editalItemId], references: [id], onDelete: Cascade)
+
+  @@unique([oportunidadeId, editalItemId])
+  @@index([oportunidadeId, createdAt])
+  @@index([editalItemId, createdAt])
+}
+
+model OrgaoPublico {
+  id            String       @id @default(cuid())
+  cnpj          String?
+  razaoSocial   String?
+  codigoUnidade String?
+  nomeUnidade   String?
+  municipio     String?
+  uf            String?
+  esfera        OrgaoEsfera?
+  poder         OrgaoPoder?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  licitacoesGerenciadas Licitacao[]
+  editalOrgaos          EditalOrgao[]
+
+  @@index([cnpj])
+  @@index([codigoUnidade])
+}
+
+model EditalCronograma {
+  editalId           String    @id
+  acolhimentoInicio  DateTime?
+  acolhimentoFim     DateTime?
+  horaLimite         String?
+  sessaoPublicaEm    DateTime?
+  esclarecimentosAte DateTime?
+  impugnacaoAte      DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  edital Edital @relation(fields: [editalId], references: [id], onDelete: Cascade)
+}
+
+model EditalCertame {
+  editalId             String   @id
+  modoDisputa          String?
+  criterioJulgamento   String?
+  tipoLance            String?
+  intervaloLances      String?
+  duracaoSessaoMinutos Int?
+  exclusivoMeEpp       Boolean?
+  permiteConsorcio     Boolean?
+  exigeVisitaTecnica   Boolean?
+  permiteAdesao        Boolean?
+  percentualAdesao     Decimal? @db.Decimal(8, 2)
+  regionalidade        String?
+  difal                Boolean?
+  vigenciaAtaMeses     Int?
+  vigenciaContratoDias Int?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  edital Edital @relation(fields: [editalId], references: [id], onDelete: Cascade)
+}
+
+model EditalItem {
+  id                     String          @id @default(cuid())
+  editalId               String
+  numeroItem             Int?
+  descricao              String?
+  tipoItem               EditalItemTipo?
+  lote                   String?
+  quantidadeTotal        Decimal?        @db.Decimal(18, 4)
+  unidadeMedida          String?
+  valorUnitarioEstimado  Decimal?        @db.Decimal(15, 2)
+  valorTotalEstimado     Decimal?        @db.Decimal(15, 2)
+  codigoCatmatCatser     String?
+  codigoNcmNbs           String?
+  criterioJulgamentoItem String?
+  beneficioTributario    String?
+  observacao             String?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  edital                Edital             @relation(fields: [editalId], references: [id], onDelete: Cascade)
+  distribuicoesPorOrgao EditalOrgaoItem[]
+  oportunidadeItens     OportunidadeItem[]
+
+  @@index([editalId, createdAt])
+  @@index([editalId, numeroItem])
+}
+
+model EditalOrgao {
+  id        String           @id @default(cuid())
+  editalId  String
+  orgaoId   String
+  papel     EditalOrgaoPapel
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  edital Edital            @relation(fields: [editalId], references: [id], onDelete: Cascade)
+  orgao  OrgaoPublico      @relation(fields: [orgaoId], references: [id], onDelete: Cascade)
+  itens  EditalOrgaoItem[]
+
+  @@unique([editalId, orgaoId, papel])
+  @@index([editalId, createdAt])
+  @@index([orgaoId, createdAt])
+}
+
+model EditalOrgaoItem {
+  id                   String   @id @default(cuid())
+  editalOrgaoId        String
+  editalItemId         String
+  quantidadeSolicitada Decimal? @db.Decimal(18, 4)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  editalOrgao EditalOrgao @relation(fields: [editalOrgaoId], references: [id], onDelete: Cascade)
+  editalItem  EditalItem  @relation(fields: [editalItemId], references: [id], onDelete: Cascade)
+
+  @@unique([editalOrgaoId, editalItemId])
+  @@index([editalOrgaoId, createdAt])
+  @@index([editalItemId, createdAt])
+}
+
+model EditalHabilitacaoExigencia {
+  id          String   @id @default(cuid())
+  editalId    String
+  tipo        String
+  categoria   String
+  obrigatorio Boolean  @default(true)
+  ordem       Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  edital Edital @relation(fields: [editalId], references: [id], onDelete: Cascade)
+
+  @@index([editalId, createdAt])
+  @@index([editalId, ordem])
+}
+
 model DocumentChat {
   id             String   @id @default(cuid())
   documentId     String   @unique
@@ -299,8 +537,8 @@ model DocumentChat {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  document     Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  document     Document      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   messages     ChatMessage[]
 
   @@index([organizationId, createdAt])
@@ -335,6 +573,7 @@ model ChatMessageSource {
   @@index([messageId, createdAt])
   @@index([chunkId, createdAt])
 }
+
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
 enum OrganizationRole {
@@ -353,6 +592,13 @@ enum DocumentType {
   EDITAL
   ANEXO
   OUTRO
+}
+
+enum LicitacaoSourceSystem {
+  PNCP
+  COMPRAS_GOV
+  PORTAL_EXTERNO
+  MANUAL
 }
 
 enum LicitacaoStatus {
@@ -377,6 +623,53 @@ enum DocumentAnalysisStatus {
   RUNNING
   COMPLETED
   FAILED
+}
+
+enum EditalTipoVersao {
+  ORIGINAL
+  RETIFICACAO
+  ADENDO
+  CONSOLIDADO
+}
+
+enum EditalItemTipo {
+  MATERIAL
+  SERVICO
+}
+
+enum EditalOrgaoPapel {
+  GERENCIADOR
+  PARTICIPANTE
+}
+
+enum OrgaoEsfera {
+  FEDERAL
+  ESTADUAL
+  MUNICIPAL
+}
+
+enum OrgaoPoder {
+  EXECUTIVO
+  LEGISLATIVO
+  JUDICIARIO
+}
+
+enum EditalAnalysisType {
+  EXTRACT_CADASTRO
+  SUMMARY_GERAL
+}
+
+enum EditalAnalysisStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum OportunidadeStatus {
+  DRAFT
+  ACTIVE
+  CANCELLED
 }
 
 enum ChatMessageRole {

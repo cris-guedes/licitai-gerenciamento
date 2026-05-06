@@ -4,6 +4,14 @@
 /* eslint-disable */
 export type UploadEditalDocumentResponse = {
   /**
+   * ID interno da oportunidade criada para acompanhar o rascunho deste processo.
+   */
+  oportunidadeId: string;
+  /**
+   * Status inicial da oportunidade criada junto ao rascunho.
+   */
+  oportunidadeStatus: 'DRAFT';
+  /**
    * ID interno do processo licitatório criado para acompanhar o fluxo global da licitação.
    */
   licitacaoId: string;

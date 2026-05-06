@@ -6,8 +6,8 @@ import type { IVectorStore } from "@/server/modules/core-api/domain/data/IVector
 import type { PdfIngestionWorker } from "@/server/modules/core-api/workers/pdf-ingestion/PdfIngestionWorker";
 import { PrismaCompanyRepository } from "@/server/shared/infra/repositories/company.repository";
 import { PrismaDocumentRepository } from "@/server/shared/infra/repositories/document.repository";
-import { PrismaLicitacaoRepository } from "@/server/shared/infra/repositories/licitacao.repository";
 import { PrismaMembershipRepository } from "@/server/shared/infra/repositories/membership.repository";
+import { PrismaOportunidadeRepository } from "@/server/shared/infra/repositories/oportunidade.repository";
 import { assertUserCanAccessCompany } from "../../company/_shared/assertCompanyAccess";
 import { DraftPreviewExtractor } from "../_shared/DraftPreviewExtractor";
 import { withDraftPreview } from "../_shared/draftPreview";
@@ -21,8 +21,9 @@ type ProgressEvent = {
     percent: number;
     status: "UPLOADING" | "PROCESSING" | "READY" | "FAILED";
     context?: {
-        licitacaoId: string;
-        editalId: string;
+        oportunidadeId: string;
+        licitacaoId: string | null;
+        editalId: string | null;
         documentId: string;
         documentType: DocumentType;
     };
@@ -36,7 +37,7 @@ export class UploadLicitacaoDocument {
         private readonly objectStorageProvider: IObjectStorageProvider.Contract,
         private readonly vectorStore: IVectorStore.Contract,
         private readonly pdfIngestionWorker: PdfIngestionWorker,
-        private readonly licitacaoRepository: PrismaLicitacaoRepository,
+        private readonly oportunidadeRepository: PrismaOportunidadeRepository,
         private readonly documentRepository: PrismaDocumentRepository,
         private readonly companyRepository: PrismaCompanyRepository,
         private readonly membershipRepository: PrismaMembershipRepository,
@@ -69,7 +70,7 @@ export class UploadLicitacaoDocument {
         const context = await this.resolveDraftContext({
             companyId: company.id,
             createdById: params.createdById,
-            licitacaoId: params.licitacaoId,
+            oportunidadeId: params.oportunidadeId,
             editalId: params.editalId ?? existingDocument?.editalId ?? undefined,
         });
 
@@ -90,7 +91,13 @@ export class UploadLicitacaoDocument {
             message: "Documento preparado para upload.",
             percent: 8,
             status: "UPLOADING",
-            context: { licitacaoId: context.licitacao.id, editalId: context.edital.id, documentId, documentType: params.documentType },
+            context: {
+                oportunidadeId: context.oportunidade.id,
+                licitacaoId: context.licitacao.id,
+                editalId: context.edital.id,
+                documentId,
+                documentType: params.documentType,
+            },
         }));
 
         let storedDocument: IObjectStorageProvider.PutDocumentResponse | null = null;
@@ -103,7 +110,13 @@ export class UploadLicitacaoDocument {
                 message: "Enviando documento para o armazenamento seguro.",
                 percent: 16,
                 status: "UPLOADING",
-                context: { licitacaoId: context.licitacao.id, editalId: context.edital.id, documentId, documentType: params.documentType },
+                context: {
+                    oportunidadeId: context.oportunidade.id,
+                    licitacaoId: context.licitacao.id,
+                    editalId: context.edital.id,
+                    documentId,
+                    documentType: params.documentType,
+                },
             }));
 
             storedDocument = await this.objectStorageProvider.putDocument({
@@ -167,14 +180,20 @@ export class UploadLicitacaoDocument {
                 message: "Documento salvo. Iniciando parsing e indexação vetorial.",
                 percent: 28,
                 status: "PROCESSING",
-                context: { licitacaoId: context.licitacao.id, editalId: context.edital.id, documentId, documentType: params.documentType },
+                context: {
+                    oportunidadeId: context.oportunidade.id,
+                    licitacaoId: context.licitacao.id,
+                    editalId: context.edital.id,
+                    documentId,
+                    documentType: params.documentType,
+                },
             }));
 
             const draftPreviewPromise = this.shouldExtractDraftPreview(params.documentType)
                 ? this.generateDraftPreview({
                     documentId,
-                    licitacaoId: context.licitacao.id,
-                    currentMetadata: context.licitacao.metadados,
+                    oportunidadeId: context.oportunidade.id,
+                    currentMetadata: context.oportunidade.metadata,
                     pdfBuffer: params.fileBuffer,
                     filename: originalFilename,
                 })
@@ -191,7 +210,13 @@ export class UploadLicitacaoDocument {
                             message: "Chunking concluído. Gerando embeddings do documento.",
                             percent: 54,
                             status: "PROCESSING",
-                            context: { licitacaoId: context.licitacao.id, editalId: context.edital.id, documentId, documentType: params.documentType },
+                            context: {
+                                oportunidadeId: context.oportunidade.id,
+                                licitacaoId: context.licitacao.id,
+                                editalId: context.edital.id,
+                                documentId,
+                                documentType: params.documentType,
+                            },
                         }));
                     },
                     onEmbedded: () => {
@@ -200,7 +225,13 @@ export class UploadLicitacaoDocument {
                             message: "Embeddings prontos. Indexando no acervo vetorial.",
                             percent: 76,
                             status: "PROCESSING",
-                            context: { licitacaoId: context.licitacao.id, editalId: context.edital.id, documentId, documentType: params.documentType },
+                            context: {
+                                oportunidadeId: context.oportunidade.id,
+                                licitacaoId: context.licitacao.id,
+                                editalId: context.edital.id,
+                                documentId,
+                                documentType: params.documentType,
+                            },
                         }));
                     },
                     onStored: () => {
@@ -209,7 +240,13 @@ export class UploadLicitacaoDocument {
                             message: "Documento indexado com sucesso.",
                             percent: 92,
                             status: "PROCESSING",
-                            context: { licitacaoId: context.licitacao.id, editalId: context.edital.id, documentId, documentType: params.documentType },
+                            context: {
+                                oportunidadeId: context.oportunidade.id,
+                                licitacaoId: context.licitacao.id,
+                                editalId: context.edital.id,
+                                documentId,
+                                documentType: params.documentType,
+                            },
                         }));
                     },
                 },
@@ -222,7 +259,7 @@ export class UploadLicitacaoDocument {
                 },
             });
 
-            const licitacao = await draftPreviewPromise;
+            const oportunidade = await draftPreviewPromise;
 
             if (previousStorageKey && previousStorageKey !== storedDocument.storageKey) {
                 await this.objectStorageProvider.deleteDocument({ key: previousStorageKey }).catch(() => undefined);
@@ -236,7 +273,8 @@ export class UploadLicitacaoDocument {
             });
 
             return UploadLicitacaoDocumentMapper.toView({
-                licitacao: licitacao ?? context.licitacao,
+                oportunidade: oportunidade ?? context.oportunidade,
+                licitacao: context.licitacao,
                 edital: context.edital,
                 document,
                 documentUrl: temporaryUrl.url,
@@ -261,29 +299,41 @@ export class UploadLicitacaoDocument {
     private async resolveDraftContext(params: {
         companyId: string;
         createdById?: string;
-        licitacaoId?: string;
+        oportunidadeId?: string;
         editalId?: string;
     }): Promise<UploadLicitacaoDocument.DraftContext> {
-        if (params.licitacaoId && params.editalId) {
-            const workspace = await this.licitacaoRepository.findWorkspaceById({
-                licitacaoId: params.licitacaoId,
+        if (params.oportunidadeId) {
+            const workspace = await this.oportunidadeRepository.findWorkspaceById({
+                oportunidadeId: params.oportunidadeId,
                 companyId: params.companyId,
             });
 
-            if (!workspace || !workspace.edital || workspace.edital.id !== params.editalId) {
+            if (!workspace || !workspace.edital || !workspace.licitacao) {
+                throw new Error("O rascunho da licitação informado não foi encontrado.");
+            }
+
+            if (params.editalId && workspace.edital.id !== params.editalId) {
                 throw new Error("O rascunho da licitação informado não foi encontrado.");
             }
 
             return {
-                licitacao: workspace,
+                oportunidade: workspace,
+                licitacao: workspace.licitacao,
                 edital: workspace.edital,
             };
         }
 
+        const oportunidadeId = this.identifierProvider.generate();
         const licitacaoId = this.identifierProvider.generate();
         const editalId = this.identifierProvider.generate();
 
-        return this.licitacaoRepository.createDraftWithEdital({
+        return this.oportunidadeRepository.createDraftWithLicitacaoEdital({
+            oportunidade: {
+                id: oportunidadeId,
+                companyId: params.companyId,
+                responsavelUserId: params.createdById,
+                status: "DRAFT",
+            },
             licitacao: {
                 id: licitacaoId,
                 companyId: params.companyId,
@@ -296,7 +346,11 @@ export class UploadLicitacaoDocument {
                 createdById: params.createdById,
                 status: EditalStatus.IN_PROGRESS,
             },
-        });
+        }).then(result => ({
+            oportunidade: result.oportunidade,
+            licitacao: result.licitacao,
+            edital: result.edital,
+        }));
     }
 
     private assertSupportedFile(params: UploadLicitacaoDocument.Params) {
@@ -333,8 +387,8 @@ export class UploadLicitacaoDocument {
 
     private async generateDraftPreview(params: {
         documentId: string;
-        licitacaoId: string;
-        currentMetadata: PrismaLicitacaoRepository.LicitacaoResponse["metadados"];
+        oportunidadeId: string;
+        currentMetadata: PrismaOportunidadeRepository.OportunidadeResponse["metadata"];
         pdfBuffer: Buffer;
         filename: string;
     }) {
@@ -349,10 +403,10 @@ export class UploadLicitacaoDocument {
                 return null;
             }
 
-            return await this.licitacaoRepository.update({
-                id: params.licitacaoId,
+            return await this.oportunidadeRepository.update({
+                id: params.oportunidadeId,
                 data: {
-                    metadados: withDraftPreview(params.currentMetadata, draftPreview),
+                    metadata: withDraftPreview(params.currentMetadata, draftPreview),
                 },
             });
         } catch (error) {
@@ -376,7 +430,8 @@ export namespace UploadLicitacaoDocument {
     export type Response = UploadLicitacaoDocumentView;
 
     export type DraftContext = {
-        licitacao: PrismaLicitacaoRepository.LicitacaoResponse;
-        edital: PrismaLicitacaoRepository.EditalResponse;
+        oportunidade: PrismaOportunidadeRepository.OportunidadeResponse;
+        licitacao: PrismaOportunidadeRepository.LicitacaoResponse;
+        edital: PrismaOportunidadeRepository.EditalResponse;
     };
 }

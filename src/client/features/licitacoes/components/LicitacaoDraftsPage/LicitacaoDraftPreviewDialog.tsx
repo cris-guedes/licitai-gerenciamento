@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react"
 import Link from "next/link"
-import { FileText, LoaderCircle } from "lucide-react"
+import { FileText, LoaderCircle, Trash2 } from "lucide-react"
 import { Button } from "@/client/components/ui/button"
 import {
   Dialog,
@@ -25,6 +25,8 @@ type Props = {
   onSelectDocument: (localId: string) => void
   continueHref: string
   draftPreview?: LicitacaoDraftPreview | null
+  isDeletePending?: boolean
+  onDeleteDraft?: () => void
   assistantSidebar?: ReactNode
 }
 
@@ -37,6 +39,8 @@ export function LicitacaoDraftPreviewDialog({
   onSelectDocument,
   continueHref,
   draftPreview,
+  isDeletePending = false,
+  onDeleteDraft,
   assistantSidebar,
 }: Props) {
   const previewSourceUrl = selectedDocument?.previewUrl ?? null
@@ -160,6 +164,22 @@ export function LicitacaoDraftPreviewDialog({
             </div>
 
             <DialogFooter className="border-t border-slate-200 bg-white px-6 py-4">
+              {onDeleteDraft ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mr-auto text-destructive hover:text-destructive"
+                  disabled={isDeletePending}
+                  onClick={onDeleteDraft}
+                >
+                  {isDeletePending ? (
+                    <LoaderCircle className="mr-2 size-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-2 size-4" />
+                  )}
+                  Excluir rascunho
+                </Button>
+              ) : null}
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Fechar
               </Button>

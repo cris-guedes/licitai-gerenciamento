@@ -2,8 +2,10 @@ import { z } from "zod";
 import { LicitacaoDraftPreviewSchema } from "./draftPreview";
 
 export const LicitacaoDraftSummarySchema = z.object({
-    licitacaoId: z.string().describe("ID da licitação em andamento."),
-    licitacaoStatus: z.enum(["IN_PROGRESS", "COMPLETED", "CANCELLED"]).describe("Status atual da licitação."),
+    oportunidadeId: z.string().describe("ID da oportunidade em rascunho."),
+    oportunidadeStatus: z.enum(["DRAFT", "ACTIVE", "CANCELLED"]).describe("Status atual da oportunidade."),
+    licitacaoId: z.string().nullable().describe("ID da licitação em andamento, quando já criada."),
+    licitacaoStatus: z.enum(["IN_PROGRESS", "COMPLETED", "CANCELLED"]).nullable().describe("Status atual da licitação, quando já criada."),
     editalId: z.string().nullable().describe("ID do edital vinculado ao rascunho."),
     editalStatus: z.enum(["IN_PROGRESS", "COMPLETED", "CANCELLED"]).nullable().describe("Status atual do edital vinculado."),
     primaryDocumentName: z.string().nullable().describe("Nome do documento principal exibido como título do rascunho."),
@@ -47,9 +49,16 @@ export const LicitacaoWorkspaceDocumentSchema = z.object({
 });
 
 export const LicitacaoWorkspaceSchema = z.object({
+    oportunidade: z.object({
+        id: z.string().describe("ID da oportunidade em rascunho."),
+        status: z.enum(["DRAFT", "ACTIVE", "CANCELLED"]).describe("Status atual da oportunidade."),
+        draftPreview: LicitacaoDraftPreviewSchema.nullable().describe("Prévia leve derivada da primeira página do edital principal."),
+        createdAt: z.string().describe("Data ISO de criação da oportunidade."),
+        updatedAt: z.string().describe("Data ISO da última atualização da oportunidade."),
+    }),
     licitacao: z.object({
-        id: z.string().describe("ID da licitação em andamento."),
-        status: z.enum(["IN_PROGRESS", "COMPLETED", "CANCELLED"]).describe("Status atual da licitação."),
+        id: z.string().nullable().describe("ID da licitação em andamento, quando já criada."),
+        status: z.enum(["IN_PROGRESS", "COMPLETED", "CANCELLED"]).nullable().describe("Status atual da licitação, quando já criada."),
         draftPreview: LicitacaoDraftPreviewSchema.nullable().describe("Prévia leve derivada da primeira página do edital principal."),
         createdAt: z.string().describe("Data ISO de criação da licitação."),
         updatedAt: z.string().describe("Data ISO da última atualização da licitação."),

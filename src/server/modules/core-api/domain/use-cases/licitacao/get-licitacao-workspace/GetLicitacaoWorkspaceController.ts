@@ -24,7 +24,7 @@ export class GetLicitacaoWorkspaceController implements Controller<GetLicitacaoW
             const query = GetLicitacaoWorkspaceControllerSchemas.Query.parse(request.query);
             const result = await this.useCase.execute({
                 companyId: query.companyId,
-                licitacaoId: query.licitacaoId,
+                oportunidadeId: query.oportunidadeId,
                 userId: request.user.id,
             });
 

@@ -1,8 +1,10 @@
-import type { PrismaLicitacaoRepository } from "@/server/shared/infra/repositories/licitacao.repository";
+import type { PrismaOportunidadeRepository } from "@/server/shared/infra/repositories/oportunidade.repository";
 import type { PrismaDocumentRepository } from "@/server/shared/infra/repositories/document.repository";
 import { parseLicitacaoDraftPreview, type LicitacaoDraftPreview } from "../../_shared/draftPreview";
 
 export type UploadEditalDocumentView = {
+    oportunidadeId: string;
+    oportunidadeStatus: "DRAFT";
     licitacaoId: string;
     licitacaoStatus: "IN_PROGRESS";
     editalId: string;
@@ -23,15 +25,18 @@ export type UploadEditalDocumentView = {
 
 export class UploadEditalDocumentMapper {
     static toView(params: {
-        licitacao: PrismaLicitacaoRepository.LicitacaoResponse;
-        edital: PrismaLicitacaoRepository.EditalResponse;
+        oportunidade: PrismaOportunidadeRepository.OportunidadeResponse;
+        licitacao: PrismaOportunidadeRepository.LicitacaoResponse;
+        edital: PrismaOportunidadeRepository.EditalResponse;
         document: PrismaDocumentRepository.DocumentResponse;
         documentUrl: string;
         previewUrlExpiresAt: Date;
     }): UploadEditalDocumentView {
-        const draftPreview = parseLicitacaoDraftPreview(params.licitacao.metadados);
+        const draftPreview = parseLicitacaoDraftPreview(params.oportunidade.metadata ?? params.licitacao.metadados);
 
         return {
+            oportunidadeId: params.oportunidade.id,
+            oportunidadeStatus: "DRAFT",
             licitacaoId: params.licitacao.id,
             licitacaoStatus: "IN_PROGRESS",
             editalId: params.edital.id,

@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import type { ExtractEditalDataResponse } from "@/client/main/infra/apis/api-core/models/ExtractEditalDataResponse"
 import type {
+  FinalizeOportunidadeRegistrationResponse,
   LicitacaoWorkspaceResponse,
   LicitacaoDocumentProcessingStatus,
   LicitacaoDocumentType,
@@ -28,7 +29,7 @@ type LicitacaoService = ReturnType<typeof useLicitacaoService>
 type Props = {
   licitacaoService: LicitacaoService
   companyId: string | null
-  initialLicitacaoId?: string | null
+  initialOportunidadeId?: string | null
 }
 
 type AppliedExtraction = {
@@ -92,7 +93,7 @@ function buildSavedExtractionResult(
   }
 }
 
-export function useNovaLicitacaoPage({ licitacaoService, companyId, initialLicitacaoId }: Props) {
+export function useNovaLicitacaoPage({ licitacaoService, companyId, initialOportunidadeId }: Props) {
   const getWorkspace = licitacaoService.getWorkspace
   const form = useForm<NovaLicitacaoFormValues>({
     resolver: zodResolver(novaLicitacaoFormSchema),
@@ -102,6 +103,8 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId, initialLicit
   const uploadDocument = licitacaoService.useUploadLicitacaoDocumentStream()
   const deleteDocument = licitacaoService.useDeleteLicitacaoDocument()
   const extraction = licitacaoService.useExtractEdital()
+  const finalizeRegistration = licitacaoService.finalizeRegistration
+  const resetExtraction = extraction.reset
   const [stage, setStage] = useState<"upload" | "form">("upload")
   const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false)
   const [extractionResult, setExtractionResult] = useState<ExtractEditalDataResponse | null>(null)
@@ -112,6 +115,8 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId, initialLicit
   const [savedExtractionResultsByDocumentId, setSavedExtractionResultsByDocumentId] = useState<Record<string, ExtractEditalDataResponse>>({})
   const [isHydratingWorkspace, setIsHydratingWorkspace] = useState(false)
   const [hydratedWorkspaceId, setHydratedWorkspaceId] = useState<string | null>(null)
+  const [isSubmittingRegistration, setIsSubmittingRegistration] = useState(false)
+  const [submitRegistrationError, setSubmitRegistrationError] = useState<string | null>(null)
 
   const selectedDocument = useMemo(() => {
     if (!documents.length) return null
@@ -140,19 +145,19 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId, initialLicit
     setExtractionResult(savedExtractionResultsByDocumentId[activeLocalId] ?? null)
   }, [documents, extraction.isPending, savedExtractionResultsByDocumentId, selectedDocumentId])
 
-  const hydrateWorkspace = useCallback(async (licitacaoId: string) => {
+  const hydrateWorkspace = useCallback(async (oportunidadeId: string) => {
     if (!companyId) return
 
-    setHydratedWorkspaceId(licitacaoId)
+    setHydratedWorkspaceId(oportunidadeId)
     setIsHydratingWorkspace(true)
-    extraction.reset()
+    resetExtraction()
     setExtractionResult(null)
     setAppliedExtraction(null)
 
     try {
       const workspace = await getWorkspace({
         companyId,
-        licitacaoId,
+        oportunidadeId,
       })
 
       const restoredDocuments: LicitacaoDocumentItem[] = workspace.documents.map(document => ({
@@ -189,12 +194,14 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId, initialLicit
         ?? restoredDocuments[0]?.localId
         ?? null
 
-      setDraftContext(workspace.edital ? {
+      setDraftContext({
+        oportunidadeId: workspace.oportunidade.id,
+        oportunidadeStatus: workspace.oportunidade.status,
         licitacaoId: workspace.licitacao.id,
         licitacaoStatus: workspace.licitacao.status,
-        editalId: workspace.edital.id,
-        editalStatus: workspace.edital.status,
-      } : null)
+        editalId: workspace.edital?.id,
+        editalStatus: workspace.edital?.status ?? null,
+      })
       setDocuments(restoredDocuments)
       setSavedExtractionResultsByDocumentId(restoredExtractionResults)
       setSelectedDocumentId(selectedLocalId)
@@ -206,14 +213,14 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId, initialLicit
     } finally {
       setIsHydratingWorkspace(false)
     }
-  }, [companyId, extraction.reset, getWorkspace])
+  }, [companyId, getWorkspace, resetExtraction])
 
   useEffect(() => {
-    if (!initialLicitacaoId || !companyId) return
-    if (hydratedWorkspaceId === initialLicitacaoId) return
+    if (!initialOportunidadeId || !companyId) return
+    if (hydratedWorkspaceId === initialOportunidadeId) return
 
-    void hydrateWorkspace(initialLicitacaoId)
-  }, [companyId, hydrateWorkspace, hydratedWorkspaceId, initialLicitacaoId])
+    void hydrateWorkspace(initialOportunidadeId)
+  }, [companyId, hydrateWorkspace, hydratedWorkspaceId, initialOportunidadeId])
 
   function updateDocument(localId: string, updater: (current: LicitacaoDocumentItem) => LicitacaoDocumentItem) {
     setDocuments(prev => prev.map(document => (document.localId === localId ? updater(document) : document)))
@@ -225,6 +232,8 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId, initialLicit
 
       if (context) {
         setDraftContext(prev => prev ?? {
+          oportunidadeId: context.oportunidadeId,
+          oportunidadeStatus: "DRAFT",
           licitacaoId: context.licitacaoId,
           licitacaoStatus: "IN_PROGRESS",
           editalId: context.editalId,
@@ -247,6 +256,8 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId, initialLicit
 
     if (event.type === "done") {
       setDraftContext({
+        oportunidadeId: event.result.oportunidadeId,
+        oportunidadeStatus: event.result.oportunidadeStatus,
         licitacaoId: event.result.licitacaoId,
         licitacaoStatus: event.result.licitacaoStatus,
         editalId: event.result.editalId,
@@ -358,8 +369,8 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId, initialLicit
         file,
         companyId,
         documentType,
-        licitacaoId: draftContext?.licitacaoId,
-        editalId: draftContext?.editalId,
+        oportunidadeId: draftContext?.oportunidadeId,
+        editalId: draftContext?.editalId ?? undefined,
         replaceDocumentId: replacingDocument?.documentId,
         onEvent: event => applyUploadEvent(localId, file, documentType, event),
       })
@@ -501,6 +512,42 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId, initialLicit
     await handleExtractDocument(selectedDocument.documentId, selectedDocument.localId)
   }
 
+  async function handleSubmitRegistration(values: NovaLicitacaoFormValues): Promise<FinalizeOportunidadeRegistrationResponse> {
+    if (!companyId) {
+      throw new Error("Nenhuma empresa ativa selecionada para concluir o cadastro.")
+    }
+
+    setIsSubmittingRegistration(true)
+    setSubmitRegistrationError(null)
+
+    try {
+      const result = await finalizeRegistration({
+        companyId,
+        oportunidadeId: draftContext?.oportunidadeId,
+        form: values,
+      })
+
+      setDraftContext({
+        oportunidadeId: result.oportunidadeId,
+        oportunidadeStatus: result.oportunidadeStatus,
+        licitacaoId: result.licitacaoId,
+        licitacaoStatus: result.licitacaoStatus,
+        editalId: result.editalId,
+        editalStatus: result.editalStatus,
+      })
+
+      toast.success("Cadastro da oportunidade concluído com sucesso.")
+      return result
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, "Não foi possível concluir o cadastro da oportunidade.")
+      setSubmitRegistrationError(message)
+      toast.error(message)
+      throw error
+    } finally {
+      setIsSubmittingRegistration(false)
+    }
+  }
+
   return {
     stage,
     form,
@@ -514,6 +561,8 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId, initialLicit
     selectedDocumentId,
     primaryEditalDocument,
     draftContext,
+    isSubmittingRegistration,
+    submitRegistrationError,
     isHydratingWorkspace,
     isWorkspaceModalOpen,
     setStage,
@@ -524,6 +573,7 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId, initialLicit
     handleSkipUpload,
     handleContinueManualFromUpload,
     handleRunCadastroAssistantExtraction,
+    handleSubmitRegistration,
     handleApplyExtraction,
     handleResetForm,
   }

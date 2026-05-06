@@ -3,6 +3,7 @@ import { Inter, Manrope } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/client/main/providers/QueryProvider";
 import { HotjarProvider } from "@/client/main/providers/HotjarProvider";
+import { PostHogProvider } from "@/client/main/providers/PostHogProvider";
 import { Toaster } from "@/client/components/ui/sonner";
 
 const inter = Inter({
@@ -30,12 +31,14 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${manrope.variable} font-sans antialiased`}
       >
-        <HotjarProvider>
-          <QueryProvider>
-            {children}
-            <Toaster />
-          </QueryProvider>
-        </HotjarProvider>
+        <PostHogProvider>
+          <HotjarProvider>
+            <QueryProvider>
+              {children}
+              <Toaster />
+            </QueryProvider>
+          </HotjarProvider>
+        </PostHogProvider>
       </body>
     </html>
   );

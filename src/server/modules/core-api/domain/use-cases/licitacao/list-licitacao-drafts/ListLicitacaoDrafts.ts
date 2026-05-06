@@ -1,6 +1,6 @@
 import { PrismaCompanyRepository } from "@/server/shared/infra/repositories/company.repository";
-import { PrismaLicitacaoRepository } from "@/server/shared/infra/repositories/licitacao.repository";
 import { PrismaMembershipRepository } from "@/server/shared/infra/repositories/membership.repository";
+import { PrismaOportunidadeRepository } from "@/server/shared/infra/repositories/oportunidade.repository";
 import { assertUserCanAccessCompany } from "../../company/_shared/assertCompanyAccess";
 import { LicitacaoWorkspaceViewMapper } from "../_shared/licitacaoWorkspaceView";
 import type { ListLicitacaoDraftsDTO } from "./dtos/ListLicitacaoDraftsDTOs";
@@ -8,7 +8,7 @@ import type { ListLicitacaoDraftsView } from "./dtos/ListLicitacaoDraftsView";
 
 export class ListLicitacaoDrafts {
     constructor(
-        private readonly licitacaoRepository: PrismaLicitacaoRepository,
+        private readonly oportunidadeRepository: PrismaOportunidadeRepository,
         private readonly companyRepository: PrismaCompanyRepository,
         private readonly membershipRepository: PrismaMembershipRepository,
     ) {}
@@ -21,7 +21,7 @@ export class ListLicitacaoDrafts {
             companyId: params.companyId,
         });
 
-        const drafts = await this.licitacaoRepository.listDraftsByCompanyId({
+        const drafts = await this.oportunidadeRepository.listDraftsByCompanyId({
             companyId: params.companyId,
         });
 

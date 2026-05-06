@@ -4,7 +4,7 @@ export interface UploadLicitacaoDocumentDTO {
     companyId: string;
     userId: string;
     createdById?: string;
-    licitacaoId?: string;
+    oportunidadeId?: string;
     editalId?: string;
     replaceDocumentId?: string;
     documentType: DocumentType;

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { Alert, AlertDescription, AlertTitle } from "@/client/components/ui/alert"
 import { Button } from "@/client/components/ui/button"
 import { Card, CardContent } from "@/client/components/ui/card"
 import { Input } from "@/client/components/ui/input"
@@ -29,6 +30,7 @@ import {
   ClipboardList,
   FileText,
   Gavel,
+  LoaderCircle,
   Package2,
   Plus,
   Trash2,
@@ -53,6 +55,10 @@ import {
 
 type Props = {
   form: UseFormReturn<NovaLicitacaoFormValues>
+  onSubmit: (values: NovaLicitacaoFormValues) => void | Promise<unknown>
+  isSubmitting?: boolean
+  submitError?: string | null
+  isCompleted?: boolean
 }
 
 type FormPath = FieldPath<NovaLicitacaoFormValues>
@@ -520,6 +526,10 @@ function buildItemDistributionSummary(
 
 export function NovaLicitacaoForm({
   form,
+  onSubmit,
+  isSubmitting = false,
+  submitError = null,
+  isCompleted = false,
 }: Props) {
   const orgaosParticipantes = useFieldArray({
     control: form.control,
@@ -638,7 +648,7 @@ export function NovaLicitacaoForm({
   return (
     <TooltipProvider delayDuration={120}>
       <div>
-        <form>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
           <Card className="overflow-hidden rounded-lg border-0 bg-white">
             <SimpleStepper
               steps={FORM_STEPS}
@@ -961,11 +971,24 @@ export function NovaLicitacaoForm({
                   <ArrowLeft className="mr-2 size-4" />
                   Voltar
                 </Button>
-                <Button type="button" onClick={() => goToStep(currentStepIndex + 1)} disabled={isLastStep}>
-                  {isLastStep ? "Etapa final" : "Próxima etapa"}
-                  {!isLastStep && <ArrowRight className="ml-2 size-4" />}
-                </Button>
+                {isLastStep ? (
+                  <Button type="submit" disabled={isSubmitting || isCompleted}>
+                    {isSubmitting ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : null}
+                    {isCompleted ? "Cadastro concluído" : "Concluir cadastro"}
+                  </Button>
+                ) : (
+                  <Button type="button" onClick={() => goToStep(currentStepIndex + 1)}>
+                    Próxima etapa
+                    <ArrowRight className="ml-2 size-4" />
+                  </Button>
+                )}
               </div>
+              {submitError ? (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertTitle>Não foi possível concluir o cadastro</AlertTitle>
+                  <AlertDescription>{submitError}</AlertDescription>
+                </Alert>
+              ) : null}
             </CardContent>
           </Card>
         </form>

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import type { LucideIcon } from "lucide-react"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/client/components/ui/button"
 import { useCoreApi } from "@/client/hooks/use-core-api"
 import { DashboardHeaderActions } from "@/client/features/dashboard/components/DashboardShell"
@@ -14,26 +14,39 @@ import { DocumentAssistantSidebar } from "./DocumentAssistantSidebar"
 import { NovaLicitacaoForm } from "./NovaLicitacaoForm"
 import { UploadEditalStep } from "./UploadEditalStep"
 import { useNovaLicitacaoPage } from "./hooks/useNovaLicitacaoPage"
+import type { NovaLicitacaoFormValues } from "../../schemas/nova-licitacao.schema"
 import { useDocumentChatService } from "../../services/use-document-chat.service"
 import { useDocumentSummaryService } from "../../services/use-document-summary.service"
 import { useLicitacaoService } from "../../services/use-licitacao.service"
 
 export function NovaLicitacaoPage() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const api = useCoreApi()
-  const { empresaAtiva } = useApp()
+  const { empresaAtiva, orgAtiva } = useApp()
   const licitacaoService = useLicitacaoService(api)
   const documentChatService = useDocumentChatService(api)
   const documentSummaryService = useDocumentSummaryService(api)
   const page = useNovaLicitacaoPage({
     licitacaoService,
     companyId: empresaAtiva?.id ?? null,
-    initialLicitacaoId: searchParams.get("licitacaoId"),
+    initialOportunidadeId: searchParams.get("oportunidadeId"),
   })
   const [isDocumentAssistantOpen, setIsDocumentAssistantOpen] = useState(true)
   const [workspaceInitialView, setWorkspaceInitialView] = useState<WorkspaceView>("document")
   const { handleResetForm, setIsWorkspaceModalOpen, setStage } = page
+  const base = orgAtiva?.id && empresaAtiva?.id ? `/org/${orgAtiva.id}/${empresaAtiva.id}` : null
   const canOpenWorkspace = page.documents.length > 0
+
+  async function handleSubmitRegistration(values: NovaLicitacaoFormValues) {
+    const result = await page.handleSubmitRegistration(values)
+
+    if (base) {
+      router.replace(`${base}/licitacoes/nova`)
+    }
+
+    return result
+  }
 
   const workspaceModal = (
     <AiWorkspaceModal
@@ -218,7 +231,13 @@ export function NovaLicitacaoPage() {
             </div>
           </div>
 
-          <NovaLicitacaoForm form={page.form} />
+          <NovaLicitacaoForm
+            form={page.form}
+            onSubmit={handleSubmitRegistration}
+            isSubmitting={page.isSubmittingRegistration}
+            submitError={page.submitRegistrationError}
+            isCompleted={page.draftContext?.oportunidadeStatus === "ACTIVE"}
+          />
         </div>
       )}
       {workspaceModal}

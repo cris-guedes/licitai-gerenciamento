@@ -32,11 +32,13 @@ import { ExtractEditalDataControllerSchemas } from "../../domain/use-cases/licit
 import { ExtractEditalDataStreamControllerSchemas } from "../../domain/use-cases/licitacao/extract-edital-data/ExtractEditalDataStreamControllerSchemas";
 import { ExtractEditalDataPostEmbedingControllerSchemas } from "../../domain/use-cases/licitacao/extract-edital-data-post-embeding/ExtractEditalDataPostEmbedingControllerSchemas";
 import { ExtractEditalDataPostEmbedingStreamControllerSchemas } from "../../domain/use-cases/licitacao/extract-edital-data-post-embeding/ExtractEditalDataPostEmbedingStreamControllerSchemas";
+import { DeleteLicitacaoDraftControllerSchemas } from "../../domain/use-cases/licitacao/delete-licitacao-draft/DeleteLicitacaoDraftControllerSchemas";
 import { DeleteLicitacaoDocumentControllerSchemas } from "../../domain/use-cases/licitacao/delete-licitacao-document/DeleteLicitacaoDocumentControllerSchemas";
 import { UploadEditalDocumentControllerSchemas } from "../../domain/use-cases/licitacao/upload-edital-document/UploadEditalDocumentControllerSchemas";
 import { UploadLicitacaoDocumentStreamControllerSchemas } from "../../domain/use-cases/licitacao/upload-licitacao-document-stream/UploadLicitacaoDocumentStreamControllerSchemas";
 import { ListLicitacaoDraftsControllerSchemas } from "../../domain/use-cases/licitacao/list-licitacao-drafts/ListLicitacaoDraftsControllerSchemas";
 import { GetLicitacaoWorkspaceControllerSchemas } from "../../domain/use-cases/licitacao/get-licitacao-workspace/GetLicitacaoWorkspaceControllerSchemas";
+import { FinalizeOportunidadeRegistrationControllerSchemas } from "../../domain/use-cases/licitacao/finalize-oportunidade-registration/FinalizeOportunidadeRegistrationControllerSchemas";
 import { GetInviteControllerSchemas, GetInviteResponseSchema } from "../../domain/use-cases/team/get-invite/GetInviteControllerSchemas";
 import { AcceptInviteControllerSchemas, AcceptInviteResponseSchema } from "../../domain/use-cases/team/accept-invite/AcceptInviteControllerSchemas";
 import { UpdateMemberRoleControllerSchemas, UpdateMemberRoleResponseSchema } from "../../domain/use-cases/team/update-member-role/UpdateMemberRoleControllerSchemas";
@@ -522,6 +524,16 @@ export const apiEndpoints: EndpointConfig[] = [
     schemas: GetLicitacaoWorkspaceControllerSchemas,
   },
   {
+    path: "/delete-licitacao-draft",
+    operationId: "deleteLicitacaoDraft",
+    tag: "Licitacao",
+    summary: "Exclui um rascunho de licitação",
+    description: "Remove uma licitação em andamento, seus documentos relacionados e o contexto vetorial associado.",
+    successDescription: "Rascunho excluído com sucesso",
+    method: "POST",
+    schemas: DeleteLicitacaoDraftControllerSchemas,
+  },
+  {
     path: "/upload-edital-document",
     operationId: "uploadEditalDocument",
     tag: "Licitacao",
@@ -603,6 +615,16 @@ export const apiEndpoints: EndpointConfig[] = [
     successDescription: "Documento excluído com sucesso",
     method: "POST",
     schemas: DeleteLicitacaoDocumentControllerSchemas,
+  },
+  {
+    path: "/finalize-oportunidade-registration",
+    operationId: "finalizeOportunidadeRegistration",
+    tag: "Licitacao",
+    summary: "Consuma o cadastro final da oportunidade",
+    description: "Recebe o formulário consolidado da licitação, preenche licitação, edital, órgãos, itens e distribuição, e ativa a oportunidade para gestão interna.",
+    successDescription: "Cadastro final concluído com sucesso",
+    method: "POST",
+    schemas: FinalizeOportunidadeRegistrationControllerSchemas,
   },
   {
     path: "/extract-edital-data",

@@ -10,8 +10,8 @@ import { CloudflareR2ObjectStorageProvider } from "@/server/shared/infra/provide
 import { PdfIngestionWorker } from "@/server/modules/core-api/workers/pdf-ingestion/PdfIngestionWorker";
 import { PrismaCompanyRepository } from "@/server/shared/infra/repositories/company.repository";
 import { PrismaDocumentRepository } from "@/server/shared/infra/repositories/document.repository";
-import { PrismaLicitacaoRepository } from "@/server/shared/infra/repositories/licitacao.repository";
 import { PrismaMembershipRepository } from "@/server/shared/infra/repositories/membership.repository";
+import { PrismaOportunidadeRepository } from "@/server/shared/infra/repositories/oportunidade.repository";
 import { DraftPreviewExtractor } from "../_shared/DraftPreviewExtractor";
 import { UploadLicitacaoDocument } from "./UploadLicitacaoDocument";
 import { UploadLicitacaoDocumentStreamController } from "./UploadLicitacaoDocumentStreamController";
@@ -61,7 +61,7 @@ export function makeUploadLicitacaoDocumentStream(): UploadLicitacaoDocumentStre
             new CloudflareR2ObjectStorageProvider(),
             vectorStore,
             pdfIngestionWorker,
-            new PrismaLicitacaoRepository(),
+            new PrismaOportunidadeRepository(),
             new PrismaDocumentRepository(),
             new PrismaCompanyRepository(),
             new PrismaMembershipRepository(),

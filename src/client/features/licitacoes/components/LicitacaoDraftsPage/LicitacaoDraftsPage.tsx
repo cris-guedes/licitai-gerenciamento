@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Clock3, Eye, Plus } from "lucide-react"
+import { Clock3, Eye, LoaderCircle, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/client/components/ui/button"
 import { Card, CardContent } from "@/client/components/ui/card"
 import { DashboardHeaderActions } from "@/client/features/dashboard/components/DashboardShell"
@@ -44,6 +44,10 @@ export function LicitacaoDraftsPage() {
   })
 
   const base = `/org/${orgAtiva?.id}/${empresaAtiva?.id}`
+  const previewDraftId = page.previewDraftId
+  const handleDeletePreviewDraft = previewDraftId
+    ? () => void page.deleteDraft(previewDraftId)
+    : undefined
 
   return (
     <div className="space-y-6">
@@ -76,38 +80,57 @@ export function LicitacaoDraftsPage() {
       ) : (
         <div className="overflow-hidden rounded-none border border-slate-200/80 bg-white shadow-sm">
           {page.drafts.map(draft => (
-            <button
-              key={draft.licitacaoId}
-              type="button"
-              onClick={() => void page.openPreview(draft.licitacaoId)}
-              className="grid w-full grid-cols-[minmax(0,1.6fr)_110px_110px_130px_150px] items-center gap-4 border-b border-slate-200/80 px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-slate-50/70"
+            <div
+              key={draft.oportunidadeId}
+              className="flex items-center gap-3 border-b border-slate-200/80 px-5 py-3 last:border-b-0"
             >
-              <div className="min-w-0">
-                <p className="truncate text-base font-semibold text-primary">
-                  {draft.primaryDocumentName ?? "Licitação em andamento"}
-                </p>
-                {formatDraftPreviewMeta(draft) ? (
-                  <p className="mt-1 truncate text-sm text-slate-700">
-                    {formatDraftPreviewMeta(draft)}
+              <button
+                type="button"
+                onClick={() => void page.openPreview(draft.oportunidadeId)}
+                className="grid flex-1 grid-cols-[minmax(0,1.6fr)_110px_110px_130px_150px] items-center gap-4 rounded-none px-0 py-1 text-left transition-colors hover:bg-slate-50/70"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-base font-semibold text-primary">
+                    {draft.draftPreview?.displayName ?? draft.primaryDocumentName ?? "Licitação em andamento"}
                   </p>
-                ) : null}
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Última atualização em {formatDate(draft.updatedAt)}
-                </p>
-              </div>
-
-              <SimpleMetric label="Docs" value={draft.documentCount} />
-              <SimpleMetric label="Prontos" value={draft.readyDocuments} />
-              <SimpleMetric label="Processando" value={draft.processingDocuments} />
-
-              <div className="flex items-center justify-end gap-3">
-                <div className="inline-flex min-w-[122px] items-center justify-center gap-2 whitespace-nowrap rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
-                  <Clock3 className="size-3.5" />
-                  Em andamento
+                  {formatDraftPreviewMeta(draft) ? (
+                    <p className="mt-1 truncate text-sm text-slate-700">
+                      {formatDraftPreviewMeta(draft)}
+                    </p>
+                  ) : null}
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Última atualização em {formatDate(draft.updatedAt)}
+                  </p>
                 </div>
-                <Eye className="size-4 text-slate-400" />
-              </div>
-            </button>
+
+                <SimpleMetric label="Docs" value={draft.documentCount} />
+                <SimpleMetric label="Prontos" value={draft.readyDocuments} />
+                <SimpleMetric label="Processando" value={draft.processingDocuments} />
+
+                <div className="flex items-center justify-end gap-3">
+                  <div className="inline-flex min-w-[122px] items-center justify-center gap-2 whitespace-nowrap rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+                    <Clock3 className="size-3.5" />
+                    Em andamento
+                  </div>
+                  <Eye className="size-4 text-slate-400" />
+                </div>
+              </button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="shrink-0 text-slate-500 hover:text-destructive"
+                disabled={page.isDeletePending}
+                onClick={() => void page.deleteDraft(draft.oportunidadeId)}
+              >
+                {page.deletingDraftId === draft.oportunidadeId ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <Trash2 className="size-4" />
+                )}
+              </Button>
+            </div>
           ))}
         </div>
       )}
@@ -121,8 +144,10 @@ export function LicitacaoDraftsPage() {
         documents={page.previewDocuments}
         selectedDocument={page.selectedDocument}
         onSelectDocument={page.setSelectedDocumentId}
-        continueHref={page.previewDraftId ? `${base}/licitacoes/nova?licitacaoId=${page.previewDraftId}` : `${base}/licitacoes/nova`}
+        continueHref={page.previewDraftId ? `${base}/licitacoes/nova?oportunidadeId=${page.previewDraftId}` : `${base}/licitacoes/nova`}
         draftPreview={page.draftPreview}
+        isDeletePending={page.isDeletePending}
+        onDeleteDraft={handleDeletePreviewDraft}
         assistantSidebar={(
           <DocumentAssistantSidebar
             open

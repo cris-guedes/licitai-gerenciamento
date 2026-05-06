@@ -12,6 +12,8 @@ export const UploadEditalDocumentBodySchema = z.object({
 });
 
 export const UploadEditalDocumentResponseSchema = z.object({
+    oportunidadeId: z.string().describe("ID interno da oportunidade criada para acompanhar o rascunho deste processo."),
+    oportunidadeStatus: z.enum(["DRAFT"]).describe("Status inicial da oportunidade criada junto ao rascunho."),
     licitacaoId: z.string().describe("ID interno do processo licitatório criado para acompanhar o fluxo global da licitação."),
     licitacaoStatus: z.enum(["IN_PROGRESS"]).describe("Status global inicial do processo licitatório após o upload do edital."),
     editalId: z.string().describe("ID interno do edital criado para concentrar os dados ricos e documentos do certame."),

@@ -1,11 +1,13 @@
 import type { DocumentAnalysisStatus, DocumentAnalysisType, DocumentStatus, DocumentType, EditalStatus, LicitacaoStatus, Prisma } from "@prisma/client";
 import type { PrismaDocumentAnalysisRepository } from "@/server/shared/infra/repositories/document-analysis.repository";
-import type { PrismaLicitacaoRepository } from "@/server/shared/infra/repositories/licitacao.repository";
+import type { PrismaOportunidadeRepository } from "@/server/shared/infra/repositories/oportunidade.repository";
 import { parseLicitacaoDraftPreview, type LicitacaoDraftPreview } from "./draftPreview";
 
 export type LicitacaoDraftSummaryView = {
-    licitacaoId: string;
-    licitacaoStatus: LicitacaoStatus;
+    oportunidadeId: string;
+    oportunidadeStatus: "DRAFT" | "ACTIVE" | "CANCELLED";
+    licitacaoId: string | null;
+    licitacaoStatus: LicitacaoStatus | null;
     editalId: string | null;
     editalStatus: EditalStatus | null;
     primaryDocumentName: string | null;
@@ -49,9 +51,16 @@ export type LicitacaoWorkspaceDocumentView = {
 };
 
 export type LicitacaoWorkspaceView = {
-    licitacao: {
+    oportunidade: {
         id: string;
-        status: LicitacaoStatus;
+        status: "DRAFT" | "ACTIVE" | "CANCELLED";
+        draftPreview: LicitacaoDraftPreview | null;
+        createdAt: string;
+        updatedAt: string;
+    };
+    licitacao: {
+        id: string | null;
+        status: LicitacaoStatus | null;
         draftPreview: LicitacaoDraftPreview | null;
         createdAt: string;
         updatedAt: string;
@@ -67,15 +76,17 @@ export type LicitacaoWorkspaceView = {
 
 export class LicitacaoWorkspaceViewMapper {
     static toDraftSummary(
-        draft: PrismaLicitacaoRepository.LicitacaoDraftRecord,
+        draft: PrismaOportunidadeRepository.OportunidadeDraftRecord,
     ): LicitacaoDraftSummaryView {
-        const draftPreview = parseLicitacaoDraftPreview(draft.metadados);
+        const draftPreview = parseLicitacaoDraftPreview(draft.metadata ?? draft.licitacao?.metadados ?? null);
         const documents = draft.edital?.documents ?? [];
         const primaryDocument = documents.find(document => document.type === "EDITAL") ?? documents[0] ?? null;
 
         return {
-            licitacaoId: draft.id,
-            licitacaoStatus: draft.status,
+            oportunidadeId: draft.id,
+            oportunidadeStatus: draft.status,
+            licitacaoId: draft.licitacao?.id ?? draft.licitacaoId ?? null,
+            licitacaoStatus: draft.licitacao?.status ?? null,
             editalId: draft.edital?.id ?? null,
             editalStatus: draft.edital?.status ?? null,
             primaryDocumentName: draftPreview?.displayName ?? primaryDocument?.originalName ?? null,
@@ -91,19 +102,26 @@ export class LicitacaoWorkspaceViewMapper {
     }
 
     static toWorkspaceView(params: {
-        workspace: PrismaLicitacaoRepository.LicitacaoWorkspaceRecord;
+        workspace: PrismaOportunidadeRepository.OportunidadeWorkspaceRecord;
         analysesByDocumentId: Map<string, PrismaDocumentAnalysisRepository.DocumentAnalysisResponse[]>;
         urlsByDocumentId: Map<string, { documentUrl: string; previewUrlExpiresAt: Date }>;
     }): LicitacaoWorkspaceView {
-        const draftPreview = parseLicitacaoDraftPreview(params.workspace.metadados);
+        const draftPreview = parseLicitacaoDraftPreview(params.workspace.metadata ?? params.workspace.licitacao?.metadados ?? null);
 
         return {
-            licitacao: {
+            oportunidade: {
                 id: params.workspace.id,
                 status: params.workspace.status,
                 draftPreview,
                 createdAt: params.workspace.createdAt.toISOString(),
                 updatedAt: params.workspace.updatedAt.toISOString(),
+            },
+            licitacao: {
+                id: params.workspace.licitacao?.id ?? null,
+                status: params.workspace.licitacao?.status ?? null,
+                draftPreview,
+                createdAt: params.workspace.licitacao?.createdAt.toISOString() ?? params.workspace.createdAt.toISOString(),
+                updatedAt: params.workspace.licitacao?.updatedAt.toISOString() ?? params.workspace.updatedAt.toISOString(),
             },
             edital: params.workspace.edital
                 ? {
@@ -123,7 +141,7 @@ export class LicitacaoWorkspaceViewMapper {
     }
 
     private static toDocumentView(params: {
-        document: PrismaLicitacaoRepository.DraftDocumentRecord;
+        document: PrismaOportunidadeRepository.DraftDocumentRecord;
         analyses: PrismaDocumentAnalysisRepository.DocumentAnalysisResponse[];
         urls?: { documentUrl: string; previewUrlExpiresAt: Date };
         draftPreview: LicitacaoDraftPreview | null;

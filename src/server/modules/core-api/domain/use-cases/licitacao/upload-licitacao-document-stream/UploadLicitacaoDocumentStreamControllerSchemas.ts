@@ -13,7 +13,7 @@ export namespace UploadLicitacaoDocumentStreamControllerSchemas {
     export const Body = z.null();
     export const Query = z.object({
         companyId: z.string().min(1).describe("ID da empresa dona do documento enviado."),
-        licitacaoId: z.string().optional().describe("ID da licitação já iniciada, quando o documento deve ser anexado a um rascunho existente."),
+        oportunidadeId: z.string().optional().describe("ID da oportunidade em rascunho, quando o documento deve ser anexado a um workspace existente."),
         editalId: z.string().optional().describe("ID do edital já criado para receber o novo documento."),
         replaceDocumentId: z.string().optional().describe("ID do documento que será substituído pelo novo upload."),
         documentType: z.enum(["EDITAL", "ANEXO", "OUTRO"]).describe("Tipo semântico do documento enviado."),

@@ -24,12 +24,14 @@ function getErrorMessage(error: unknown, fallback: string) {
 export function useLicitacaoDraftsPage({ licitacaoService, companyId }: Props) {
   const listDrafts = licitacaoService.listDrafts
   const getWorkspace = licitacaoService.getWorkspace
+  const deleteDraft = licitacaoService.deleteDraft
   const [drafts, setDrafts] = useState<LicitacaoDraftSummary[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [previewDraftId, setPreviewDraftId] = useState<string | null>(null)
   const [previewWorkspace, setPreviewWorkspace] = useState<LicitacaoWorkspaceResponse | null>(null)
   const [isPreviewLoading, setIsPreviewLoading] = useState(false)
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
+  const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null)
 
   const loadDrafts = useCallback(async () => {
     if (!companyId) {
@@ -82,10 +84,10 @@ export function useLicitacaoDraftsPage({ licitacaoService, companyId }: Props) {
     return previewDocuments.find(document => document.localId === selectedDocumentId) ?? previewDocuments[0]
   }, [previewDocuments, selectedDocumentId])
 
-  const openPreview = useCallback(async (licitacaoId: string) => {
+  const openPreview = useCallback(async (oportunidadeId: string) => {
     if (!companyId) return
 
-    setPreviewDraftId(licitacaoId)
+    setPreviewDraftId(oportunidadeId)
     setIsPreviewLoading(true)
     setPreviewWorkspace(null)
     setSelectedDocumentId(null)
@@ -93,7 +95,7 @@ export function useLicitacaoDraftsPage({ licitacaoService, companyId }: Props) {
     try {
       const workspace = await getWorkspace({
         companyId,
-        licitacaoId,
+        oportunidadeId,
       })
 
       setPreviewWorkspace(workspace)
@@ -116,18 +118,56 @@ export function useLicitacaoDraftsPage({ licitacaoService, companyId }: Props) {
     setSelectedDocumentId(null)
   }, [])
 
+  const deleteDraftById = useCallback(async (oportunidadeId: string) => {
+    if (!companyId) return
+
+    const draft = drafts.find(item => item.oportunidadeId === oportunidadeId)
+    const draftLabel = draft?.draftPreview?.displayName ?? draft?.primaryDocumentName ?? "este rascunho"
+    const confirmed = window.confirm(`Deseja excluir "${draftLabel}"? Essa ação remove o rascunho e os documentos vinculados.`)
+
+    if (!confirmed) return
+
+    setDeletingDraftId(oportunidadeId)
+
+    try {
+      const response = await deleteDraft({
+        companyId,
+        oportunidadeId,
+      })
+
+      if (previewDraftId === oportunidadeId) {
+        closePreview()
+      }
+
+      toast.success(
+        response.deletedDocuments > 0
+          ? `Rascunho excluído com ${response.deletedDocuments} documento(s) removido(s).`
+          : "Rascunho excluído com sucesso.",
+      )
+
+      await loadDrafts()
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Não foi possível excluir o rascunho."))
+    } finally {
+      setDeletingDraftId(null)
+    }
+  }, [closePreview, companyId, deleteDraft, drafts, loadDrafts, previewDraftId])
+
   return {
     drafts,
     isLoading,
+    isDeletePending: deletingDraftId !== null,
+    deletingDraftId,
     reload: loadDrafts,
     previewDraftId,
     previewWorkspace,
     previewDocuments,
     selectedDocument,
-    draftPreview: previewWorkspace?.licitacao.draftPreview ?? null,
+    draftPreview: previewWorkspace?.oportunidade.draftPreview ?? previewWorkspace?.licitacao.draftPreview ?? null,
     isPreviewLoading,
     setSelectedDocumentId,
     openPreview,
     closePreview,
+    deleteDraft: deleteDraftById,
   }
 }

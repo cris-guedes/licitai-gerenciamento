@@ -22,7 +22,7 @@ export class UploadLicitacaoDocumentStreamController implements StreamController
         const contentType = request.headers.get("content-type") ?? "";
         const user = httpRequest.user;
         const companyId = typeof httpRequest.query?.companyId === "string" ? httpRequest.query.companyId : null;
-        const licitacaoId = typeof httpRequest.query?.licitacaoId === "string" ? httpRequest.query.licitacaoId : undefined;
+        const oportunidadeId = typeof httpRequest.query?.oportunidadeId === "string" ? httpRequest.query.oportunidadeId : undefined;
         const editalId = typeof httpRequest.query?.editalId === "string" ? httpRequest.query.editalId : undefined;
         const replaceDocumentId = typeof httpRequest.query?.replaceDocumentId === "string" ? httpRequest.query.replaceDocumentId : undefined;
         const rawDocumentType = typeof httpRequest.query?.documentType === "string" ? httpRequest.query.documentType : null;
@@ -63,7 +63,7 @@ export class UploadLicitacaoDocumentStreamController implements StreamController
 
                     const result = await useCase.execute({
                         companyId,
-                        licitacaoId,
+                        oportunidadeId,
                         editalId,
                         replaceDocumentId,
                         documentType,

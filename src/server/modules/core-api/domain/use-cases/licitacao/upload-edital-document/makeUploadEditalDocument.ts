@@ -4,8 +4,8 @@ import { OpenAIModel } from "@/server/shared/infra/providers/ia/models/openai-mo
 import { DocumentHandlerFileParsingProvider } from "@/server/shared/infra/providers/pdf/document-handler-file-parsing-provider";
 import { CloudflareR2ObjectStorageProvider } from "@/server/shared/infra/providers/storage/cloudflare-r2-object-storage-provider";
 import { PrismaCompanyRepository } from "@/server/shared/infra/repositories/company.repository";
-import { PrismaLicitacaoRepository } from "@/server/shared/infra/repositories/licitacao.repository";
 import { PrismaMembershipRepository } from "@/server/shared/infra/repositories/membership.repository";
+import { PrismaOportunidadeRepository } from "@/server/shared/infra/repositories/oportunidade.repository";
 import { DraftPreviewExtractor } from "../_shared/DraftPreviewExtractor";
 import { UploadEditalDocument } from "./UploadEditalDocument";
 import { UploadEditalDocumentController } from "./UploadEditalDocumentController";
@@ -25,7 +25,7 @@ export function makeUploadEditalDocument(): UploadEditalDocumentController {
         new UploadEditalDocument(
             new UuidIdentifierProvider(),
             new CloudflareR2ObjectStorageProvider(),
-            new PrismaLicitacaoRepository(),
+            new PrismaOportunidadeRepository(),
             new PrismaCompanyRepository(),
             new PrismaMembershipRepository(),
             draftPreviewExtractor,

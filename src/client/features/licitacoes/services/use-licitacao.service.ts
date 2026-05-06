@@ -22,10 +22,12 @@ export type LicitacaoDraftPreview = {
 }
 
 export type UploadLicitacaoDocumentResponse = {
-  licitacaoId: string
-  licitacaoStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
-  editalId: string
-  editalStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+  oportunidadeId: string
+  oportunidadeStatus: "DRAFT" | "ACTIVE" | "CANCELLED"
+  licitacaoId: string | null
+  licitacaoStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | null
+  editalId: string | null
+  editalStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | null
   documentId: string
   documentType: LicitacaoDocumentType
   displayName: string | null
@@ -47,8 +49,9 @@ export type UploadLicitacaoDocumentProgressEvent = {
   percent: number
   status: "UPLOADING" | "PROCESSING" | "READY" | "FAILED"
   context?: {
-    licitacaoId: string
-    editalId: string
+    oportunidadeId: string
+    licitacaoId: string | null
+    editalId: string | null
     documentId: string
     documentType: LicitacaoDocumentType
   }
@@ -81,9 +84,141 @@ export type DeleteLicitacaoDocumentResponse = {
   deleted: true
 }
 
-export type LicitacaoDraftSummary = {
+export type DeleteLicitacaoDraftResponse = {
+  oportunidadeId: string
+  deletedDocuments: number
+  deleted: true
+}
+
+export type FinalizeOportunidadeRegistrationPayload = {
+  numeroLicitacao: string
+  ano: string
+  processo: string
+  modalidade: string
+  objeto: string
+  orgaoGerenciador: {
+    cnpj: string
+    nome: string
+    codigoUnidade: string
+    nomeUnidade: string
+    municipio: string
+    uf: string
+    esfera: string
+    poder: string
+    itensSolicitados: Array<{
+      itemId: string
+      quantidade: string
+    }>
+  }
+  valorTotalEstimado: string
+  valorTotalHomologado: string
+  srp: string
+  situacao: string
+  dataPublicacao: string
+  dataUltimaAtualizacao: string
+  linkProcesso: string
+  identificadorExterno: string
+  edital: {
+    amparoLegal: string
+    orgaosParticipantes: Array<{
+      cnpj: string
+      nome: string
+      codigoUnidade: string
+      nomeUnidade: string
+      municipio: string
+      uf: string
+      esfera: string
+      poder: string
+      itensSolicitados: Array<{
+        itemId: string
+        quantidade: string
+      }>
+    }>
+    cronograma: {
+      acolhimentoInicio: string
+      acolhimentoFim: string
+      horaLimite: string
+      sessaoPublica: string
+      horaSessaoPublica: string
+      esclarecimentosAte: string
+      impugnacaoAte: string
+    }
+    certame: {
+      modoDisputa: string
+      criterioJulgamento: string
+      tipoLance: string
+      intervaloLances: string
+      duracaoSessaoMinutos: string
+      exclusivoMeEpp: string
+      permiteConsorcio: string
+      exigeVisitaTecnica: string
+      regionalidade: string
+      permiteAdesao: string
+      percentualAdesao: string
+      vigenciaAtaMeses: string
+      vigenciaContratoDias: string
+      difal: string
+    }
+    itens: Array<{
+      itemId: string
+      numero: string
+      descricao: string
+      tipo: string
+      lote: string
+      quantidade: string
+      unidadeMedida: string
+      valorUnitarioEstimado: string
+      valorTotal: string
+      codigoNcmNbs: string
+      descricaoNcmNbs: string
+      codigoCatmatCatser: string
+      criterioJulgamento: string
+      beneficioTributario: string
+      observacao: string
+    }>
+    execucao: {
+      entrega: {
+        prazoEmDias: string
+        localEntrega: string
+        tipoEntrega: string
+        responsavelInstalacao: string
+      }
+      pagamento: {
+        prazoEmDias: string
+      }
+      aceite: {
+        prazoEmDias: string
+      }
+      validadeProposta: string
+      garantia: {
+        tipo: string
+        meses: string
+        tempoAtendimentoHoras: string
+      }
+    }
+    habilitacao: Array<{
+      tipo: string
+      categoria: string
+      obrigatorio: string
+    }>
+    informacaoComplementar: string
+  }
+}
+
+export type FinalizeOportunidadeRegistrationResponse = {
+  oportunidadeId: string
+  oportunidadeStatus: "ACTIVE"
   licitacaoId: string
-  licitacaoStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+  licitacaoStatus: "COMPLETED"
+  editalId: string
+  editalStatus: "COMPLETED"
+}
+
+export type LicitacaoDraftSummary = {
+  oportunidadeId: string
+  oportunidadeStatus: "DRAFT" | "ACTIVE" | "CANCELLED"
+  licitacaoId: string | null
+  licitacaoStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | null
   editalId: string | null
   editalStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | null
   primaryDocumentName: string | null
@@ -131,9 +266,16 @@ export type LicitacaoWorkspaceDocument = {
 }
 
 export type LicitacaoWorkspaceResponse = {
-  licitacao: {
+  oportunidade: {
     id: string
-    status: "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+    status: "DRAFT" | "ACTIVE" | "CANCELLED"
+    draftPreview: LicitacaoDraftPreview | null
+    createdAt: string
+    updatedAt: string
+  }
+  licitacao: {
+    id: string | null
+    status: "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | null
     draftPreview: LicitacaoDraftPreview | null
     createdAt: string
     updatedAt: string
@@ -302,14 +444,14 @@ export function useLicitacaoService(_api: CoreApiClient) {
 
   const getWorkspace = useCallback(async ({
     companyId,
-    licitacaoId,
+    oportunidadeId,
   }: {
     companyId: string
-    licitacaoId: string
+    oportunidadeId: string
   }): Promise<LicitacaoWorkspaceResponse> => {
     const query = new URLSearchParams({
       companyId,
-      licitacaoId,
+      oportunidadeId,
     })
 
     const res = await fetch(`/api/core/get-licitacao-workspace?${query.toString()}`, {
@@ -319,6 +461,54 @@ export function useLicitacaoService(_api: CoreApiClient) {
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       throw new Error(body.message ?? `Erro ${res.status} ao recuperar o workspace`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const deleteDraft = useCallback(async ({
+    companyId,
+    oportunidadeId,
+  }: {
+    companyId: string
+    oportunidadeId: string
+  }): Promise<DeleteLicitacaoDraftResponse> => {
+    const res = await fetch("/api/core/delete-licitacao-draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ companyId, oportunidadeId }),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao excluir rascunho`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const finalizeRegistration = useCallback(async ({
+    companyId,
+    oportunidadeId,
+    form,
+  }: {
+    companyId: string
+    oportunidadeId?: string
+    form: FinalizeOportunidadeRegistrationPayload
+  }): Promise<FinalizeOportunidadeRegistrationResponse> => {
+    const res = await fetch("/api/core/finalize-oportunidade-registration", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        companyId,
+        oportunidadeId,
+        form,
+      }),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao concluir o cadastro`)
     }
 
     return await res.json()
@@ -569,7 +759,7 @@ export function useLicitacaoService(_api: CoreApiClient) {
       file,
       companyId,
       documentType,
-      licitacaoId,
+      oportunidadeId,
       editalId,
       replaceDocumentId,
       onEvent,
@@ -577,7 +767,7 @@ export function useLicitacaoService(_api: CoreApiClient) {
       file: File
       companyId: string
       documentType: LicitacaoDocumentType
-      licitacaoId?: string
+      oportunidadeId?: string
       editalId?: string
       replaceDocumentId?: string
       onEvent?: (event: UploadLicitacaoDocumentEvent) => void
@@ -594,7 +784,7 @@ export function useLicitacaoService(_api: CoreApiClient) {
           documentType,
         })
 
-        if (licitacaoId) query.set("licitacaoId", licitacaoId)
+        if (oportunidadeId) query.set("oportunidadeId", oportunidadeId)
         if (editalId) query.set("editalId", editalId)
         if (replaceDocumentId) query.set("replaceDocumentId", replaceDocumentId)
 
@@ -707,6 +897,8 @@ export function useLicitacaoService(_api: CoreApiClient) {
   return {
     listDrafts,
     getWorkspace,
+    deleteDraft,
+    finalizeRegistration,
     useUploadEdital,
     useUploadLicitacaoDocumentStream,
     useDeleteLicitacaoDocument,
