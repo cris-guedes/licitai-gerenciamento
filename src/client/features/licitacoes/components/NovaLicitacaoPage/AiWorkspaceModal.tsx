@@ -1,17 +1,22 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
+import type { LucideIcon } from "lucide-react"
 import {
   AlertCircle,
   CheckCircle2,
   CirclePlus,
   FileText,
+  Gavel,
   LoaderCircle,
   RefreshCcw,
   ScanSearch,
+  ShieldAlert,
   Trash2,
+  Wrench,
   XCircle,
 } from "lucide-react"
+import { Badge } from "@/client/components/ui/badge"
 import { Button } from "@/client/components/ui/button"
 import {
   Dialog,
@@ -49,6 +54,7 @@ const DOCUMENT_TYPE_OPTIONS: Array<{ value: LicitacaoDocumentType; label: string
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  initialView?: WorkspaceView
   isUploadPending: boolean
   isExtractPending: boolean
   isDeletePending: boolean
@@ -77,11 +83,12 @@ type UploadDialogState = {
   targetDocumentLocalId?: string
 }
 
-type WorkspaceView = "document" | "assistant-cadastro"
+export type WorkspaceView = "document" | "assistant-cadastro"
 
 export function AiWorkspaceModal({
   open,
   onOpenChange,
+  initialView = "document",
   isUploadPending,
   isExtractPending,
   isDeletePending,
@@ -102,7 +109,8 @@ export function AiWorkspaceModal({
   const [dialogState, setDialogState] = useState<UploadDialogState>({ open: false, mode: "add" })
   const [dialogDocumentType, setDialogDocumentType] = useState<LicitacaoDocumentType>("ANEXO")
   const [dialogFile, setDialogFile] = useState<File | null>(null)
-  const [activeView, setActiveView] = useState<WorkspaceView>("document")
+  const [manualView, setManualView] = useState<WorkspaceView | null>(null)
+  const activeView = documents.length === 0 ? "document" : (manualView ?? initialView)
 
   const previewSourceUrl = useMemo(() => {
     if (selectedDocument?.previewUrl) return selectedDocument.previewUrl
@@ -122,6 +130,14 @@ export function AiWorkspaceModal({
     documents.length === 1 ? "1 arquivo carregado" : `${documents.length} arquivos carregados`
 
   const isCadastroAssistantActive = activeView === "assistant-cadastro"
+  const shouldShowApplyFooter = isCadastroAssistantActive && Boolean(extractionResult)
+
+  function handleApplyExtractionAndClose() {
+    const applied = onApplyExtraction()
+    if (!applied) return
+    onOpenChange(false)
+  }
+
   async function handleSubmitDialog() {
     if (!dialogFile) return
 
@@ -152,28 +168,31 @@ export function AiWorkspaceModal({
     setDialogState({ open: true, mode: "replace", targetDocumentLocalId: selectedDocument.localId })
   }
 
-  useEffect(() => {
-    if (!open || documents.length > 0) return
-    setActiveView("document")
-  }, [documents.length, open])
-
   function handleSelectDocumentView(localId: string) {
     onSelectDocument(localId)
-    setActiveView("document")
+    setManualView("document")
   }
 
   const selectedDocumentTypeMeta = DOCUMENT_TYPE_OPTIONS.find(option => option.value === selectedDocument?.type)
   const sectionLabel = isCadastroAssistantActive ? "Assistentes" : "Documentos"
   const sectionTitle = isCadastroAssistantActive
     ? "Assistente de cadastro"
-    : selectedDocument?.originalName ?? "Selecione um documento"
+    : selectedDocument?.displayName ?? selectedDocument?.originalName ?? "Selecione um documento"
   const sectionDescription = isCadastroAssistantActive
     ? "Extraia dados estruturados do edital e acompanhe a revisão em tempo real."
     : `${selectedDocumentTypeMeta?.label ?? "Documento"} · ${formatBytes(selectedDocument?.sizeBytes ?? 0)}`
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog
+        open={open}
+        onOpenChange={nextOpen => {
+          if (!nextOpen) {
+            setManualView(null)
+          }
+          onOpenChange(nextOpen)
+        }}
+      >
         <DialogContent
           className="h-[92vh] max-w-none overflow-hidden border-0 bg-white p-0 shadow-[0_30px_80px_rgba(4,22,39,0.18)]"
           style={{
@@ -191,7 +210,18 @@ export function AiWorkspaceModal({
           <div className="grid h-full min-h-0 gap-0 lg:grid-cols-[300px_minmax(0,1fr)]">
             <aside className="flex min-h-0 flex-col border-r border-slate-200 bg-slate-50/55">
               <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
-                <section>
+                <div className="flex min-h-36 items-center border-b border-slate-200/80 pb-6">
+                  <Button
+                    type="button"
+                    className="h-12 w-full rounded-xl text-sm font-semibold shadow-[0_12px_30px_rgba(37,99,235,0.18)]"
+                    onClick={openAddDialog}
+                  >
+                    <CirclePlus className="mr-2 size-4" />
+                    Adicionar documento
+                  </Button>
+                </div>
+
+                <section className="pt-6">
                   <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
                     Assistentes IA
                   </p>
@@ -199,7 +229,7 @@ export function AiWorkspaceModal({
                   <div className="mt-4 space-y-3">
                     <button
                       type="button"
-                      onClick={() => setActiveView("assistant-cadastro")}
+                      onClick={() => setManualView("assistant-cadastro")}
                       className={cn(
                         "flex min-h-[84px] w-full items-center gap-3 rounded-2xl border px-4 py-4 text-left transition-colors",
                         isCadastroAssistantActive
@@ -227,6 +257,22 @@ export function AiWorkspaceModal({
                         </p>
                       </div>
                     </button>
+
+                    <DisabledAssistantCard
+                      icon={ShieldAlert}
+                      title="Assistente de riscos"
+                      description="Mapeia riscos, dependências e pontos de atenção do edital."
+                    />
+                    <DisabledAssistantCard
+                      icon={Gavel}
+                      title="Assistente jurídico"
+                      description="Destaca obrigações legais, cláusulas críticas e inconsistências."
+                    />
+                    <DisabledAssistantCard
+                      icon={Wrench}
+                      title="Assistente técnico"
+                      description="Avalia requisitos técnicos, escopo e critérios de execução."
+                    />
                   </div>
                 </section>
 
@@ -240,6 +286,7 @@ export function AiWorkspaceModal({
                     {documents.map(document => {
                       const isSelectedDocument = document.localId === selectedDocumentId
                       const isActiveCard = activeView === "document" && isSelectedDocument
+                      const documentTitle = document.displayName ?? document.originalName
 
                       return (
                         <button
@@ -265,7 +312,10 @@ export function AiWorkspaceModal({
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-[14px] font-semibold leading-5 text-primary">{document.originalName}</p>
+                                <p className="truncate text-[14px] font-semibold leading-5 text-primary">{documentTitle}</p>
+                                {document.displayName && document.displayName !== document.originalName ? (
+                                  <p className="mt-1 truncate text-xs text-slate-600">{document.originalName}</p>
+                                ) : null}
                                 <p className="mt-1.5 text-[11px] uppercase tracking-[0.12em] text-slate-500">
                                   {formatDocumentType(document.type)} · {formatBytes(document.sizeBytes)}
                                 </p>
@@ -289,16 +339,6 @@ export function AiWorkspaceModal({
                 </section>
               </div>
 
-              <div className="shrink-0 border-t border-slate-200/80 px-5 py-4">
-                <Button
-                  type="button"
-                  className="h-12 w-full rounded-xl text-sm font-semibold shadow-[0_12px_30px_rgba(37,99,235,0.18)]"
-                  onClick={openAddDialog}
-                >
-                  <CirclePlus className="mr-2 size-4" />
-                  Novo Documento
-                </Button>
-              </div>
             </aside>
 
             <div className="flex min-h-0 flex-1 flex-col bg-white">
@@ -318,30 +358,7 @@ export function AiWorkspaceModal({
                 <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end sm:self-center">
                   {isCadastroAssistantActive ? (
                     <>
-                      {extractionResult ? (
-                        <>
-                          <Button
-                            type="button"
-                            size="lg"
-                            variant="outline"
-                            className="rounded-none"
-                            disabled={isExtractPending}
-                            onClick={() => void onRunCadastroAssistantExtraction()}
-                          >
-                            <RefreshCcw className="mr-2 size-4" />
-                            Refazer
-                          </Button>
-                          <Button
-                            type="button"
-                            size="lg"
-                            className="rounded-none"
-                            disabled={isExtractPending}
-                            onClick={onApplyExtraction}
-                          >
-                            Importar para o formulário
-                          </Button>
-                        </>
-                      ) : (
+                      {!extractionResult ? (
                         <Button
                           type="button"
                           size="lg"
@@ -352,7 +369,7 @@ export function AiWorkspaceModal({
                           {isExtractPending ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <ScanSearch className="mr-2 size-4" />}
                           {isExtractPending ? "Extraindo informações..." : "Extrair informações"}
                         </Button>
-                      )}
+                      ) : null}
                     </>
                   ) : (
                     <>
@@ -383,7 +400,12 @@ export function AiWorkspaceModal({
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-hidden border-t border-slate-200 bg-white shadow-[inset_0_0_0_1px_rgba(226,232,240,0.8)]">
+              <div
+                className={cn(
+                  "min-h-0 flex-1 overflow-hidden border-t border-slate-200 bg-white shadow-[inset_0_0_0_1px_rgba(226,232,240,0.8)]",
+                  shouldShowApplyFooter && "pb-24",
+                )}
+              >
                 {isCadastroAssistantActive ? (
                   <CadastroAssistantPanel
                     selectedDocument={selectedDocument}
@@ -393,13 +415,12 @@ export function AiWorkspaceModal({
                     progress={extractionProgress}
                     preview={extractionPreview}
                     onRunExtraction={onRunCadastroAssistantExtraction}
-                    onApplyExtraction={onApplyExtraction}
                   />
                 ) : selectedDocument?.status === "READY" && previewSourceUrl ? (
                   <div className="flex h-full min-h-0 overflow-hidden bg-white">
                     <div className="min-h-0 flex-1 overflow-hidden bg-white">
                       <iframe
-                        title={selectedDocument.originalName}
+                        title={selectedDocument.displayName ?? selectedDocument.originalName}
                         src={previewSourceUrl}
                         className="h-full w-full border-0"
                         allow="fullscreen"
@@ -436,6 +457,33 @@ export function AiWorkspaceModal({
                   </div>
                 )}
               </div>
+
+              {shouldShowApplyFooter ? (
+                <div className="absolute bottom-0 right-0 z-20 flex w-full justify-end border-t border-slate-200/80 bg-white/96 px-6 py-4 backdrop-blur supports-[backdrop-filter]:bg-white/80 lg:w-[calc(100%-300px)]">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <Button
+                      type="button"
+                      size="lg"
+                      variant="outline"
+                      className="min-w-40 rounded-none"
+                      disabled={isExtractPending}
+                      onClick={() => void onRunCadastroAssistantExtraction()}
+                    >
+                      <RefreshCcw className="mr-2 size-4" />
+                      Refazer
+                    </Button>
+                    <Button
+                      type="button"
+                      size="lg"
+                      className="min-w-60 rounded-none"
+                      disabled={isExtractPending}
+                      onClick={handleApplyExtractionAndClose}
+                    >
+                      Importar para o formulário
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </DialogContent>
@@ -531,4 +579,31 @@ function renderDocumentStatusIcon(status: LicitacaoDocumentItem["status"]) {
   if (status === "READY") return <CheckCircle2 className="size-3.5 text-emerald-600" />
   if (status === "FAILED") return <XCircle className="size-3.5 text-rose-600" />
   return <LoaderCircle className="size-3.5 animate-spin text-sky-600" />
+}
+
+function DisabledAssistantCard({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: LucideIcon
+  title: string
+  description: string
+}) {
+  return (
+    <div className="flex min-h-[84px] w-full cursor-not-allowed items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/65 px-4 py-4 text-left opacity-80">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+        <Icon className="size-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[15px] font-semibold leading-5 text-slate-700">{title}</p>
+          <Badge variant="secondary" className="rounded-full px-1 py-0 text-[8px] uppercase tracking-[0.08em] leading-4">
+            Em breve
+          </Badge>
+        </div>
+        <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{description}</p>
+      </div>
+    </div>
+  )
 }

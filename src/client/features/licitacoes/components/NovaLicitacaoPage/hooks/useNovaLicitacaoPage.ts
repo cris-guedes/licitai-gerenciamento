@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import type { ExtractEditalDataResponse } from "@/client/main/infra/apis/api-core/models/ExtractEditalDataResponse"
 import type {
+  LicitacaoWorkspaceResponse,
   LicitacaoDocumentProcessingStatus,
   LicitacaoDocumentType,
   UploadLicitacaoDocumentEvent,
@@ -27,6 +28,7 @@ type LicitacaoService = ReturnType<typeof useLicitacaoService>
 type Props = {
   licitacaoService: LicitacaoService
   companyId: string | null
+  initialLicitacaoId?: string | null
 }
 
 type AppliedExtraction = {
@@ -58,7 +60,40 @@ function mapStreamStatus(status: "UPLOADING" | "PROCESSING" | "READY" | "FAILED"
   return status
 }
 
-export function useNovaLicitacaoPage({ licitacaoService, companyId }: Props) {
+function createDocumentStatusMessage(status: LicitacaoWorkspaceResponse["documents"][number]["status"]) {
+  if (status === "READY") return "Documento pronto para leitura assistida."
+  if (status === "FAILED") return "Falha no processamento do documento."
+  return "Documento ainda está sendo processado."
+}
+
+function mapWorkspaceDocumentStatus(status: LicitacaoWorkspaceResponse["documents"][number]["status"]): LicitacaoDocumentProcessingStatus {
+  if (status === "READY") return "READY"
+  if (status === "FAILED") return "FAILED"
+  return "PROCESSING"
+}
+
+function buildSavedExtractionResult(
+  analysis: LicitacaoWorkspaceResponse["documents"][number]["analyses"][number],
+): ExtractEditalDataResponse | null {
+  if (analysis.type !== "EXTRACT_EDITAL" || analysis.status !== "COMPLETED") return null
+
+  const result = analysis.result as { sessionId?: string; licitacao?: ExtractEditalDataResponse["licitacao"] } | null
+  const metrics = analysis.metrics as ExtractEditalDataResponse["metrics"] | null
+
+  if (!result?.sessionId || !result.licitacao || !metrics) {
+    return null
+  }
+
+  return {
+    sessionId: result.sessionId,
+    mdContent: analysis.markdownContent ?? "",
+    licitacao: result.licitacao,
+    metrics,
+  }
+}
+
+export function useNovaLicitacaoPage({ licitacaoService, companyId, initialLicitacaoId }: Props) {
+  const getWorkspace = licitacaoService.getWorkspace
   const form = useForm<NovaLicitacaoFormValues>({
     resolver: zodResolver(novaLicitacaoFormSchema),
     defaultValues: createNovaLicitacaoDefaultValues(),
@@ -74,6 +109,9 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId }: Props) {
   const [draftContext, setDraftContext] = useState<LicitacaoDraftContext | null>(null)
   const [documents, setDocuments] = useState<LicitacaoDocumentItem[]>([])
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
+  const [savedExtractionResultsByDocumentId, setSavedExtractionResultsByDocumentId] = useState<Record<string, ExtractEditalDataResponse>>({})
+  const [isHydratingWorkspace, setIsHydratingWorkspace] = useState(false)
+  const [hydratedWorkspaceId, setHydratedWorkspaceId] = useState<string | null>(null)
 
   const selectedDocument = useMemo(() => {
     if (!documents.length) return null
@@ -88,6 +126,94 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId }: Props) {
   const primaryEditalDocument = useMemo(() => {
     return documents.find(document => document.type === "EDITAL") ?? null
   }, [documents])
+
+  useEffect(() => {
+    if (extraction.isPending) return
+
+    const activeLocalId = selectedDocumentId ?? documents[0]?.localId ?? null
+
+    if (!activeLocalId) {
+      setExtractionResult(null)
+      return
+    }
+
+    setExtractionResult(savedExtractionResultsByDocumentId[activeLocalId] ?? null)
+  }, [documents, extraction.isPending, savedExtractionResultsByDocumentId, selectedDocumentId])
+
+  const hydrateWorkspace = useCallback(async (licitacaoId: string) => {
+    if (!companyId) return
+
+    setHydratedWorkspaceId(licitacaoId)
+    setIsHydratingWorkspace(true)
+    extraction.reset()
+    setExtractionResult(null)
+    setAppliedExtraction(null)
+
+    try {
+      const workspace = await getWorkspace({
+        companyId,
+        licitacaoId,
+      })
+
+      const restoredDocuments: LicitacaoDocumentItem[] = workspace.documents.map(document => ({
+        localId: document.id,
+        documentId: document.id,
+        type: document.type,
+        displayName: document.displayName || undefined,
+        originalName: document.originalName,
+        mimeType: document.mimeType,
+        sizeBytes: document.sizeBytes,
+        status: mapWorkspaceDocumentStatus(document.status),
+        progressPercent: document.status === "READY" ? 100 : document.status === "FAILED" ? 100 : 0,
+        message: createDocumentStatusMessage(document.status),
+        previewUrl: document.previewUrl || undefined,
+        documentUrl: document.documentUrl || undefined,
+        previewUrlExpiresAt: document.previewUrlExpiresAt || undefined,
+        uploadedAt: document.uploadedAt,
+        file: null,
+      }))
+
+      const restoredExtractionResults = restoredDocuments.reduce<Record<string, ExtractEditalDataResponse>>((acc, document) => {
+        const workspaceDocument = workspace.documents.find(item => item.id === document.documentId)
+        const analysis = workspaceDocument?.analyses.find(item => item.type === "EXTRACT_EDITAL")
+        const savedResult = analysis ? buildSavedExtractionResult(analysis) : null
+
+        if (savedResult) {
+          acc[document.localId] = savedResult
+        }
+
+        return acc
+      }, {})
+
+      const selectedLocalId = restoredDocuments.find(document => document.type === "EDITAL")?.localId
+        ?? restoredDocuments[0]?.localId
+        ?? null
+
+      setDraftContext(workspace.edital ? {
+        licitacaoId: workspace.licitacao.id,
+        licitacaoStatus: workspace.licitacao.status,
+        editalId: workspace.edital.id,
+        editalStatus: workspace.edital.status,
+      } : null)
+      setDocuments(restoredDocuments)
+      setSavedExtractionResultsByDocumentId(restoredExtractionResults)
+      setSelectedDocumentId(selectedLocalId)
+      setExtractionResult(selectedLocalId ? restoredExtractionResults[selectedLocalId] ?? null : null)
+      setStage("form")
+      setIsWorkspaceModalOpen(restoredDocuments.length > 0)
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Não foi possível recuperar o workspace da licitação."))
+    } finally {
+      setIsHydratingWorkspace(false)
+    }
+  }, [companyId, extraction.reset, getWorkspace])
+
+  useEffect(() => {
+    if (!initialLicitacaoId || !companyId) return
+    if (hydratedWorkspaceId === initialLicitacaoId) return
+
+    void hydrateWorkspace(initialLicitacaoId)
+  }, [companyId, hydrateWorkspace, hydratedWorkspaceId, initialLicitacaoId])
 
   function updateDocument(localId: string, updater: (current: LicitacaoDocumentItem) => LicitacaoDocumentItem) {
     setDocuments(prev => prev.map(document => (document.localId === localId ? updater(document) : document)))
@@ -131,6 +257,7 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId }: Props) {
         localId,
         documentId: event.result.documentId,
         type: event.result.documentType,
+        displayName: event.result.displayName || undefined,
         originalName: event.result.originalName,
         mimeType: event.result.mimeType,
         sizeBytes: event.result.sizeBytes,
@@ -192,6 +319,7 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId }: Props) {
       localId,
       documentId: replacingDocument?.documentId,
       type: documentType,
+      displayName: replacingDocument?.displayName,
       originalName: file.name,
       mimeType: file.type || "application/pdf",
       sizeBytes: file.size,
@@ -213,6 +341,13 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId }: Props) {
       return [...prev, provisionalDocument]
     })
     setSelectedDocumentId(localId)
+    setSavedExtractionResultsByDocumentId(prev => {
+      if (!replaceDocumentLocalId) return prev
+
+      const next = { ...prev }
+      delete next[replaceDocumentLocalId]
+      return next
+    })
     setExtractionResult(null)
     extraction.reset()
     setStage("form")
@@ -266,6 +401,11 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId }: Props) {
       const remainingDocuments = documents.filter(item => item.localId !== localId)
       setDocuments(remainingDocuments)
       setSelectedDocumentId(prev => (prev === localId ? (remainingDocuments[0]?.localId ?? null) : prev))
+      setSavedExtractionResultsByDocumentId(prev => {
+        const next = { ...prev }
+        delete next[localId]
+        return next
+      })
       setExtractionResult(null)
       extraction.reset()
 
@@ -278,20 +418,24 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId }: Props) {
 
   function handleSelectDocument(localId: string) {
     if (localId !== selectedDocumentId) {
-      setExtractionResult(null)
       extraction.reset()
     }
 
     setSelectedDocumentId(localId)
+    setExtractionResult(savedExtractionResultsByDocumentId[localId] ?? null)
   }
 
-  async function handleExtractDocument(documentId: string) {
+  async function handleExtractDocument(documentId: string, localId: string) {
     if (!companyId) {
       throw new Error("Nenhuma empresa ativa selecionada para vincular este documento.")
     }
 
     setExtractionResult(null)
     const result = await extraction.mutateAsync({ companyId, documentId })
+    setSavedExtractionResultsByDocumentId(prev => ({
+      ...prev,
+      [localId]: result,
+    }))
     setExtractionResult(result)
   }
 
@@ -354,7 +498,7 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId }: Props) {
       throw error
     }
 
-    await handleExtractDocument(selectedDocument.documentId)
+    await handleExtractDocument(selectedDocument.documentId, selectedDocument.localId)
   }
 
   return {
@@ -370,6 +514,7 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId }: Props) {
     selectedDocumentId,
     primaryEditalDocument,
     draftContext,
+    isHydratingWorkspace,
     isWorkspaceModalOpen,
     setStage,
     setIsWorkspaceModalOpen,

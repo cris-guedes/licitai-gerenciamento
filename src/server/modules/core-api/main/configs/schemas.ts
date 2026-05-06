@@ -35,6 +35,8 @@ import { ExtractEditalDataPostEmbedingStreamControllerSchemas } from "../../doma
 import { DeleteLicitacaoDocumentControllerSchemas } from "../../domain/use-cases/licitacao/delete-licitacao-document/DeleteLicitacaoDocumentControllerSchemas";
 import { UploadEditalDocumentControllerSchemas } from "../../domain/use-cases/licitacao/upload-edital-document/UploadEditalDocumentControllerSchemas";
 import { UploadLicitacaoDocumentStreamControllerSchemas } from "../../domain/use-cases/licitacao/upload-licitacao-document-stream/UploadLicitacaoDocumentStreamControllerSchemas";
+import { ListLicitacaoDraftsControllerSchemas } from "../../domain/use-cases/licitacao/list-licitacao-drafts/ListLicitacaoDraftsControllerSchemas";
+import { GetLicitacaoWorkspaceControllerSchemas } from "../../domain/use-cases/licitacao/get-licitacao-workspace/GetLicitacaoWorkspaceControllerSchemas";
 import { GetInviteControllerSchemas, GetInviteResponseSchema } from "../../domain/use-cases/team/get-invite/GetInviteControllerSchemas";
 import { AcceptInviteControllerSchemas, AcceptInviteResponseSchema } from "../../domain/use-cases/team/accept-invite/AcceptInviteControllerSchemas";
 import { UpdateMemberRoleControllerSchemas, UpdateMemberRoleResponseSchema } from "../../domain/use-cases/team/update-member-role/UpdateMemberRoleControllerSchemas";
@@ -498,6 +500,26 @@ export const apiEndpoints: EndpointConfig[] = [
     method: "POST",
     schemas: RemoveMemberControllerSchemas,
     extraSchemas: { RemoveMemberResponse: RemoveMemberResponseSchema },
+  },
+  {
+    path: "/list-licitacao-drafts",
+    operationId: "listLicitacaoDrafts",
+    tag: "Licitacao",
+    summary: "Lista licitações em andamento",
+    description: "Retorna os rascunhos de licitação ainda não concluídos para a empresa selecionada.",
+    successDescription: "Rascunhos encontrados",
+    method: "GET",
+    schemas: ListLicitacaoDraftsControllerSchemas,
+  },
+  {
+    path: "/get-licitacao-workspace",
+    operationId: "getLicitacaoWorkspace",
+    tag: "Licitacao",
+    summary: "Recupera o workspace de IA de uma licitação em andamento",
+    description: "Retorna documentos, análises persistidas e URLs temporárias do workspace de IA para continuar uma licitação em progresso.",
+    successDescription: "Workspace recuperado com sucesso",
+    method: "GET",
+    schemas: GetLicitacaoWorkspaceControllerSchemas,
   },
   {
     path: "/upload-edital-document",

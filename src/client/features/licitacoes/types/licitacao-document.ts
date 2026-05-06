@@ -14,6 +14,7 @@ export type LicitacaoDocumentItem = {
   localId: string
   documentId?: string
   type: LicitacaoDocumentType
+  displayName?: string
   originalName: string
   mimeType: string
   sizeBytes: number

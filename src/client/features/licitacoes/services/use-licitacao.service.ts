@@ -8,6 +8,19 @@ import type { UploadEditalDocumentResponse } from "@/client/main/infra/apis/api-
 export type LicitacaoDocumentType = "EDITAL" | "ANEXO" | "OUTRO"
 export type LicitacaoDocumentProcessingStatus = "AWAITING_UPLOAD" | "UPLOADING" | "PROCESSING" | "READY" | "FAILED"
 
+export type LicitacaoDraftPreview = {
+  source: "first_page_agent"
+  sourceDocumentId: string
+  sourcePage: 1
+  extractedAt: string
+  displayName: string | null
+  orgaoNome: string | null
+  modalidade: string | null
+  numero: string | null
+  objetoResumo: string | null
+  dataAbertura: string | null
+}
+
 export type UploadLicitacaoDocumentResponse = {
   licitacaoId: string
   licitacaoStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
@@ -15,6 +28,7 @@ export type UploadLicitacaoDocumentResponse = {
   editalStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
   documentId: string
   documentType: LicitacaoDocumentType
+  displayName: string | null
   originalName: string
   mimeType: string
   sizeBytes: number
@@ -23,6 +37,7 @@ export type UploadLicitacaoDocumentResponse = {
   previewUrl: string
   previewUrlExpiresAt: string
   uploadedAt: string
+  draftPreview: LicitacaoDraftPreview | null
 }
 
 export type UploadLicitacaoDocumentProgressEvent = {
@@ -64,6 +79,72 @@ export type UploadLicitacaoDocumentEvent =
 export type DeleteLicitacaoDocumentResponse = {
   documentId: string
   deleted: true
+}
+
+export type LicitacaoDraftSummary = {
+  licitacaoId: string
+  licitacaoStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+  editalId: string | null
+  editalStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | null
+  primaryDocumentName: string | null
+  primaryDocumentType: LicitacaoDocumentType | null
+  draftPreview: LicitacaoDraftPreview | null
+  documentCount: number
+  readyDocuments: number
+  processingDocuments: number
+  failedDocuments: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type ListLicitacaoDraftsResponse = {
+  drafts: LicitacaoDraftSummary[]
+}
+
+export type LicitacaoWorkspaceDocumentAnalysis = {
+  id: string
+  type: "EXTRACT_EDITAL" | "SUMMARY"
+  status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED"
+  markdownContent: string | null
+  result: unknown
+  metrics: unknown
+  errorMessage: string | null
+  startedAt: string | null
+  finishedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type LicitacaoWorkspaceDocument = {
+  id: string
+  type: LicitacaoDocumentType
+  displayName: string | null
+  originalName: string
+  mimeType: string
+  sizeBytes: number
+  status: "PROCESSING" | "READY" | "FAILED"
+  documentUrl: string
+  previewUrl: string
+  previewUrlExpiresAt: string
+  uploadedAt: string
+  analyses: LicitacaoWorkspaceDocumentAnalysis[]
+}
+
+export type LicitacaoWorkspaceResponse = {
+  licitacao: {
+    id: string
+    status: "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+    draftPreview: LicitacaoDraftPreview | null
+    createdAt: string
+    updatedAt: string
+  }
+  edital: {
+    id: string
+    status: "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+    createdAt: string
+    updatedAt: string
+  } | null
+  documents: LicitacaoWorkspaceDocument[]
 }
 
 type ExtractedItem = NonNullable<NonNullable<ExtractEditalDataResponse["licitacao"]["edital"]>["itens"]>[number]
@@ -202,6 +283,47 @@ function toError(error: unknown): Error {
 }
 
 export function useLicitacaoService(_api: CoreApiClient) {
+  const listDrafts = useCallback(async ({
+    companyId,
+  }: {
+    companyId: string
+  }): Promise<ListLicitacaoDraftsResponse> => {
+    const res = await fetch(`/api/core/list-licitacao-drafts?companyId=${encodeURIComponent(companyId)}`, {
+      method: "GET",
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao listar rascunhos`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const getWorkspace = useCallback(async ({
+    companyId,
+    licitacaoId,
+  }: {
+    companyId: string
+    licitacaoId: string
+  }): Promise<LicitacaoWorkspaceResponse> => {
+    const query = new URLSearchParams({
+      companyId,
+      licitacaoId,
+    })
+
+    const res = await fetch(`/api/core/get-licitacao-workspace?${query.toString()}`, {
+      method: "GET",
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao recuperar o workspace`)
+    }
+
+    return await res.json()
+  }, [])
+
   const useUploadEdital = () => {
     const [isPending, setIsPending] = useState(false)
     const [error, setError] = useState<Error | null>(null)
@@ -582,5 +704,12 @@ export function useLicitacaoService(_api: CoreApiClient) {
     return { mutateAsync, isPending, error, reset }
   }
 
-  return { useUploadEdital, useUploadLicitacaoDocumentStream, useDeleteLicitacaoDocument, useExtractEdital }
+  return {
+    listDrafts,
+    getWorkspace,
+    useUploadEdital,
+    useUploadLicitacaoDocumentStream,
+    useDeleteLicitacaoDocument,
+    useExtractEdital,
+  }
 }

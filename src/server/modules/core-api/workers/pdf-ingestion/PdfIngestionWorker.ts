@@ -26,6 +26,7 @@ export class PdfIngestionWorker {
 
     async ingest(documentId: string, {
         pdfBuffer,
+        parsedResponse,
         embeddingConcurrency = 1,
         storeConcurrency = 1,
         onProgress
@@ -34,7 +35,7 @@ export class PdfIngestionWorker {
 
         const ensureCollectionTimeMs = await this.stepEnsureVectorCollectionExists();
 
-        const { response, timeMs: parseTimeMs } = await this.stepParseDocument(pdfBuffer, documentId);
+        const { response, timeMs: parseTimeMs } = await this.stepParseDocument(pdfBuffer, documentId, parsedResponse);
 
         const allChunks = this.stepExtractRawChunksFromResponse(response);
         onProgress?.onParsed(parseTimeMs);
@@ -107,7 +108,18 @@ export class PdfIngestionWorker {
         return stopTimer({ collectionName: this.config.collectionName });
     }
 
-    private async stepParseDocument(buffer: Buffer, documentId: string): Promise<{ response: ProcessPdfResponse; timeMs: number }> {
+    private async stepParseDocument(
+        buffer: Buffer,
+        documentId: string,
+        parsedResponse?: ProcessPdfResponse,
+    ): Promise<{ response: ProcessPdfResponse; timeMs: number }> {
+        if (parsedResponse) {
+            return {
+                response: parsedResponse,
+                timeMs: parsedResponse.processing_time_ms,
+            };
+        }
+
         const stopTimer = this.metrics.startTimer("pdf-ingestion:parse-document");
         const response = await this.documentParser.process(buffer, documentId);
         const timeMs = stopTimer({ documentId, providerReportedParseTimeMs: response.processing_time_ms });
@@ -303,6 +315,7 @@ export namespace PdfIngestionWorker {
 
     export type Input = {
         pdfBuffer: Buffer;
+        parsedResponse?: ProcessPdfResponse;
         embeddingConcurrency?: number;
         storeConcurrency?: number;
         onProgress?: IngestionProgress;

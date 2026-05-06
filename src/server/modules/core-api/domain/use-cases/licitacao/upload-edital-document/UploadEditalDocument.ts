@@ -6,6 +6,8 @@ import { PrismaCompanyRepository } from "@/server/shared/infra/repositories/comp
 import { PrismaLicitacaoRepository } from "@/server/shared/infra/repositories/licitacao.repository";
 import { PrismaMembershipRepository } from "@/server/shared/infra/repositories/membership.repository";
 import { assertUserCanAccessCompany } from "../../company/_shared/assertCompanyAccess";
+import { DraftPreviewExtractor } from "../_shared/DraftPreviewExtractor";
+import { withDraftPreview } from "../_shared/draftPreview";
 import type { UploadEditalDocumentDTO } from "./dtos/UploadEditalDocumentDTOs";
 import { UploadEditalDocumentMapper, type UploadEditalDocumentView } from "./dtos/UploadEditalDocumentView";
 
@@ -16,6 +18,7 @@ export class UploadEditalDocument {
         private readonly licitacaoRepository: PrismaLicitacaoRepository,
         private readonly companyRepository: PrismaCompanyRepository,
         private readonly membershipRepository: PrismaMembershipRepository,
+        private readonly draftPreviewExtractor: DraftPreviewExtractor,
         private readonly config: UploadEditalDocument.Config,
     ) {}
 
@@ -52,7 +55,7 @@ export class UploadEditalDocument {
                 },
             });
 
-            const { document, edital, licitacao } = await this.licitacaoRepository.createDraftWithEditalAndDocument({
+            const { document, edital, licitacao: createdLicitacao } = await this.licitacaoRepository.createDraftWithEditalAndDocument({
                 licitacao: {
                     id: licitacaoId,
                     companyId: company.id,
@@ -83,6 +86,21 @@ export class UploadEditalDocument {
                 },
             });
 
+            const draftPreview = await this.generateDraftPreview({
+                documentId,
+                pdfBuffer: params.fileBuffer,
+                filename: originalFilename,
+            });
+
+            const licitacao = draftPreview
+                ? await this.licitacaoRepository.update({
+                    id: createdLicitacao.id,
+                    data: {
+                        metadados: withDraftPreview(createdLicitacao.metadados, draftPreview),
+                    },
+                })
+                : createdLicitacao;
+
             const temporaryUrl = await this.objectStorageProvider.getDocumentTemporaryUrl({
                 key: document.storageKey,
                 bucket: document.storageBucket,
@@ -103,6 +121,19 @@ export class UploadEditalDocument {
             }
 
             throw error;
+        }
+    }
+
+    private async generateDraftPreview(params: {
+        documentId: string;
+        pdfBuffer: Buffer;
+        filename: string;
+    }) {
+        try {
+            return await this.draftPreviewExtractor.extract(params);
+        } catch (error) {
+            console.warn("[UploadEditalDocument] Falha ao gerar preview leve do edital:", error);
+            return null;
         }
     }
 

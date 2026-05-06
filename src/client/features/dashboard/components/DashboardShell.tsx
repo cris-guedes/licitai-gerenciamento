@@ -8,6 +8,7 @@ import {
   Bell,
   Bot,
   Building2,
+  Clock3,
   ChevronsUpDown,
   ChevronRight,
   FileText,
@@ -307,10 +308,10 @@ function NavMain() {
           </SidebarMenuSubButton>
         </SidebarMenuSubItem>
         <SidebarMenuSubItem>
-          <SidebarMenuSubButton asChild isActive={is("licitacoes/nova")}>
-            <Link href={`${base}/licitacoes/nova`}>
-              <FileText className="size-[14px]" />
-              <span className={NAV_LABEL_CLASS}>Nova Licitação</span>
+          <SidebarMenuSubButton asChild isActive={pathname === `${base}/licitacoes/rascunhos`}>
+            <Link href={`${base}/licitacoes/rascunhos`}>
+              <Clock3 className="size-[14px]" />
+              <span className={NAV_LABEL_CLASS}>Rascunhos</span>
             </Link>
           </SidebarMenuSubButton>
         </SidebarMenuSubItem>
@@ -431,6 +432,7 @@ function resolvePageMeta(pathname: string, base: string) {
   const matches: Array<{ key: string; title: string; subtitle: string }> = [
     { key: "search", title: "Captação", subtitle: "Monitore oportunidades com mais precisão." },
     { key: "licitacoes/nova", title: "Nova Licitação", subtitle: "Monte o cadastro como um workspace editorial." },
+    { key: "licitacoes/rascunhos", title: "Rascunhos", subtitle: "Retome licitações em andamento com o contexto da IA preservado." },
     { key: "licitacoes", title: "Gerenciar Licitações", subtitle: "Acompanhe processos, status e próximos movimentos." },
     { key: "time", title: "Gerenciar Time", subtitle: "Coordene acessos, papéis e responsabilidades." },
     { key: "empresa", title: "Gerenciar Empresas", subtitle: "Organize os dados mestres da operação." },

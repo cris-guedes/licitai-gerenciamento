@@ -9,6 +9,8 @@ import { PrismaDocumentRepository } from "@/server/shared/infra/repositories/doc
 import { PrismaLicitacaoRepository } from "@/server/shared/infra/repositories/licitacao.repository";
 import { PrismaMembershipRepository } from "@/server/shared/infra/repositories/membership.repository";
 import { assertUserCanAccessCompany } from "../../company/_shared/assertCompanyAccess";
+import { DraftPreviewExtractor } from "../_shared/DraftPreviewExtractor";
+import { withDraftPreview } from "../_shared/draftPreview";
 import type { UploadLicitacaoDocumentDTO } from "./dtos/UploadLicitacaoDocumentDTOs";
 import { UploadLicitacaoDocumentMapper, type UploadLicitacaoDocumentView } from "./dtos/UploadLicitacaoDocumentView";
 
@@ -38,6 +40,7 @@ export class UploadLicitacaoDocument {
         private readonly documentRepository: PrismaDocumentRepository,
         private readonly companyRepository: PrismaCompanyRepository,
         private readonly membershipRepository: PrismaMembershipRepository,
+        private readonly draftPreviewExtractor: DraftPreviewExtractor,
         private readonly config: UploadLicitacaoDocument.Config,
     ) {}
 
@@ -167,6 +170,16 @@ export class UploadLicitacaoDocument {
                 context: { licitacaoId: context.licitacao.id, editalId: context.edital.id, documentId, documentType: params.documentType },
             }));
 
+            const draftPreviewPromise = this.shouldExtractDraftPreview(params.documentType)
+                ? this.generateDraftPreview({
+                    documentId,
+                    licitacaoId: context.licitacao.id,
+                    currentMetadata: context.licitacao.metadados,
+                    pdfBuffer: params.fileBuffer,
+                    filename: originalFilename,
+                })
+                : Promise.resolve(null);
+
             await this.pdfIngestionWorker.ingest(documentId, {
                 pdfBuffer: params.fileBuffer,
                 embeddingConcurrency: this.config.embeddingConcurrency,
@@ -209,6 +222,8 @@ export class UploadLicitacaoDocument {
                 },
             });
 
+            const licitacao = await draftPreviewPromise;
+
             if (previousStorageKey && previousStorageKey !== storedDocument.storageKey) {
                 await this.objectStorageProvider.deleteDocument({ key: previousStorageKey }).catch(() => undefined);
             }
@@ -221,7 +236,7 @@ export class UploadLicitacaoDocument {
             });
 
             return UploadLicitacaoDocumentMapper.toView({
-                licitacao: context.licitacao,
+                licitacao: licitacao ?? context.licitacao,
                 edital: context.edital,
                 document,
                 documentUrl: temporaryUrl.url,
@@ -250,46 +265,18 @@ export class UploadLicitacaoDocument {
         editalId?: string;
     }): Promise<UploadLicitacaoDocument.DraftContext> {
         if (params.licitacaoId && params.editalId) {
+            const workspace = await this.licitacaoRepository.findWorkspaceById({
+                licitacaoId: params.licitacaoId,
+                companyId: params.companyId,
+            });
+
+            if (!workspace || !workspace.edital || workspace.edital.id !== params.editalId) {
+                throw new Error("O rascunho da licitação informado não foi encontrado.");
+            }
+
             return {
-                licitacao: {
-                    id: params.licitacaoId,
-                    companyId: params.companyId,
-                    createdById: params.createdById ?? null,
-                    status: LicitacaoStatus.IN_PROGRESS,
-                    metadados: null,
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                },
-                edital: {
-                    id: params.editalId,
-                    licitacaoId: params.licitacaoId,
-                    companyId: params.companyId,
-                    createdById: params.createdById ?? null,
-                    status: EditalStatus.IN_PROGRESS,
-                    orgaoCnpj: null,
-                    orgaoRazaoSocial: null,
-                    orgaoEsfera: null,
-                    orgaoPoder: null,
-                    unidadeCodigo: null,
-                    unidadeNome: null,
-                    municipio: null,
-                    uf: null,
-                    numero: null,
-                    processo: null,
-                    modalidade: null,
-                    tipoInstrumento: null,
-                    modoDisputa: null,
-                    amparoLegal: null,
-                    srp: false,
-                    objeto: null,
-                    informacaoComplementar: null,
-                    dataAbertura: null,
-                    dataEncerramento: null,
-                    valorEstimado: null,
-                    dadosExtraidos: null,
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                },
+                licitacao: workspace,
+                edital: workspace.edital,
             };
         }
 
@@ -338,6 +325,40 @@ export class UploadLicitacaoDocument {
             type: "progress",
             ...event,
         };
+    }
+
+    private shouldExtractDraftPreview(documentType: DocumentType) {
+        return documentType === DocumentType.EDITAL;
+    }
+
+    private async generateDraftPreview(params: {
+        documentId: string;
+        licitacaoId: string;
+        currentMetadata: PrismaLicitacaoRepository.LicitacaoResponse["metadados"];
+        pdfBuffer: Buffer;
+        filename: string;
+    }) {
+        try {
+            const draftPreview = await this.draftPreviewExtractor.extract({
+                documentId: params.documentId,
+                pdfBuffer: params.pdfBuffer,
+                filename: params.filename,
+            });
+
+            if (!draftPreview) {
+                return null;
+            }
+
+            return await this.licitacaoRepository.update({
+                id: params.licitacaoId,
+                data: {
+                    metadados: withDraftPreview(params.currentMetadata, draftPreview),
+                },
+            });
+        } catch (error) {
+            console.warn("[UploadLicitacaoDocument] Falha ao gerar preview leve do edital:", error);
+            return null;
+        }
     }
 }
 
