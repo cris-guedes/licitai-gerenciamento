@@ -38,7 +38,7 @@ export type UploadEditalDocumentResponse = {
   /**
    * Nome amigável sugerido para o edital a partir da primeira página.
    */
-  displayName: string | null;
+  displayName: (string | null);
   /**
    * Nome original do arquivo enviado.
    */
@@ -74,17 +74,17 @@ export type UploadEditalDocumentResponse = {
   /**
    * Informações básicas extraídas de forma leve da primeira página do edital.
    */
-  draftPreview: {
-    source: 'first_page_agent';
+  draftPreview: ({
+    source: string;
     sourceDocumentId: string;
-    sourcePage: 1;
+    sourcePage: number;
     extractedAt: string;
-    displayName: string | null;
-    orgaoNome: string | null;
-    modalidade: string | null;
-    numero: string | null;
-    objetoResumo: string | null;
-    dataAbertura: string | null;
-  } | null;
+    displayName: (string | null);
+    orgaoNome: (string | null);
+    modalidade: (string | null);
+    numero: (string | null);
+    objetoResumo: (string | null);
+    dataAbertura: (string | null);
+  } | null);
 };
 

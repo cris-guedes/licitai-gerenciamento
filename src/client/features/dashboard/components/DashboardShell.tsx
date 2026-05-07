@@ -18,6 +18,7 @@ import {
   Radar,
   Search,
   Settings,
+  SlidersHorizontal,
   Target,
   User,
   Users,
@@ -300,7 +301,7 @@ function NavMain() {
       </NavCollapsible>
 
       {/* Minha Empresa */}
-      <NavCollapsible id="empresa" icon={Building2} label="Minha Empresa" active={is("time") || is("empresa") || is("conta")}>
+      <NavCollapsible id="empresa" icon={Building2} label="Minha Empresa" active={is("time") || is("empresa") || is("configuracoes") || is("conta")}>
         <SidebarMenuSubItem>
           <SidebarMenuSubButton asChild isActive={is("time")}>
             <Link href={`${base}/time`}>
@@ -314,6 +315,14 @@ function NavMain() {
             <Link href={`${base}/empresa`}>
               <Settings className="size-[14px]" />
               <span className={NAV_LABEL_CLASS}>Gerenciar Empresas</span>
+            </Link>
+          </SidebarMenuSubButton>
+        </SidebarMenuSubItem>
+        <SidebarMenuSubItem>
+          <SidebarMenuSubButton asChild isActive={is("configuracoes")}>
+            <Link href={`${base}/configuracoes`}>
+              <SlidersHorizontal className="size-[14px]" />
+              <span className={NAV_LABEL_CLASS}>Configurações</span>
             </Link>
           </SidebarMenuSubButton>
         </SidebarMenuSubItem>
@@ -403,6 +412,7 @@ function resolvePageMeta(pathname: string, base: string) {
     { key: "licitacoes", title: "Gerenciar Oportunidades", subtitle: "Acompanhe oportunidades, status e próximos movimentos." },
     { key: "time", title: "Gerenciar Time", subtitle: "Coordene acessos, papéis e responsabilidades." },
     { key: "empresa", title: "Gerenciar Empresas", subtitle: "Organize os dados mestres da operação." },
+    { key: "configuracoes", title: "Configurações", subtitle: "Defina ajustes globais da empresa ativa." },
     { key: "conta", title: "Minha Conta", subtitle: "Ajuste preferências e dados de acesso." },
   ]
 

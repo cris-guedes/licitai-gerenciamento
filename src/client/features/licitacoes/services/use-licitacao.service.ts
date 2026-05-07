@@ -355,6 +355,8 @@ export type CompanyWorkflowResponse = {
   }
 }
 
+export type UpdateCompanyWorkflowNodeResponse = CompanyWorkflowResponse
+
 export type OportunidadeBoardNode = {
   id: string
   key: string
@@ -398,6 +400,26 @@ export type OportunidadeBoardItem = {
 export type ListOportunidadesBoardResponse = {
   items: OportunidadeBoardItem[]
   total: number
+  columnSummaries: Array<{
+    phaseNodeId: string
+    itemCount: number
+    valorEstimadoTotal: string
+  }>
+  filterOptions: {
+    responsaveis: Array<{
+      id: string
+      name: string
+      email: string
+    }>
+    situations: Array<{
+      id: string
+      label: string
+    }>
+    valueRange: {
+      min: string | null
+      max: string | null
+    }
+  }
 }
 
 export type MoveOportunidadeWorkflowResponse = {
@@ -600,25 +622,34 @@ export function useLicitacaoService(_api: CoreApiClient) {
 
   const listOportunidadesBoard = useCallback(async ({
     companyId,
+    workflowNodeIds,
     currentPhaseNodeId,
     currentStatusNodeId,
     currentSituationNodeId,
     responsavelUserId,
+    valorEstimadoMin,
+    valorEstimadoMax,
     q,
   }: {
     companyId: string
+    workflowNodeIds?: string[]
     currentPhaseNodeId?: string
     currentStatusNodeId?: string
     currentSituationNodeId?: string
     responsavelUserId?: string
+    valorEstimadoMin?: number
+    valorEstimadoMax?: number
     q?: string
   }): Promise<ListOportunidadesBoardResponse> => {
     const query = new URLSearchParams({ companyId })
 
+    for (const workflowNodeId of workflowNodeIds ?? []) query.append("workflowNodeIds", workflowNodeId)
     if (currentPhaseNodeId) query.set("currentPhaseNodeId", currentPhaseNodeId)
     if (currentStatusNodeId) query.set("currentStatusNodeId", currentStatusNodeId)
     if (currentSituationNodeId) query.set("currentSituationNodeId", currentSituationNodeId)
     if (responsavelUserId) query.set("responsavelUserId", responsavelUserId)
+    if (valorEstimadoMin !== undefined) query.set("valorEstimadoMin", String(valorEstimadoMin))
+    if (valorEstimadoMax !== undefined) query.set("valorEstimadoMax", String(valorEstimadoMax))
     if (q?.trim()) query.set("q", q.trim())
 
     const res = await fetch(`/api/core/list-oportunidades-board?${query.toString()}`, {
@@ -655,6 +686,39 @@ export function useLicitacaoService(_api: CoreApiClient) {
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       throw new Error(body.message ?? `Erro ${res.status} ao mover a oportunidade no workflow`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const updateCompanyWorkflowNode = useCallback(async ({
+    companyId,
+    workflowDefinitionId,
+    nodeId,
+    label,
+    color,
+  }: {
+    companyId: string
+    workflowDefinitionId: string
+    nodeId: string
+    label: string
+    color?: string | null
+  }): Promise<UpdateCompanyWorkflowNodeResponse> => {
+    const res = await fetch("/api/core/update-company-workflow-node", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        companyId,
+        workflowDefinitionId,
+        nodeId,
+        label,
+        color,
+      }),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao atualizar o workflow`)
     }
 
     return await res.json()
@@ -1094,6 +1158,7 @@ export function useLicitacaoService(_api: CoreApiClient) {
     getCompanyWorkflow,
     listOportunidadesBoard,
     moveOportunidadeWorkflow,
+    updateCompanyWorkflowNode,
     deleteDraft,
     finalizeRegistration,
     useUploadEdital,

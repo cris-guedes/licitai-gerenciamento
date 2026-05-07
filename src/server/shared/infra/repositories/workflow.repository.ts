@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../db/client";
 import { buildDefaultOportunidadeWorkflowDefinition } from "../workflows/default-oportunidade-workflow";
 
-type WorkflowDbClient = Pick<typeof prisma, "workflowDefinition" | "workflowNodeKind" | "workflowNode" | "workflowTransition">;
+type WorkflowDbClient = Pick<typeof prisma, "workflowDefinition" | "workflowNodeKind" | "workflowNode" | "workflowTransition" | "oportunidade">;
 
 export class PrismaWorkflowRepository {
     async ensureDefaultWorkflowForCompany(
@@ -103,6 +103,330 @@ export class PrismaWorkflowRepository {
         const definition = await this.findActiveDefinitionByCompanyId({ companyId: params.companyId }, tx);
         if (!definition) return null;
         return this.resolveInitialPlacementFromDefinition(definition);
+    }
+
+    async createNode(
+        params: PrismaWorkflowRepository.CreateNodeParams,
+        tx?: Prisma.TransactionClient,
+    ): Promise<PrismaWorkflowRepository.WorkflowDefinitionWithGraph> {
+        const db = this.getDb(tx);
+        const definition = await this.findDefinitionById({
+            id: params.workflowDefinitionId,
+            companyId: params.companyId,
+        }, tx);
+
+        if (!definition) {
+            throw new Error("Workflow da empresa não encontrado.");
+        }
+
+        const parentNode = params.parentNodeId
+            ? definition.nodes.find(node => node.id === params.parentNodeId)
+            : null;
+
+        if (params.parentNodeId && !parentNode) {
+            throw new Error("Nó pai do workflow não encontrado.");
+        }
+
+        const allowedKinds = definition.nodeKinds
+            .filter(kind => kind.parentKindId === (parentNode?.kindId ?? null))
+            .sort(this.compareKinds);
+
+        if (allowedKinds.length === 0) {
+            throw new Error(parentNode ? "Este nó não aceita filhos." : "O workflow não possui um tipo raiz configurado.");
+        }
+
+        const kind = params.kindId
+            ? allowedKinds.find(item => item.id === params.kindId)
+            : allowedKinds[0];
+
+        if (!kind) {
+            throw new Error("Tipo de nó inválido para esta posição do workflow.");
+        }
+
+        const siblings = definition.nodes
+            .filter(node => node.parentId === (parentNode?.id ?? null) && node.kindId === kind.id)
+            .sort(this.compareNodes);
+        const order = params.order ?? ((siblings.at(-1)?.order ?? 0) + 1);
+        const key = this.buildUniqueNodeKey({
+            definition,
+            parentPath: parentNode?.path ?? null,
+            kindKey: kind.key,
+            label: params.label,
+        });
+        const path = parentNode?.path ? `${parentNode.path}/${kind.key}:${key}` : `${kind.key}:${key}`;
+        const isInitial = params.isInitial ?? siblings.length === 0;
+
+        if (isInitial) {
+            await db.workflowNode.updateMany({
+                where: {
+                    workflowDefinitionId: definition.id,
+                    parentId: parentNode?.id ?? null,
+                    kindId: kind.id,
+                    isInitial: true,
+                },
+                data: { isInitial: false },
+            });
+        }
+
+        await db.workflowNode.create({
+            data: {
+                workflowDefinitionId: definition.id,
+                kindId: kind.id,
+                parentId: parentNode?.id ?? null,
+                key,
+                label: params.label.trim(),
+                description: params.description?.trim() || null,
+                order,
+                depth: parentNode ? parentNode.depth + 1 : 0,
+                path,
+                color: params.color?.trim() || null,
+                isInitial,
+                isTerminal: params.isTerminal ?? false,
+                metadata: this.buildNodeMetadata({
+                    path,
+                    order,
+                    depth: parentNode ? parentNode.depth + 1 : 0,
+                    nodeIndex: definition.nodes.length,
+                    position: params.position,
+                }),
+            },
+        });
+
+        return this.requireUpdatedDefinition({
+            workflowDefinitionId: params.workflowDefinitionId,
+            companyId: params.companyId,
+        }, tx);
+    }
+
+    async updateNodePresentation(
+        params: PrismaWorkflowRepository.UpdateNodePresentationParams,
+        tx?: Prisma.TransactionClient,
+    ): Promise<PrismaWorkflowRepository.WorkflowDefinitionWithGraph> {
+        const db = this.getDb(tx);
+        const definition = await this.findDefinitionById({
+            id: params.workflowDefinitionId,
+            companyId: params.companyId,
+        }, tx);
+
+        if (!definition) {
+            throw new Error("Workflow da empresa não encontrado.");
+        }
+
+        const node = definition.nodes.find(item => item.id === params.nodeId);
+        if (!node) {
+            throw new Error("Nó do workflow não encontrado.");
+        }
+
+        await db.workflowNode.update({
+            where: { id: node.id },
+            data: {
+                ...(params.label !== undefined ? { label: params.label.trim() } : {}),
+                ...(params.description !== undefined ? { description: params.description?.trim() || null } : {}),
+                ...(params.color !== undefined ? { color: params.color?.trim() || null } : {}),
+                ...(params.isInitial !== undefined ? { isInitial: params.isInitial } : {}),
+                ...(params.isTerminal !== undefined ? { isTerminal: params.isTerminal } : {}),
+                ...(params.order !== undefined ? { order: params.order } : {}),
+                ...(params.position ? { metadata: this.mergeReactFlowPosition(node.metadata, params.position) } : {}),
+            },
+        });
+
+        if (params.isInitial) {
+            await db.workflowNode.updateMany({
+                where: {
+                    workflowDefinitionId: definition.id,
+                    parentId: node.parentId,
+                    kindId: node.kindId,
+                    id: { not: node.id },
+                    isInitial: true,
+                },
+                data: { isInitial: false },
+            });
+        }
+
+        return this.requireUpdatedDefinition({
+            workflowDefinitionId: params.workflowDefinitionId,
+            companyId: params.companyId,
+        }, tx);
+    }
+
+    async deleteNode(
+        params: PrismaWorkflowRepository.DeleteNodeParams,
+        tx?: Prisma.TransactionClient,
+    ): Promise<PrismaWorkflowRepository.WorkflowDefinitionWithGraph> {
+        const db = this.getDb(tx);
+        const definition = await this.findDefinitionById({
+            id: params.workflowDefinitionId,
+            companyId: params.companyId,
+        }, tx);
+
+        if (!definition) {
+            throw new Error("Workflow da empresa não encontrado.");
+        }
+
+        const node = definition.nodes.find(item => item.id === params.nodeId);
+        if (!node) {
+            throw new Error("Nó do workflow não encontrado.");
+        }
+
+        const deletedNodeIds = definition.nodes
+            .filter(item => item.id === node.id || item.path.startsWith(`${node.path}/`))
+            .map(item => item.id);
+        const linkedOportunidades = await db.oportunidade.count({
+            where: {
+                companyId: params.companyId,
+                workflowDefinitionId: definition.id,
+                OR: [
+                    { currentNodeId: { in: deletedNodeIds } },
+                    { currentPhaseNodeId: { in: deletedNodeIds } },
+                    { currentStatusNodeId: { in: deletedNodeIds } },
+                    { currentSituationNodeId: { in: deletedNodeIds } },
+                ],
+            },
+        });
+
+        if (linkedOportunidades > 0) {
+            throw new Error("Não é possível excluir um nó usado por oportunidades ativas.");
+        }
+
+        const remainingRootNodes = definition.nodes.filter(item => item.parentId === null && !deletedNodeIds.includes(item.id));
+        if (node.parentId === null && remainingRootNodes.length === 0) {
+            throw new Error("O workflow precisa manter pelo menos uma fase raiz.");
+        }
+
+        await db.workflowNode.delete({
+            where: { id: node.id },
+        });
+
+        if (node.isInitial) {
+            const nextInitial = definition.nodes
+                .filter(item =>
+                    item.parentId === node.parentId
+                    && item.kindId === node.kindId
+                    && !deletedNodeIds.includes(item.id))
+                .sort(this.compareNodes)[0];
+
+            if (nextInitial) {
+                await db.workflowNode.update({
+                    where: { id: nextInitial.id },
+                    data: { isInitial: true },
+                });
+            }
+        }
+
+        return this.requireUpdatedDefinition({
+            workflowDefinitionId: params.workflowDefinitionId,
+            companyId: params.companyId,
+        }, tx);
+    }
+
+    async createTransition(
+        params: PrismaWorkflowRepository.CreateTransitionParams,
+        tx?: Prisma.TransactionClient,
+    ): Promise<PrismaWorkflowRepository.WorkflowDefinitionWithGraph> {
+        const db = this.getDb(tx);
+        const definition = await this.findDefinitionById({
+            id: params.workflowDefinitionId,
+            companyId: params.companyId,
+        }, tx);
+
+        if (!definition) {
+            throw new Error("Workflow da empresa não encontrado.");
+        }
+
+        if (params.fromNodeId === params.toNodeId) {
+            throw new Error("A transição precisa ligar dois nós diferentes.");
+        }
+
+        const fromNode = definition.nodes.find(node => node.id === params.fromNodeId);
+        const toNode = definition.nodes.find(node => node.id === params.toNodeId);
+        if (!fromNode || !toNode) {
+            throw new Error("Origem ou destino da transição não encontrado.");
+        }
+
+        const existing = definition.transitions.find(transition =>
+            transition.fromNodeId === fromNode.id && transition.toNodeId === toNode.id);
+        if (existing) {
+            throw new Error("Esta transição já existe no workflow.");
+        }
+
+        await db.workflowTransition.create({
+            data: {
+                workflowDefinitionId: definition.id,
+                fromNodeId: fromNode.id,
+                toNodeId: toNode.id,
+                transitionType: params.transitionType?.trim() || null,
+                metadata: this.buildTransitionMetadata({
+                    transitionType: params.transitionType?.trim() || undefined,
+                }),
+            },
+        });
+
+        return this.requireUpdatedDefinition({
+            workflowDefinitionId: params.workflowDefinitionId,
+            companyId: params.companyId,
+        }, tx);
+    }
+
+    async updateTransition(
+        params: PrismaWorkflowRepository.UpdateTransitionParams,
+        tx?: Prisma.TransactionClient,
+    ): Promise<PrismaWorkflowRepository.WorkflowDefinitionWithGraph> {
+        const db = this.getDb(tx);
+        const definition = await this.findDefinitionById({
+            id: params.workflowDefinitionId,
+            companyId: params.companyId,
+        }, tx);
+
+        if (!definition) {
+            throw new Error("Workflow da empresa não encontrado.");
+        }
+
+        const transition = definition.transitions.find(item => item.id === params.transitionId);
+        if (!transition) {
+            throw new Error("Transição do workflow não encontrada.");
+        }
+
+        await db.workflowTransition.update({
+            where: { id: transition.id },
+            data: {
+                transitionType: params.transitionType?.trim() || null,
+                metadata: this.mergeTransitionLabel(transition.metadata, params.transitionType?.trim() || null),
+            },
+        });
+
+        return this.requireUpdatedDefinition({
+            workflowDefinitionId: params.workflowDefinitionId,
+            companyId: params.companyId,
+        }, tx);
+    }
+
+    async deleteTransition(
+        params: PrismaWorkflowRepository.DeleteTransitionParams,
+        tx?: Prisma.TransactionClient,
+    ): Promise<PrismaWorkflowRepository.WorkflowDefinitionWithGraph> {
+        const db = this.getDb(tx);
+        const definition = await this.findDefinitionById({
+            id: params.workflowDefinitionId,
+            companyId: params.companyId,
+        }, tx);
+
+        if (!definition) {
+            throw new Error("Workflow da empresa não encontrado.");
+        }
+
+        const transition = definition.transitions.find(item => item.id === params.transitionId);
+        if (!transition) {
+            throw new Error("Transição do workflow não encontrada.");
+        }
+
+        await db.workflowTransition.delete({
+            where: { id: transition.id },
+        });
+
+        return this.requireUpdatedDefinition({
+            workflowDefinitionId: params.workflowDefinitionId,
+            companyId: params.companyId,
+        }, tx);
     }
 
     async createDefaultWorkflowForCompany(
@@ -284,6 +608,7 @@ export class PrismaWorkflowRepository {
         depth: number;
         nodeIndex: number;
         metadata?: Record<string, unknown>;
+        position?: PrismaWorkflowRepository.WorkflowNodePosition | null;
     }) {
         const baseMetadata = params.metadata ?? {};
         const x = 140 + (params.depth * 320);
@@ -292,7 +617,7 @@ export class PrismaWorkflowRepository {
         return {
             ...baseMetadata,
             reactFlow: {
-                position: { x, y },
+                position: params.position ?? { x, y },
             },
         } as Prisma.InputJsonValue;
     }
@@ -318,6 +643,104 @@ export class PrismaWorkflowRepository {
         if (a.order !== b.order) return a.order - b.order;
         if (a.createdAt.getTime() !== b.createdAt.getTime()) return a.createdAt.getTime() - b.createdAt.getTime();
         return a.id.localeCompare(b.id);
+    }
+
+    private compareKinds(
+        a: { order: number; createdAt: Date; id: string },
+        b: { order: number; createdAt: Date; id: string },
+    ) {
+        if (a.order !== b.order) return a.order - b.order;
+        if (a.createdAt.getTime() !== b.createdAt.getTime()) return a.createdAt.getTime() - b.createdAt.getTime();
+        return a.id.localeCompare(b.id);
+    }
+
+    private buildUniqueNodeKey(params: {
+        definition: PrismaWorkflowRepository.WorkflowDefinitionWithGraph;
+        parentPath: string | null;
+        kindKey: string;
+        label: string;
+    }) {
+        const baseKey = this.slugifyNodeKey(params.label);
+        let key = baseKey;
+        let suffix = 2;
+
+        while (params.definition.nodes.some(node => {
+            const path = params.parentPath ? `${params.parentPath}/${params.kindKey}:${key}` : `${params.kindKey}:${key}`;
+            return node.path === path;
+        })) {
+            key = `${baseKey}_${suffix}`;
+            suffix += 1;
+        }
+
+        return key;
+    }
+
+    private slugifyNodeKey(label: string) {
+        const normalized = label
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "_")
+            .replace(/^_+|_+$/g, "");
+
+        return normalized || "novo_no";
+    }
+
+    private mergeReactFlowPosition(
+        metadata: Prisma.JsonValue | null,
+        position: PrismaWorkflowRepository.WorkflowNodePosition,
+    ) {
+        const objectMetadata = this.toObjectMetadata(metadata);
+        const reactFlow = this.toObjectMetadata(objectMetadata.reactFlow as Prisma.JsonValue | null);
+
+        return {
+            ...objectMetadata,
+            reactFlow: {
+                ...reactFlow,
+                position,
+            },
+        } as Prisma.InputJsonValue;
+    }
+
+    private mergeTransitionLabel(
+        metadata: Prisma.JsonValue | null,
+        label: string | null,
+    ) {
+        const objectMetadata = this.toObjectMetadata(metadata);
+        const reactFlow = this.toObjectMetadata(objectMetadata.reactFlow as Prisma.JsonValue | null);
+
+        return {
+            ...objectMetadata,
+            reactFlow: {
+                ...reactFlow,
+                label,
+            },
+        } as Prisma.InputJsonValue;
+    }
+
+    private toObjectMetadata(metadata: Prisma.JsonValue | null | undefined): Record<string, unknown> {
+        return metadata && typeof metadata === "object" && !Array.isArray(metadata)
+            ? metadata as Record<string, unknown>
+            : {};
+    }
+
+    private async requireUpdatedDefinition(
+        params: {
+            workflowDefinitionId: string;
+            companyId: string;
+        },
+        tx?: Prisma.TransactionClient,
+    ) {
+        const updatedDefinition = await this.findDefinitionById({
+            id: params.workflowDefinitionId,
+            companyId: params.companyId,
+        }, tx);
+
+        if (!updatedDefinition) {
+            throw new Error("Não foi possível recarregar o workflow atualizado.");
+        }
+
+        return updatedDefinition;
     }
 
     private getDb(tx?: Prisma.TransactionClient): WorkflowDbClient {
@@ -353,6 +776,65 @@ export namespace PrismaWorkflowRepository {
     export type FindDefinitionByIdParams = {
         id: string;
         companyId?: string;
+    };
+
+    export type WorkflowNodePosition = {
+        x: number;
+        y: number;
+    };
+
+    export type CreateNodeParams = {
+        companyId: string;
+        workflowDefinitionId: string;
+        parentNodeId?: string | null;
+        kindId?: string | null;
+        label: string;
+        description?: string | null;
+        color?: string | null;
+        isInitial?: boolean;
+        isTerminal?: boolean;
+        order?: number;
+        position?: WorkflowNodePosition | null;
+    };
+
+    export type UpdateNodePresentationParams = {
+        companyId: string;
+        workflowDefinitionId: string;
+        nodeId: string;
+        label?: string;
+        description?: string | null;
+        color?: string | null;
+        isInitial?: boolean;
+        isTerminal?: boolean;
+        order?: number;
+        position?: WorkflowNodePosition | null;
+    };
+
+    export type DeleteNodeParams = {
+        companyId: string;
+        workflowDefinitionId: string;
+        nodeId: string;
+    };
+
+    export type CreateTransitionParams = {
+        companyId: string;
+        workflowDefinitionId: string;
+        fromNodeId: string;
+        toNodeId: string;
+        transitionType?: string | null;
+    };
+
+    export type UpdateTransitionParams = {
+        companyId: string;
+        workflowDefinitionId: string;
+        transitionId: string;
+        transitionType?: string | null;
+    };
+
+    export type DeleteTransitionParams = {
+        companyId: string;
+        workflowDefinitionId: string;
+        transitionId: string;
     };
 
     export type WorkflowPlacement = {

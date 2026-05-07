@@ -209,79 +209,111 @@ export class PrismaOportunidadeRepository {
         params: PrismaOportunidadeRepository.ListBoardByCompanyIdParams,
     ): Promise<PrismaOportunidadeRepository.OportunidadeBoardRecord[]> {
         const q = params.q?.trim();
+        const andFilters: Prisma.OportunidadeWhereInput[] = [];
+
+        if (q) {
+            andFilters.push({
+                OR: [
+                    {
+                        edital: {
+                            is: {
+                                numero: { contains: q, mode: "insensitive" },
+                            },
+                        },
+                    },
+                    {
+                        edital: {
+                            is: {
+                                objeto: { contains: q, mode: "insensitive" },
+                            },
+                        },
+                    },
+                    {
+                        edital: {
+                            is: {
+                                orgaoRazaoSocial: { contains: q, mode: "insensitive" },
+                            },
+                        },
+                    },
+                    {
+                        licitacao: {
+                            is: {
+                                numeroLicitacao: { contains: q, mode: "insensitive" },
+                            },
+                        },
+                    },
+                    {
+                        licitacao: {
+                            is: {
+                                objetoResumo: { contains: q, mode: "insensitive" },
+                            },
+                        },
+                    },
+                    {
+                        licitacao: {
+                            is: {
+                                orgaoGerenciador: {
+                                    is: {
+                                        razaoSocial: { contains: q, mode: "insensitive" },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    {
+                        responsavel: {
+                            is: {
+                                name: { contains: q, mode: "insensitive" },
+                            },
+                        },
+                    },
+                    {
+                        responsavel: {
+                            is: {
+                                email: { contains: q, mode: "insensitive" },
+                            },
+                        },
+                    },
+                ],
+            });
+        }
+
+        if (params.valorEstimadoMin !== undefined || params.valorEstimadoMax !== undefined) {
+            const valueRange: Prisma.DecimalNullableFilter = {
+                ...(params.valorEstimadoMin !== undefined ? { gte: params.valorEstimadoMin } : {}),
+                ...(params.valorEstimadoMax !== undefined ? { lte: params.valorEstimadoMax } : {}),
+            };
+
+            andFilters.push({
+                OR: [
+                    {
+                        edital: {
+                            is: {
+                                valorEstimado: valueRange,
+                            },
+                        },
+                    },
+                    {
+                        licitacao: {
+                            is: {
+                                valorEstimadoTotal: valueRange,
+                            },
+                        },
+                    },
+                ],
+            });
+        }
 
         return prisma.oportunidade.findMany({
             where: {
                 companyId: params.companyId,
                 status: OportunidadeStatus.ACTIVE,
+                ...(params.workflowNodeIds && params.workflowNodeIds.length > 0 ? { currentNodeId: { in: params.workflowNodeIds } } : {}),
                 ...(params.currentPhaseNodeId ? { currentPhaseNodeId: params.currentPhaseNodeId } : {}),
                 ...(params.currentStatusNodeId ? { currentStatusNodeId: params.currentStatusNodeId } : {}),
                 ...(params.currentSituationNodeId ? { currentSituationNodeId: params.currentSituationNodeId } : {}),
                 ...(params.responsavelUserId ? { responsavelUserId: params.responsavelUserId } : {}),
-                ...(q ? {
-                    OR: [
-                        {
-                            edital: {
-                                is: {
-                                    numero: { contains: q, mode: "insensitive" },
-                                },
-                            },
-                        },
-                        {
-                            edital: {
-                                is: {
-                                    objeto: { contains: q, mode: "insensitive" },
-                                },
-                            },
-                        },
-                        {
-                            edital: {
-                                is: {
-                                    orgaoRazaoSocial: { contains: q, mode: "insensitive" },
-                                },
-                            },
-                        },
-                        {
-                            licitacao: {
-                                is: {
-                                    numeroLicitacao: { contains: q, mode: "insensitive" },
-                                },
-                            },
-                        },
-                        {
-                            licitacao: {
-                                is: {
-                                    objetoResumo: { contains: q, mode: "insensitive" },
-                                },
-                            },
-                        },
-                        {
-                            licitacao: {
-                                is: {
-                                    orgaoGerenciador: {
-                                        is: {
-                                            razaoSocial: { contains: q, mode: "insensitive" },
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                        {
-                            responsavel: {
-                                is: {
-                                    name: { contains: q, mode: "insensitive" },
-                                },
-                            },
-                        },
-                        {
-                            responsavel: {
-                                is: {
-                                    email: { contains: q, mode: "insensitive" },
-                                },
-                            },
-                        },
-                    ],
-                } : {}),
+                ...(andFilters.length > 0 ? { AND: andFilters } : {}),
             },
             include: this.boardInclude,
             orderBy: [
@@ -804,10 +836,13 @@ export namespace PrismaOportunidadeRepository {
 
     export type ListBoardByCompanyIdParams = {
         companyId: string;
+        workflowNodeIds?: string[];
         currentPhaseNodeId?: string;
         currentStatusNodeId?: string;
         currentSituationNodeId?: string;
         responsavelUserId?: string;
+        valorEstimadoMin?: number;
+        valorEstimadoMax?: number;
         q?: string;
     };
 

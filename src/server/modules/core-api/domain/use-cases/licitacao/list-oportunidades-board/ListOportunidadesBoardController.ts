@@ -3,6 +3,11 @@ import { Controller, HttpRequest, HttpResponse, badRequest, ok, serverError, una
 import { ListOportunidadesBoard } from "./ListOportunidadesBoard";
 import { ListOportunidadesBoardControllerSchemas } from "./ListOportunidadesBoardControllerSchemas";
 
+function normalizeWorkflowNodeIds(value: ListOportunidadesBoardControllerSchemas.Input["workflowNodeIds"]) {
+    if (!value) return undefined;
+    return Array.isArray(value) ? value : [value];
+}
+
 interface ListOportunidadesBoardControllerTypes {
     Body: null;
     Query: ListOportunidadesBoardControllerSchemas.Input;
@@ -25,10 +30,13 @@ export class ListOportunidadesBoardController implements Controller<ListOportuni
             const result = await this.useCase.execute({
                 companyId: query.companyId,
                 userId: request.user.id,
+                workflowNodeIds: normalizeWorkflowNodeIds(query.workflowNodeIds),
                 currentPhaseNodeId: query.currentPhaseNodeId,
                 currentStatusNodeId: query.currentStatusNodeId,
                 currentSituationNodeId: query.currentSituationNodeId,
                 responsavelUserId: query.responsavelUserId,
+                valorEstimadoMin: query.valorEstimadoMin,
+                valorEstimadoMax: query.valorEstimadoMax,
                 q: query.q,
             });
 

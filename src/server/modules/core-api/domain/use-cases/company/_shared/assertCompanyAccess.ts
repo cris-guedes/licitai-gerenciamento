@@ -38,3 +38,28 @@ export async function assertUserCanAccessCompany(params: {
 
     return company;
 }
+
+export async function assertUserCanManageCompanySettings(params: {
+    companyRepository: PrismaCompanyRepository;
+    membershipRepository: PrismaMembershipRepository;
+    userId: string;
+    companyId: string;
+}) {
+    const company = await params.companyRepository.findById({ id: params.companyId });
+
+    if (!company) {
+        throw new Error("Empresa não encontrada.");
+    }
+
+    const membership = await assertUserBelongsToOrganization({
+        membershipRepository: params.membershipRepository,
+        userId: params.userId,
+        organizationId: company.organizationId,
+    });
+
+    if (membership.role !== "OWNER" && membership.role !== "ADMIN") {
+        throw new Error("Apenas administradores podem alterar as configurações da empresa.");
+    }
+
+    return { company, membership };
+}

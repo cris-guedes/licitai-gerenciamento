@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import type { ReactNode } from "react"
 import {
   ListFilter,
   LoaderCircle,
@@ -20,6 +21,7 @@ import { useCoreApi } from "@/client/hooks/use-core-api"
 import { useLicitacaoService } from "../../services/use-licitacao.service"
 import { OportunidadesKanbanView } from "./OportunidadesKanbanView"
 import { OportunidadesListView } from "./OportunidadesListView"
+import { WorkflowTreeFilter } from "./WorkflowTreeFilter"
 import { useLicitacoesPage } from "./hooks/useLicitacoesPage"
 
 export function LicitacoesPage() {
@@ -77,49 +79,51 @@ export function LicitacoesPage() {
               />
             </div>
 
-            <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <Select value={page.selectedResponsavelId} onValueChange={page.setSelectedResponsavelId}>
-                  <SelectTrigger size="sm" className="min-w-[180px] rounded-xl border-slate-200 bg-white shadow-none">
-                    <SelectValue placeholder="Responsável" />
-                  </SelectTrigger>
-                  <SelectContent align="start">
-                    <SelectItem value="all">Responsável</SelectItem>
-                    {page.responsaveis.map(responsavel => (
-                      <SelectItem key={responsavel.id} value={responsavel.id}>
-                        {responsavel.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
+              <div className="grid flex-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <FilterField label="Responsável">
+                  <Select value={page.selectedResponsavelId} onValueChange={page.setSelectedResponsavelId}>
+                    <SelectTrigger size="sm" className="w-full rounded-lg border-slate-200 bg-white shadow-none">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                      <SelectItem value="all">Todos</SelectItem>
+                      {page.responsaveis.map(responsavel => (
+                        <SelectItem key={responsavel.id} value={responsavel.id}>
+                          {responsavel.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FilterField>
 
-                <Select value={page.selectedPhaseId} onValueChange={page.setSelectedPhaseId}>
-                  <SelectTrigger size="sm" className="min-w-[180px] rounded-xl border-slate-200 bg-white shadow-none">
-                    <SelectValue placeholder="Tipo de Pregão" />
-                  </SelectTrigger>
-                  <SelectContent align="start">
-                    <SelectItem value="all">Tipo de Pregão</SelectItem>
-                    {page.phases.map(phase => (
-                      <SelectItem key={phase.id} value={phase.id}>
-                        {phase.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FilterField label="Workflow">
+                  <WorkflowTreeFilter
+                    nodes={page.workflowNodes}
+                    selectedNodeIds={page.selectedWorkflowNodeIds}
+                    onSelectedNodeIdsChange={page.setSelectedWorkflowNodeIds}
+                  />
+                </FilterField>
 
-                <Select value={page.selectedSituationId} onValueChange={page.setSelectedSituationId}>
-                  <SelectTrigger size="sm" className="min-w-[180px] rounded-xl border-slate-200 bg-white shadow-none">
-                    <SelectValue placeholder="Situação" />
-                  </SelectTrigger>
-                  <SelectContent align="start">
-                    <SelectItem value="all">Situação</SelectItem>
-                    {page.situations.map(situation => (
-                      <SelectItem key={situation.id} value={situation.id}>
-                        {situation.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FilterField label="Valor mínimo">
+                  <Input
+                    inputMode="decimal"
+                    value={page.valorEstimadoMin}
+                    onChange={event => page.setValorEstimadoMin(event.target.value)}
+                    placeholder={page.valueRange.min ? `Desde ${formatCurrencyLabel(page.valueRange.min)}` : "R$ 0,00"}
+                    className="h-9 rounded-lg border-slate-200 bg-white shadow-none"
+                  />
+                </FilterField>
+
+                <FilterField label="Valor máximo">
+                  <Input
+                    inputMode="decimal"
+                    value={page.valorEstimadoMax}
+                    onChange={event => page.setValorEstimadoMax(event.target.value)}
+                    placeholder={page.valueRange.max ? `Até ${formatCurrencyLabel(page.valueRange.max)}` : "Sem limite"}
+                    className="h-9 rounded-lg border-slate-200 bg-white shadow-none"
+                  />
+                </FilterField>
               </div>
 
               <Button
@@ -173,6 +177,7 @@ export function LicitacoesPage() {
         <OportunidadesKanbanView
           phases={page.phases}
           items={page.items}
+          columnSummaries={page.columnSummaries}
           isMoving={page.isMoving}
           movingOportunidadeId={page.movingOportunidadeId}
           getMoveOptions={page.getMoveOptions}
@@ -190,4 +195,24 @@ export function LicitacoesPage() {
       )}
     </div>
   )
+}
+
+function FilterField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="space-y-1.5">
+      <span className="block text-[0.7rem] font-bold uppercase tracking-[0.08em] text-slate-500">{label}</span>
+      {children}
+    </label>
+  )
+}
+
+function formatCurrencyLabel(value: string) {
+  const numericValue = Number(value)
+  if (!Number.isFinite(numericValue)) return "R$ 0,00"
+
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  }).format(numericValue)
 }

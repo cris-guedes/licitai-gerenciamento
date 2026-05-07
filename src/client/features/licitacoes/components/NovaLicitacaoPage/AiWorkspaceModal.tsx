@@ -112,20 +112,6 @@ export function AiWorkspaceModal({
   const [manualView, setManualView] = useState<WorkspaceView | null>(null)
   const activeView = documents.length === 0 ? "document" : (manualView ?? initialView)
 
-  const previewSourceUrl = useMemo(() => {
-    if (selectedDocument?.previewUrl) return selectedDocument.previewUrl
-    if (!selectedDocument?.file) return null
-    return URL.createObjectURL(selectedDocument.file)
-  }, [selectedDocument])
-
-  useEffect(() => {
-    return () => {
-      if (previewSourceUrl?.startsWith("blob:")) {
-        URL.revokeObjectURL(previewSourceUrl)
-      }
-    }
-  }, [previewSourceUrl])
-
   const documentsCountLabel =
     documents.length === 1 ? "1 arquivo carregado" : `${documents.length} arquivos carregados`
 
@@ -416,15 +402,20 @@ export function AiWorkspaceModal({
                     preview={extractionPreview}
                     onRunExtraction={onRunCadastroAssistantExtraction}
                   />
-                ) : selectedDocument?.status === "READY" && previewSourceUrl ? (
+                ) : selectedDocument?.status === "READY" && (selectedDocument.previewUrl || selectedDocument.file) ? (
                   <div className="flex h-full min-h-0 overflow-hidden bg-white">
                     <div className="min-h-0 flex-1 overflow-hidden bg-white">
-                      <iframe
-                        title={selectedDocument.displayName ?? selectedDocument.originalName}
-                        src={previewSourceUrl}
-                        className="h-full w-full border-0"
-                        allow="fullscreen"
-                      />
+                      {selectedDocument.previewUrl ? (
+                        <DocumentPreviewFrame
+                          title={selectedDocument.displayName ?? selectedDocument.originalName}
+                          src={selectedDocument.previewUrl}
+                        />
+                      ) : selectedDocument.file ? (
+                        <LocalDocumentPreviewFrame
+                          title={selectedDocument.displayName ?? selectedDocument.originalName}
+                          file={selectedDocument.file}
+                        />
+                      ) : null}
                     </div>
                     {documentAssistantSidebar ?? null}
                   </div>
@@ -557,6 +548,29 @@ function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function DocumentPreviewFrame({ title, src }: { title: string; src: string }) {
+  return (
+    <iframe
+      title={title}
+      src={src}
+      className="h-full w-full border-0"
+      allow="fullscreen"
+    />
+  )
+}
+
+function LocalDocumentPreviewFrame({ title, file }: { title: string; file: File }) {
+  const src = useMemo(() => URL.createObjectURL(file), [file])
+
+  useEffect(() => {
+    return () => {
+      URL.revokeObjectURL(src)
+    }
+  }, [src])
+
+  return <DocumentPreviewFrame title={title} src={src} />
 }
 
 function formatDocumentType(type: LicitacaoDocumentType) {

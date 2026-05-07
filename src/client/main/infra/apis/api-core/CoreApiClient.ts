@@ -9,6 +9,7 @@ import { AuthService } from './services/AuthService';
 import { CompanyService } from './services/CompanyService';
 import { LicitacaoService } from './services/LicitacaoService';
 import { OnboardingService } from './services/OnboardingService';
+import { OportunidadeService } from './services/OportunidadeService';
 import { SearchService } from './services/SearchService';
 import { TeamService } from './services/TeamService';
 type HttpRequestConstructor = new (config: OpenAPIConfig) => BaseHttpRequest;
@@ -17,6 +18,7 @@ export class CoreApiClient {
   public readonly company: CompanyService;
   public readonly licitacao: LicitacaoService;
   public readonly onboarding: OnboardingService;
+  public readonly oportunidade: OportunidadeService;
   public readonly search: SearchService;
   public readonly team: TeamService;
   public readonly request: BaseHttpRequest;
@@ -36,6 +38,7 @@ export class CoreApiClient {
     this.company = new CompanyService(this.request);
     this.licitacao = new LicitacaoService(this.request);
     this.onboarding = new OnboardingService(this.request);
+    this.oportunidade = new OportunidadeService(this.request);
     this.search = new SearchService(this.request);
     this.team = new TeamService(this.request);
   }

@@ -1,9 +1,10 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Building2, CalendarClock, MoreHorizontal, UserRound } from "lucide-react"
+import { CalendarClock, Check, MoreHorizontal, UserRound } from "lucide-react"
 import { Badge } from "@/client/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/client/components/ui/card"
+import { cn } from "@/client/main/lib/utils"
 import type { OportunidadeBoardItem, WorkflowNode } from "../../services/use-licitacao.service"
 import { OportunidadeWorkflowActions } from "./OportunidadeWorkflowActions"
 
@@ -28,9 +29,23 @@ function formatCurrency(value: string | null) {
   }).format(numericValue)
 }
 
+function formatCompactCurrency(value: string | null | undefined) {
+  if (!value) return "R$ 0"
+  const numericValue = Number(value)
+  if (Number.isNaN(numericValue)) return "R$ 0"
+
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(numericValue)
+}
+
 export function OportunidadesKanbanView({
   phases,
   items,
+  columnSummaries,
   isMoving,
   movingOportunidadeId,
   getMoveOptions,
@@ -40,6 +55,11 @@ export function OportunidadesKanbanView({
 }: {
   phases: WorkflowNode[]
   items: OportunidadeBoardItem[]
+  columnSummaries: Array<{
+    phaseNodeId: string
+    itemCount: number
+    valorEstimadoTotal: string
+  }>
   isMoving: boolean
   movingOportunidadeId: string | null
   getMoveOptions: (item: OportunidadeBoardItem) => Array<{
@@ -61,28 +81,24 @@ export function OportunidadesKanbanView({
   const phaseToneById = useMemo(() => {
     const palette = [
       {
-        dot: "bg-slate-400",
-        column: "bg-[#eef3ff]",
-        cardBorder: "border-l-slate-400",
-        badge: "bg-slate-100 text-slate-700",
+        accent: "text-slate-500",
+        badge: "bg-blue-600 text-white",
+        issue: "bg-emerald-500",
       },
       {
-        dot: "bg-sky-500",
-        column: "bg-[#edf5ff]",
-        cardBorder: "border-l-sky-500",
-        badge: "bg-sky-100 text-sky-800",
+        accent: "text-blue-600",
+        badge: "bg-emerald-700 text-white",
+        issue: "bg-blue-600",
       },
       {
-        dot: "bg-amber-500",
-        column: "bg-[#fff5df]",
-        cardBorder: "border-l-amber-400",
-        badge: "bg-amber-100 text-amber-800",
+        accent: "text-amber-600",
+        badge: "bg-violet-600 text-white",
+        issue: "bg-amber-500",
       },
       {
-        dot: "bg-emerald-500",
-        column: "bg-[#eefbf5]",
-        cardBorder: "border-l-emerald-400",
-        badge: "bg-emerald-100 text-emerald-800",
+        accent: "text-emerald-600",
+        badge: "bg-slate-700 text-white",
+        issue: "bg-emerald-600",
       },
     ]
 
@@ -104,21 +120,26 @@ export function OportunidadesKanbanView({
     return map
   }, [items, phases])
 
+  const summaryByPhaseId = useMemo(() => {
+    return new Map(columnSummaries.map(summary => [summary.phaseNodeId, summary]))
+  }, [columnSummaries])
+
   return (
-    <div className="min-w-0 w-full max-w-full overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white/70 shadow-[0_14px_34px_rgba(4,22,39,0.05)]">
+    <div className="min-w-0 w-full max-w-full overflow-hidden border border-slate-200 bg-white">
       <div className="min-w-0 w-full max-w-full overflow-x-auto overflow-y-hidden">
-        <div className="flex w-max min-w-full min-h-[68vh] gap-5 p-4">
+        <div className="flex w-max min-w-full min-h-[68vh] gap-3 bg-white p-3">
         {phases.map(phase => {
           const phaseItems = itemsByPhase.get(phase.id) ?? []
+          const tone = phaseToneById.get(phase.id)
+          const summary = summaryByPhaseId.get(phase.id)
 
           return (
             <div
               key={phase.id}
-              className={[
-                "flex w-[336px] shrink-0 flex-col rounded-[1.1rem] border border-slate-200/70 transition-colors",
-                phaseToneById.get(phase.id)?.column ?? "bg-[#eef3ff]",
-                hoveredPhaseId === phase.id ? "border-secondary/50 ring-2 ring-secondary/10" : "",
-              ].join(" ")}
+              className={cn(
+                "flex w-[320px] shrink-0 flex-col rounded-lg bg-[#f4f5f7] transition-colors",
+                hoveredPhaseId === phase.id && "ring-2 ring-blue-200",
+              )}
               onDragOver={(event) => {
                 if (!draggingId) return
                 event.preventDefault()
@@ -140,31 +161,31 @@ export function OportunidadesKanbanView({
                 void onMoveToPhase(item, phase.id)
               }}
             >
-              <div className="px-4 py-3.5">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={["size-2 rounded-full", phaseToneById.get(phase.id)?.dot ?? "bg-slate-400"].join(" ")} />
-                      <p className="text-[0.98rem] font-semibold uppercase tracking-[0.04em] text-primary">
+              <div className="px-3 py-3">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <p className="truncate text-[0.78rem] font-bold uppercase tracking-[0.06em] text-slate-600">
                         {phase.label}
                       </p>
-                      <Badge variant="outline" className="rounded-full border-slate-200 bg-white/80 px-2 py-0 text-[11px] text-primary">
-                        {phaseItems.length}
-                      </Badge>
+                      {phase.label.toLowerCase().includes("concl") || phase.label.toLowerCase().includes("ganh") ? (
+                        <Check className="size-4 shrink-0 text-emerald-600" />
+                      ) : null}
+                      <span className="text-[0.8rem] font-semibold text-slate-500">{phaseItems.length}</span>
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {phaseItems.length} oportunidade{phaseItems.length === 1 ? "" : "s"}
-                    </p>
+                    <button type="button" className="rounded p-1 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700">
+                      <MoreHorizontal className="size-4" />
+                    </button>
                   </div>
-                  <button type="button" className="rounded-full p-1 text-slate-400 transition-colors hover:bg-white/70 hover:text-slate-600">
-                    <MoreHorizontal className="size-4" />
-                  </button>
+                  <p className="truncate text-[0.75rem] font-semibold text-[#172b4d]">
+                    {formatCompactCurrency(summary?.valorEstimadoTotal)}
+                  </p>
                 </div>
               </div>
 
-              <div className="flex flex-1 flex-col gap-2.5 px-3 pb-3">
+              <div className="flex flex-1 flex-col gap-2 px-2 pb-2">
                 {phaseItems.length === 0 ? (
-                  <div className="flex min-h-24 items-center justify-center rounded-[0.95rem] border border-dashed border-slate-300 bg-white/70 px-4 text-center text-sm leading-6 text-muted-foreground">
+                  <div className="flex min-h-24 items-center justify-center rounded-md border border-dashed border-slate-300 bg-white/60 px-4 text-center text-sm leading-6 text-muted-foreground">
                     <span className="max-w-[250px] whitespace-normal">
                       Solte uma oportunidade aqui ou mova a partir de outro status válido.
                     </span>
@@ -186,79 +207,79 @@ export function OportunidadesKanbanView({
                           setDraggingId(null)
                           setHoveredPhaseId(null)
                         }}
-                        className={[
-                          "rounded-[1rem] border border-white/90 border-l-[3px] bg-white shadow-[0_10px_22px_rgba(4,22,39,0.055)]",
-                          phaseToneById.get(phase.id)?.cardBorder ?? "border-l-slate-400",
-                          draggingId === item.oportunidadeId ? "opacity-60" : "",
-                        ].join(" ")}
+                        className={cn(
+                          "rounded-lg border border-slate-300/80 bg-white shadow-[0_1px_2px_rgba(9,30,66,0.18)] transition-shadow hover:shadow-[0_3px_8px_rgba(9,30,66,0.2)]",
+                          draggingId === item.oportunidadeId && "opacity-60",
+                        )}
                       >
-                        <CardHeader className="space-y-2 px-4 pt-3.5 pb-2">
+                        <CardHeader className="space-y-2 px-3 pt-3 pb-1.5">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
                               {item.modalidade ? (
-                                <Badge variant="outline" className={["mb-1.5 rounded-md border-transparent px-1.5 py-0.5 text-[8px] font-semibold uppercase", phaseToneById.get(phase.id)?.badge ?? "bg-slate-100 text-slate-700"].join(" ")}>
+                                <Badge className={cn("mb-1.5 rounded px-1.5 py-0 text-[0.65rem] font-bold uppercase leading-5 shadow-none", tone?.badge ?? "bg-slate-700 text-white")}>
                                   {item.modalidade}
                                 </Badge>
                               ) : null}
-                              <CardTitle className="line-clamp-2 text-[0.9rem] leading-snug text-primary">
+                              <CardTitle className="line-clamp-3 text-[0.92rem] font-medium leading-5 text-[#172b4d]">
                                 {item.title}
                               </CardTitle>
-                              <p className="mt-1 line-clamp-1 text-[0.78rem] leading-5 text-slate-600">
+                              <p className="mt-1 line-clamp-1 text-[0.74rem] leading-5 text-slate-500">
                                 {item.orgaoNome ?? "Órgão não identificado"}
                               </p>
                             </div>
-                            <button type="button" className="rounded-full p-1 text-slate-300 transition-colors hover:bg-slate-50 hover:text-slate-500">
-                              <MoreHorizontal className="size-4" />
-                            </button>
+                            <OportunidadeWorkflowActions
+                              item={item}
+                              moveOptions={moveOptions}
+                              isMoving={movingOportunidadeId === item.oportunidadeId}
+                              compact
+                              onMove={(targetNodeId) => onMoveToNode({
+                                oportunidadeId: item.oportunidadeId,
+                                targetNodeId,
+                              })}
+                            />
                           </div>
 
-                          <div className="flex flex-wrap gap-1.5">
+                          <div className="flex flex-wrap gap-1">
                             {item.workflow.status ? (
-                              <Badge variant="secondary" className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-800">
+                              <Badge variant="secondary" className="rounded bg-slate-100 px-1.5 py-0 text-[0.65rem] font-semibold leading-5 text-slate-700 shadow-none">
                                 {item.workflow.status.label}
                               </Badge>
                             ) : null}
                             {item.workflow.situation ? (
-                              <Badge variant="outline" className="rounded-full border-rose-100 bg-rose-50 px-2 py-0.5 text-[10px] text-rose-700">
+                              <Badge variant="outline" className="rounded border-rose-100 bg-rose-50 px-1.5 py-0 text-[0.65rem] font-semibold leading-5 text-rose-700 shadow-none">
                                 {item.workflow.situation.label}
                               </Badge>
                             ) : null}
                           </div>
                         </CardHeader>
 
-                        <CardContent className="space-y-2.5 px-4 pb-3.5">
-                          <div className="space-y-1.5 text-sm text-slate-700">
-                            <div className="flex items-center gap-2 text-[0.72rem] text-slate-500">
-                              <UserRound className="size-3.5 shrink-0" />
-                              <span className="truncate">{item.responsavel?.name ?? "Sem responsável"}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-[0.72rem] text-slate-500">
-                              <Building2 className="size-3.5 shrink-0" />
-                              <span className="truncate">{item.numero ?? "Processo sem número"}</span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-end justify-between gap-3 border-t border-slate-100 pt-2.5">
-                            <div className="min-w-0">
-                              <p className="text-[0.7rem] font-medium text-slate-500">Valor estimado</p>
-                              <p className="mt-0.5 text-[0.9rem] font-semibold text-[#002b8f]">
-                                {formatCurrency(item.valorEstimado) ?? "A definir"}
+                        <CardContent className="space-y-2 px-3 pb-3">
+                          <div className="flex items-end justify-between gap-3 pt-1">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className={cn("flex size-4 shrink-0 items-center justify-center rounded-[3px]", tone?.issue ?? "bg-emerald-600")}>
+                                  <span className="h-2 w-1.5 rounded-[1px] bg-white" />
+                                </span>
+                                <span className="truncate text-[0.72rem] font-bold uppercase tracking-[0.02em] text-slate-500">
+                                  {item.numero ?? item.oportunidadeId.slice(0, 8)}
+                                </span>
+                              </div>
+                              <p className="mt-1 truncate text-[0.78rem] font-semibold text-[#172b4d]">
+                                {formatCurrency(item.valorEstimado) ?? "Valor a definir"}
                               </p>
-                              <div className="mt-1 flex items-center gap-1.5 text-[0.68rem] text-slate-500">
-                                <CalendarClock className="size-3.5 shrink-0" />
-                                <span className="truncate">{formatDate(item.workflow.updatedAt ?? item.updatedAt)}</span>
+                              <div className="mt-1 flex min-w-0 items-center gap-2 text-[0.68rem] text-slate-500">
+                                <span className="flex min-w-0 items-center gap-1">
+                                  <UserRound className="size-3.5 shrink-0" />
+                                  <span className="truncate">{item.responsavel?.name ?? "Sem responsável"}</span>
+                                </span>
+                                <span className="shrink-0 text-slate-300">·</span>
+                                <span className="flex min-w-0 items-center gap-1">
+                                  <CalendarClock className="size-3.5 shrink-0" />
+                                  <span className="truncate">{formatDate(item.workflow.updatedAt ?? item.updatedAt)}</span>
+                                </span>
                               </div>
                             </div>
 
-                            <OportunidadeWorkflowActions
-                              item={item}
-                              moveOptions={moveOptions}
-                              isMoving={movingOportunidadeId === item.oportunidadeId}
-                              onMove={(targetNodeId) => onMoveToNode({
-                                oportunidadeId: item.oportunidadeId,
-                                targetNodeId,
-                              })}
-                            />
                           </div>
                         </CardContent>
                       </Card>

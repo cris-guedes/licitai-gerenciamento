@@ -2,6 +2,7 @@
 
 import { ArrowRight, LoaderCircle, MoveRight } from "lucide-react"
 import { Button } from "@/client/components/ui/button"
+import { cn } from "@/client/main/lib/utils"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,12 +26,29 @@ export function OportunidadeWorkflowActions({
   moveOptions,
   isMoving,
   onMove,
+  compact = false,
 }: {
   item: OportunidadeBoardItem
   moveOptions: MoveOption[]
   isMoving: boolean
   onMove: (targetNodeId: string) => Promise<void>
+  compact?: boolean
 }) {
+  if (compact && (!item.canMove || moveOptions.length === 0)) {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        disabled
+        aria-label={!item.canMove ? "Somente leitura" : "Sem próximos passos"}
+        className="size-7 rounded text-slate-300"
+      >
+        <MoveRight className="size-4" />
+      </Button>
+    )
+  }
+
   if (!item.canMove) {
     return (
       <Button type="button" variant="outline" size="sm" disabled>
@@ -50,13 +68,22 @@ export function OportunidadeWorkflowActions({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="sm" disabled={isMoving}>
-          {isMoving ? (
-            <LoaderCircle className="mr-2 size-4 animate-spin" />
-          ) : (
-            <MoveRight className="mr-2 size-4" />
+        <Button
+          type="button"
+          variant={compact ? "ghost" : "outline"}
+          size={compact ? "icon" : "sm"}
+          disabled={isMoving}
+          aria-label="Mover oportunidade"
+          className={cn(
+            compact && "size-7 rounded text-slate-500 hover:bg-slate-100 hover:text-slate-700",
           )}
-          Mover
+        >
+          {isMoving ? (
+            <LoaderCircle className={cn("size-4 animate-spin", !compact && "mr-2")} />
+          ) : (
+            <MoveRight className={cn("size-4", !compact && "mr-2")} />
+          )}
+          {compact ? null : "Mover"}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
