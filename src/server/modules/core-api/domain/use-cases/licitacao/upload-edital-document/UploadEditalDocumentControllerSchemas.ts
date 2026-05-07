@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-namespace */
 import { Buffer } from "buffer";
 import { z } from "zod";
+import { LicitacaoDraftPreviewSchema } from "../_shared/draftPreview";
 
 export const UploadEditalDocumentBodySchema = z.object({
     companyId: z.string().min(1).describe("ID da empresa dona do edital enviado."),
@@ -11,12 +12,15 @@ export const UploadEditalDocumentBodySchema = z.object({
 });
 
 export const UploadEditalDocumentResponseSchema = z.object({
+    oportunidadeId: z.string().describe("ID interno da oportunidade criada para acompanhar o rascunho deste processo."),
+    oportunidadeStatus: z.enum(["DRAFT"]).describe("Status inicial da oportunidade criada junto ao rascunho."),
     licitacaoId: z.string().describe("ID interno do processo licitatório criado para acompanhar o fluxo global da licitação."),
     licitacaoStatus: z.enum(["IN_PROGRESS"]).describe("Status global inicial do processo licitatório após o upload do edital."),
     editalId: z.string().describe("ID interno do edital criado para concentrar os dados ricos e documentos do certame."),
     editalStatus: z.enum(["IN_PROGRESS"]).describe("Status inicial do edital criado junto ao processo licitatório."),
     documentId: z.string().describe("ID interno do documento armazenado."),
     documentType: z.literal("edital").describe("Tipo de documento aceito neste fluxo inicial."),
+    displayName: z.string().nullable().describe("Nome amigável sugerido para o edital a partir da primeira página."),
     originalName: z.string().describe("Nome original do arquivo enviado."),
     mimeType: z.string().describe("MIME type persistido para o documento."),
     sizeBytes: z.number().describe("Tamanho do arquivo armazenado em bytes."),
@@ -25,6 +29,7 @@ export const UploadEditalDocumentResponseSchema = z.object({
     previewUrl: z.string().describe("URL utilizada pelo frontend para renderizar o preview do edital."),
     previewUrlExpiresAt: z.string().describe("Data/hora ISO de expiração da URL temporária de preview do documento."),
     uploadedAt: z.string().describe("Data/hora ISO em que o documento foi persistido."),
+    draftPreview: LicitacaoDraftPreviewSchema.nullable().describe("Informações básicas extraídas de forma leve da primeira página do edital."),
 });
 
 export namespace UploadEditalDocumentControllerSchemas {

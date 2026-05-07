@@ -23,7 +23,6 @@ type Props = {
   progress: ExtractionProgressState
   preview: PartialExtractionPreview
   onRunExtraction: () => Promise<void>
-  onApplyExtraction: () => boolean
 }
 
 export function CadastroAssistantPanel({
@@ -34,7 +33,6 @@ export function CadastroAssistantPanel({
   progress,
   preview,
   onRunExtraction,
-  onApplyExtraction,
 }: Props) {
   const isReadyEdital = selectedDocument?.type === "EDITAL" && selectedDocument.status === "READY" && Boolean(selectedDocument.documentId)
   const licitacaoPreview = result?.licitacao ?? preview.partialResponse?.licitacao ?? null
@@ -101,7 +99,9 @@ export function CadastroAssistantPanel({
               <CardContent className="space-y-5">
                 <div className="rounded-[1.25rem] border border-slate-200/80 bg-slate-50/70 px-4 py-4">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Documento selecionado</p>
-                  <p className="mt-2 text-sm font-semibold text-primary">{selectedDocument?.originalName}</p>
+                  <p className="mt-2 text-sm font-semibold text-primary">
+                    {selectedDocument?.displayName ?? selectedDocument?.originalName}
+                  </p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {selectedDocument?.type === "EDITAL" ? "Edital pronto para leitura assistida" : "Selecione um edital"}
                   </p>

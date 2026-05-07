@@ -22,6 +22,37 @@ export class PrismaDocumentAnalysisRepository {
         });
     }
 
+    async findLatestByDocumentIds(
+        params: PrismaDocumentAnalysisRepository.FindLatestByDocumentIdsParams,
+    ): Promise<PrismaDocumentAnalysisRepository.DocumentAnalysisResponse[]> {
+        if (params.documentIds.length === 0) {
+            return [];
+        }
+
+        const analyses = await prisma.documentAnalysis.findMany({
+            where: {
+                documentId: { in: params.documentIds },
+                ...(params.types ? { type: { in: params.types } } : {}),
+            },
+            orderBy: [
+                { finishedAt: "desc" },
+                { createdAt: "desc" },
+            ],
+        });
+
+        const latestByKey = new Map<string, PrismaDocumentAnalysisRepository.DocumentAnalysisResponse>();
+
+        for (const analysis of analyses) {
+            const key = `${analysis.documentId}:${analysis.type}`;
+
+            if (!latestByKey.has(key)) {
+                latestByKey.set(key, analysis);
+            }
+        }
+
+        return Array.from(latestByKey.values());
+    }
+
     async update({ id, data }: PrismaDocumentAnalysisRepository.UpdateParams): Promise<PrismaDocumentAnalysisRepository.DocumentAnalysisResponse> {
         return prisma.documentAnalysis.update({
             where: { id },
@@ -86,5 +117,10 @@ export namespace PrismaDocumentAnalysisRepository {
         documentId: string;
         type: DocumentAnalysisType;
         status?: DocumentAnalysisStatus;
+    };
+
+    export type FindLatestByDocumentIdsParams = {
+        documentIds: string[];
+        types?: DocumentAnalysisType[];
     };
 }

@@ -20,7 +20,7 @@ interface UploadEditalDocumentControllerTypes {
 }
 
 export class UploadEditalDocumentController implements Controller<UploadEditalDocumentControllerTypes> {
-    constructor(private readonly useCase: UploadEditalDocument) {}
+    constructor(private readonly useCase: UploadEditalDocument) { }
 
     async handle(
         request: HttpRequest<UploadEditalDocumentControllerTypes>,
@@ -42,20 +42,21 @@ export class UploadEditalDocumentController implements Controller<UploadEditalDo
             });
 
             return created(result);
-        } catch (error: any) {
+
+        } catch (error: unknown) {
             if (error instanceof z.ZodError) {
                 return badRequest(new Error(error.message));
             }
-            if (error.message?.includes("PDF válido")) {
+            if (error instanceof Error && error.message?.includes("PDF válido")) {
                 return badRequest(error);
             }
-            if (error.message?.includes("não encontrada")) {
+            if (error instanceof Error && error.message?.includes("não encontrada")) {
                 return notFound(error);
             }
-            if (error.message?.includes("acesso")) {
+            if (error instanceof Error && error.message?.includes("acesso")) {
                 return unauthorized(error);
             }
-            return serverError(error);
+            return serverError(error instanceof Error ? error : new Error(String(error)));
         }
     }
 }

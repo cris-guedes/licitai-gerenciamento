@@ -32,9 +32,18 @@ import { ExtractEditalDataControllerSchemas } from "../../domain/use-cases/licit
 import { ExtractEditalDataStreamControllerSchemas } from "../../domain/use-cases/licitacao/extract-edital-data/ExtractEditalDataStreamControllerSchemas";
 import { ExtractEditalDataPostEmbedingControllerSchemas } from "../../domain/use-cases/licitacao/extract-edital-data-post-embeding/ExtractEditalDataPostEmbedingControllerSchemas";
 import { ExtractEditalDataPostEmbedingStreamControllerSchemas } from "../../domain/use-cases/licitacao/extract-edital-data-post-embeding/ExtractEditalDataPostEmbedingStreamControllerSchemas";
+import { DeleteLicitacaoDraftControllerSchemas } from "../../domain/use-cases/licitacao/delete-licitacao-draft/DeleteLicitacaoDraftControllerSchemas";
 import { DeleteLicitacaoDocumentControllerSchemas } from "../../domain/use-cases/licitacao/delete-licitacao-document/DeleteLicitacaoDocumentControllerSchemas";
 import { UploadEditalDocumentControllerSchemas } from "../../domain/use-cases/licitacao/upload-edital-document/UploadEditalDocumentControllerSchemas";
 import { UploadLicitacaoDocumentStreamControllerSchemas } from "../../domain/use-cases/licitacao/upload-licitacao-document-stream/UploadLicitacaoDocumentStreamControllerSchemas";
+import { ListLicitacaoDraftsControllerSchemas } from "../../domain/use-cases/licitacao/list-licitacao-drafts/ListLicitacaoDraftsControllerSchemas";
+import { GetCompanyWorkflowControllerSchemas } from "../../domain/use-cases/licitacao/get-company-workflow/GetCompanyWorkflowControllerSchemas";
+import { GetLicitacaoWorkspaceControllerSchemas } from "../../domain/use-cases/licitacao/get-licitacao-workspace/GetLicitacaoWorkspaceControllerSchemas";
+import { ListOportunidadesBoardControllerSchemas } from "../../domain/use-cases/licitacao/list-oportunidades-board/ListOportunidadesBoardControllerSchemas";
+import { MoveOportunidadeWorkflowControllerSchemas } from "../../domain/use-cases/licitacao/move-oportunidade-workflow/MoveOportunidadeWorkflowControllerSchemas";
+import { FinalizeOportunidadeRegistrationControllerSchemas } from "../../domain/use-cases/licitacao/finalize-oportunidade-registration/FinalizeOportunidadeRegistrationControllerSchemas";
+import { WorkflowDefinitionSchema, WorkflowNodeKindSchema, WorkflowNodeSchema, WorkflowTransitionSchema } from "../../domain/use-cases/licitacao/_shared/workflowSchemas";
+import { OportunidadeBoardItemSchema, OportunidadeBoardNodeSchema, OportunidadeBoardResponsavelSchema, OportunidadeBoardResponseSchema } from "../../domain/use-cases/licitacao/_shared/oportunidadeBoardSchemas";
 import { GetInviteControllerSchemas, GetInviteResponseSchema } from "../../domain/use-cases/team/get-invite/GetInviteControllerSchemas";
 import { AcceptInviteControllerSchemas, AcceptInviteResponseSchema } from "../../domain/use-cases/team/accept-invite/AcceptInviteControllerSchemas";
 import { UpdateMemberRoleControllerSchemas, UpdateMemberRoleResponseSchema } from "../../domain/use-cases/team/update-member-role/UpdateMemberRoleControllerSchemas";
@@ -500,6 +509,83 @@ export const apiEndpoints: EndpointConfig[] = [
     extraSchemas: { RemoveMemberResponse: RemoveMemberResponseSchema },
   },
   {
+    path: "/get-company-workflow",
+    operationId: "getCompanyWorkflow",
+    tag: "Oportunidade",
+    summary: "Recupera o workflow ativo da empresa",
+    description: "Retorna a definição relacional completa do workflow ativo da empresa, incluindo kinds, nós e transições, pronta para board e editor visual.",
+    successDescription: "Workflow carregado com sucesso",
+    method: "GET",
+    schemas: GetCompanyWorkflowControllerSchemas,
+    extraSchemas: {
+      WorkflowDefinition: WorkflowDefinitionSchema,
+      WorkflowNodeKind: WorkflowNodeKindSchema,
+      WorkflowNode: WorkflowNodeSchema,
+      WorkflowTransition: WorkflowTransitionSchema,
+    },
+  },
+  {
+    path: "/list-licitacao-drafts",
+    operationId: "listLicitacaoDrafts",
+    tag: "Licitacao",
+    summary: "Lista licitações em andamento",
+    description: "Retorna os rascunhos de licitação ainda não concluídos para a empresa selecionada.",
+    successDescription: "Rascunhos encontrados",
+    method: "GET",
+    schemas: ListLicitacaoDraftsControllerSchemas,
+  },
+  {
+    path: "/list-oportunidades-board",
+    operationId: "listOportunidadesBoard",
+    tag: "Oportunidade",
+    summary: "Lista oportunidades ativas para o board da empresa",
+    description: "Retorna as oportunidades ativas da empresa com fase, status, situação, responsável e dados principais para as visualizações em kanban e lista.",
+    successDescription: "Board carregado com sucesso",
+    method: "GET",
+    schemas: ListOportunidadesBoardControllerSchemas,
+    extraSchemas: {
+      OportunidadeBoardNode: OportunidadeBoardNodeSchema,
+      OportunidadeBoardResponsavel: OportunidadeBoardResponsavelSchema,
+      OportunidadeBoardItem: OportunidadeBoardItemSchema,
+      OportunidadeBoardResponse: OportunidadeBoardResponseSchema,
+    },
+  },
+  {
+    path: "/move-oportunidade-workflow",
+    operationId: "moveOportunidadeWorkflow",
+    tag: "Oportunidade",
+    summary: "Move uma oportunidade dentro do workflow",
+    description: "Atualiza o nó atual do workflow de uma oportunidade ativa. Apenas o responsável pela oportunidade pode executar a movimentação.",
+    successDescription: "Oportunidade movida com sucesso",
+    method: "POST",
+    schemas: MoveOportunidadeWorkflowControllerSchemas,
+    extraSchemas: {
+      OportunidadeBoardNode: OportunidadeBoardNodeSchema,
+      OportunidadeBoardResponsavel: OportunidadeBoardResponsavelSchema,
+      OportunidadeBoardItem: OportunidadeBoardItemSchema,
+    },
+  },
+  {
+    path: "/get-licitacao-workspace",
+    operationId: "getLicitacaoWorkspace",
+    tag: "Licitacao",
+    summary: "Recupera o workspace de IA de uma licitação em andamento",
+    description: "Retorna documentos, análises persistidas e URLs temporárias do workspace de IA para continuar uma licitação em progresso.",
+    successDescription: "Workspace recuperado com sucesso",
+    method: "GET",
+    schemas: GetLicitacaoWorkspaceControllerSchemas,
+  },
+  {
+    path: "/delete-licitacao-draft",
+    operationId: "deleteLicitacaoDraft",
+    tag: "Licitacao",
+    summary: "Exclui um rascunho de licitação",
+    description: "Remove uma licitação em andamento, seus documentos relacionados e o contexto vetorial associado.",
+    successDescription: "Rascunho excluído com sucesso",
+    method: "POST",
+    schemas: DeleteLicitacaoDraftControllerSchemas,
+  },
+  {
     path: "/upload-edital-document",
     operationId: "uploadEditalDocument",
     tag: "Licitacao",
@@ -581,6 +667,16 @@ export const apiEndpoints: EndpointConfig[] = [
     successDescription: "Documento excluído com sucesso",
     method: "POST",
     schemas: DeleteLicitacaoDocumentControllerSchemas,
+  },
+  {
+    path: "/finalize-oportunidade-registration",
+    operationId: "finalizeOportunidadeRegistration",
+    tag: "Licitacao",
+    summary: "Consuma o cadastro final da oportunidade",
+    description: "Recebe o formulário consolidado da licitação, preenche licitação, edital, órgãos, itens e distribuição, e ativa a oportunidade para gestão interna.",
+    successDescription: "Cadastro final concluído com sucesso",
+    method: "POST",
+    schemas: FinalizeOportunidadeRegistrationControllerSchemas,
   },
   {
     path: "/extract-edital-data",

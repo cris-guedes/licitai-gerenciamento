@@ -9,9 +9,16 @@
 
 // ─── Aggregate root ───────────────────────────────────────────────────────────
 export type { Licitacao, SituacaoLicitacao } from "./Licitacao";
+export type { Oportunidade, OportunidadeStatus } from "./Oportunidade";
+export type { OportunidadeItem } from "./OportunidadeItem";
 
 // ─── Documento do processo ────────────────────────────────────────────────────
 export type { Edital }              from "./Edital";
+export type {
+    EditalAnalysis,
+    EditalAnalysisType,
+    EditalAnalysisStatus,
+}                                    from "./EditalAnalysis";
 
 // ─── Partes do edital ─────────────────────────────────────────────────────────
 export type { OrgaoPublico }        from "./OrgaoPublico";

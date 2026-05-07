@@ -4,6 +4,17 @@ import type { PrismaDocumentRepository } from "./document.repository";
 import { prisma } from "../db/client";
 
 export class PrismaLicitacaoRepository {
+    async findById(
+        params: PrismaLicitacaoRepository.FindByIdParams,
+    ): Promise<PrismaLicitacaoRepository.LicitacaoResponse | null> {
+        return prisma.licitacao.findFirst({
+            where: {
+                id: params.id,
+                ...(params.companyId ? { companyId: params.companyId } : {}),
+            },
+        });
+    }
+
     async createDraftWithEdital(
         params: PrismaLicitacaoRepository.CreateDraftWithEditalParams,
     ): Promise<PrismaLicitacaoRepository.CreateDraftWithEditalResponse> {
@@ -65,6 +76,89 @@ export class PrismaLicitacaoRepository {
 
             return { licitacao, edital, document };
         });
+    }
+
+    async listDraftsByCompanyId(
+        params: PrismaLicitacaoRepository.ListDraftsByCompanyIdParams,
+    ): Promise<PrismaLicitacaoRepository.LicitacaoDraftRecord[]> {
+        return prisma.licitacao.findMany({
+            where: {
+                companyId: params.companyId,
+                status: LicitacaoStatus.IN_PROGRESS,
+            },
+            include: {
+                edital: {
+                    include: {
+                        documents: {
+                            orderBy: [
+                                { createdAt: "asc" },
+                                { originalName: "asc" },
+                            ],
+                        },
+                    },
+                },
+            },
+            orderBy: { updatedAt: "desc" },
+        });
+    }
+
+    async findWorkspaceById(
+        params: PrismaLicitacaoRepository.FindWorkspaceByIdParams,
+    ): Promise<PrismaLicitacaoRepository.LicitacaoWorkspaceRecord | null> {
+        return prisma.licitacao.findFirst({
+            where: {
+                id: params.licitacaoId,
+                companyId: params.companyId,
+            },
+            include: {
+                edital: {
+                    include: {
+                        documents: {
+                            orderBy: [
+                                { createdAt: "asc" },
+                                { originalName: "asc" },
+                            ],
+                        },
+                    },
+                },
+            },
+        });
+    }
+
+    async update(
+        params: PrismaLicitacaoRepository.UpdateParams,
+    ): Promise<PrismaLicitacaoRepository.LicitacaoResponse> {
+        return prisma.licitacao.update({
+            where: { id: params.id },
+            data: {
+                ...params.data,
+                metadados: this.toJsonInput(params.data.metadados),
+            },
+        });
+    }
+
+    async deleteDraftById(
+        params: PrismaLicitacaoRepository.DeleteDraftByIdParams,
+    ): Promise<PrismaLicitacaoRepository.LicitacaoResponse> {
+        return prisma.$transaction(async (tx) => {
+            if (params.documentIds.length > 0) {
+                await tx.document.deleteMany({
+                    where: {
+                        id: { in: params.documentIds },
+                    },
+                });
+            }
+
+            return tx.licitacao.delete({
+                where: { id: params.licitacaoId },
+            });
+        });
+    }
+
+    private toJsonInput(value: Prisma.InputJsonValue | null | undefined) {
+        if (value === undefined) return undefined;
+        if (value === null) return Prisma.JsonNull;
+        return value;
     }
 }
 
@@ -146,4 +240,43 @@ export namespace PrismaLicitacaoRepository {
         licitacao: LicitacaoResponse;
         edital: EditalResponse;
     };
+
+    export type ListDraftsByCompanyIdParams = {
+        companyId: string;
+    };
+
+    export type FindByIdParams = {
+        id: string;
+        companyId?: string;
+    };
+
+    export type FindWorkspaceByIdParams = {
+        licitacaoId: string;
+        companyId: string;
+    };
+
+    export type UpdateData = {
+        status?: LicitacaoStatus;
+        metadados?: Prisma.InputJsonValue | null;
+    };
+
+    export type UpdateParams = {
+        id: string;
+        data: UpdateData;
+    };
+
+    export type DeleteDraftByIdParams = {
+        licitacaoId: string;
+        documentIds: string[];
+    };
+
+    export type DraftDocumentRecord = PrismaDocumentRepository.DocumentResponse;
+
+    export type LicitacaoDraftRecord = LicitacaoResponse & {
+        edital: (EditalResponse & {
+            documents: DraftDocumentRecord[];
+        }) | null;
+    };
+
+    export type LicitacaoWorkspaceRecord = LicitacaoDraftRecord;
 }

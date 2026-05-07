@@ -3,9 +3,11 @@ import { DocumentStatus, DocumentType, EditalStatus, LicitacaoStatus } from "@pr
 import type { IIdentifierProvider } from "@/server/modules/core-api/domain/data/IIdentifierProvider";
 import type { IObjectStorageProvider } from "@/server/modules/core-api/domain/data/IObjectStorageProvider";
 import { PrismaCompanyRepository } from "@/server/shared/infra/repositories/company.repository";
-import { PrismaLicitacaoRepository } from "@/server/shared/infra/repositories/licitacao.repository";
 import { PrismaMembershipRepository } from "@/server/shared/infra/repositories/membership.repository";
+import { PrismaOportunidadeRepository } from "@/server/shared/infra/repositories/oportunidade.repository";
 import { assertUserCanAccessCompany } from "../../company/_shared/assertCompanyAccess";
+import { DraftPreviewExtractor } from "../_shared/DraftPreviewExtractor";
+import { withDraftPreview } from "../_shared/draftPreview";
 import type { UploadEditalDocumentDTO } from "./dtos/UploadEditalDocumentDTOs";
 import { UploadEditalDocumentMapper, type UploadEditalDocumentView } from "./dtos/UploadEditalDocumentView";
 
@@ -13,9 +15,10 @@ export class UploadEditalDocument {
     constructor(
         private readonly identifierProvider: IIdentifierProvider,
         private readonly objectStorageProvider: IObjectStorageProvider.Contract,
-        private readonly licitacaoRepository: PrismaLicitacaoRepository,
+        private readonly oportunidadeRepository: PrismaOportunidadeRepository,
         private readonly companyRepository: PrismaCompanyRepository,
         private readonly membershipRepository: PrismaMembershipRepository,
+        private readonly draftPreviewExtractor: DraftPreviewExtractor,
         private readonly config: UploadEditalDocument.Config,
     ) {}
 
@@ -30,6 +33,7 @@ export class UploadEditalDocument {
         this.assertSupportedFile(params);
 
         const documentId = this.identifierProvider.generate();
+        const oportunidadeId = this.identifierProvider.generate();
         const licitacaoId = this.identifierProvider.generate();
         const editalId = this.identifierProvider.generate();
         const originalFilename = params.fileFilename.trim();
@@ -52,7 +56,18 @@ export class UploadEditalDocument {
                 },
             });
 
-            const { document, edital, licitacao } = await this.licitacaoRepository.createDraftWithEditalAndDocument({
+            const {
+                oportunidade: createdOportunidade,
+                document,
+                edital,
+                licitacao: createdLicitacao,
+            } = await this.oportunidadeRepository.createDraftWithLicitacaoEditalAndDocument({
+                oportunidade: {
+                    id: oportunidadeId,
+                    companyId: company.id,
+                    responsavelUserId: params.createdById,
+                    status: "DRAFT",
+                },
                 licitacao: {
                     id: licitacaoId,
                     companyId: company.id,
@@ -83,6 +98,21 @@ export class UploadEditalDocument {
                 },
             });
 
+            const draftPreview = await this.generateDraftPreview({
+                documentId,
+                pdfBuffer: params.fileBuffer,
+                filename: originalFilename,
+            });
+
+            const oportunidade = draftPreview
+                ? await this.oportunidadeRepository.update({
+                    id: createdOportunidade.id,
+                    data: {
+                        metadata: withDraftPreview(createdOportunidade.metadata, draftPreview),
+                    },
+                })
+                : createdOportunidade;
+
             const temporaryUrl = await this.objectStorageProvider.getDocumentTemporaryUrl({
                 key: document.storageKey,
                 bucket: document.storageBucket,
@@ -91,7 +121,8 @@ export class UploadEditalDocument {
             });
 
             return UploadEditalDocumentMapper.toView({
-                licitacao,
+                oportunidade,
+                licitacao: createdLicitacao,
                 edital,
                 document,
                 documentUrl: temporaryUrl.url,
@@ -103,6 +134,19 @@ export class UploadEditalDocument {
             }
 
             throw error;
+        }
+    }
+
+    private async generateDraftPreview(params: {
+        documentId: string;
+        pdfBuffer: Buffer;
+        filename: string;
+    }) {
+        try {
+            return await this.draftPreviewExtractor.extract(params);
+        } catch (error) {
+            console.warn("[UploadEditalDocument] Falha ao gerar preview leve do edital:", error);
+            return null;
         }
     }
 

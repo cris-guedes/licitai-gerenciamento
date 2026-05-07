@@ -4,6 +4,14 @@
 /* eslint-disable */
 export type UploadEditalDocumentResponse = {
   /**
+   * ID interno da oportunidade criada para acompanhar o rascunho deste processo.
+   */
+  oportunidadeId: string;
+  /**
+   * Status inicial da oportunidade criada junto ao rascunho.
+   */
+  oportunidadeStatus: 'DRAFT';
+  /**
    * ID interno do processo licitatório criado para acompanhar o fluxo global da licitação.
    */
   licitacaoId: string;
@@ -27,6 +35,10 @@ export type UploadEditalDocumentResponse = {
    * Tipo de documento aceito neste fluxo inicial.
    */
   documentType: string;
+  /**
+   * Nome amigável sugerido para o edital a partir da primeira página.
+   */
+  displayName: string | null;
   /**
    * Nome original do arquivo enviado.
    */
@@ -59,5 +71,20 @@ export type UploadEditalDocumentResponse = {
    * Data/hora ISO em que o documento foi persistido.
    */
   uploadedAt: string;
+  /**
+   * Informações básicas extraídas de forma leve da primeira página do edital.
+   */
+  draftPreview: {
+    source: 'first_page_agent';
+    sourceDocumentId: string;
+    sourcePage: 1;
+    extractedAt: string;
+    displayName: string | null;
+    orgaoNome: string | null;
+    modalidade: string | null;
+    numero: string | null;
+    objetoResumo: string | null;
+    dataAbertura: string | null;
+  } | null;
 };
 

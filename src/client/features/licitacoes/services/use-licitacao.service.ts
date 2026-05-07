@@ -8,13 +8,29 @@ import type { UploadEditalDocumentResponse } from "@/client/main/infra/apis/api-
 export type LicitacaoDocumentType = "EDITAL" | "ANEXO" | "OUTRO"
 export type LicitacaoDocumentProcessingStatus = "AWAITING_UPLOAD" | "UPLOADING" | "PROCESSING" | "READY" | "FAILED"
 
+export type LicitacaoDraftPreview = {
+  source: "first_page_agent"
+  sourceDocumentId: string
+  sourcePage: 1
+  extractedAt: string
+  displayName: string | null
+  orgaoNome: string | null
+  modalidade: string | null
+  numero: string | null
+  objetoResumo: string | null
+  dataAbertura: string | null
+}
+
 export type UploadLicitacaoDocumentResponse = {
-  licitacaoId: string
-  licitacaoStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
-  editalId: string
-  editalStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+  oportunidadeId: string
+  oportunidadeStatus: "DRAFT" | "ACTIVE" | "CANCELLED"
+  licitacaoId: string | null
+  licitacaoStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | null
+  editalId: string | null
+  editalStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | null
   documentId: string
   documentType: LicitacaoDocumentType
+  displayName: string | null
   originalName: string
   mimeType: string
   sizeBytes: number
@@ -23,6 +39,7 @@ export type UploadLicitacaoDocumentResponse = {
   previewUrl: string
   previewUrlExpiresAt: string
   uploadedAt: string
+  draftPreview: LicitacaoDraftPreview | null
 }
 
 export type UploadLicitacaoDocumentProgressEvent = {
@@ -32,8 +49,9 @@ export type UploadLicitacaoDocumentProgressEvent = {
   percent: number
   status: "UPLOADING" | "PROCESSING" | "READY" | "FAILED"
   context?: {
-    licitacaoId: string
-    editalId: string
+    oportunidadeId: string
+    licitacaoId: string | null
+    editalId: string | null
     documentId: string
     documentType: LicitacaoDocumentType
   }
@@ -64,6 +82,326 @@ export type UploadLicitacaoDocumentEvent =
 export type DeleteLicitacaoDocumentResponse = {
   documentId: string
   deleted: true
+}
+
+export type DeleteLicitacaoDraftResponse = {
+  oportunidadeId: string
+  deletedDocuments: number
+  deleted: true
+}
+
+export type FinalizeOportunidadeRegistrationPayload = {
+  numeroLicitacao: string
+  ano: string
+  processo: string
+  modalidade: string
+  objeto: string
+  orgaoGerenciador: {
+    cnpj: string
+    nome: string
+    codigoUnidade: string
+    nomeUnidade: string
+    municipio: string
+    uf: string
+    esfera: string
+    poder: string
+    itensSolicitados: Array<{
+      itemId: string
+      quantidade: string
+    }>
+  }
+  valorTotalEstimado: string
+  valorTotalHomologado: string
+  srp: string
+  situacao: string
+  dataPublicacao: string
+  dataUltimaAtualizacao: string
+  linkProcesso: string
+  identificadorExterno: string
+  edital: {
+    amparoLegal: string
+    orgaosParticipantes: Array<{
+      cnpj: string
+      nome: string
+      codigoUnidade: string
+      nomeUnidade: string
+      municipio: string
+      uf: string
+      esfera: string
+      poder: string
+      itensSolicitados: Array<{
+        itemId: string
+        quantidade: string
+      }>
+    }>
+    cronograma: {
+      acolhimentoInicio: string
+      acolhimentoFim: string
+      horaLimite: string
+      sessaoPublica: string
+      horaSessaoPublica: string
+      esclarecimentosAte: string
+      impugnacaoAte: string
+    }
+    certame: {
+      modoDisputa: string
+      criterioJulgamento: string
+      tipoLance: string
+      intervaloLances: string
+      duracaoSessaoMinutos: string
+      exclusivoMeEpp: string
+      permiteConsorcio: string
+      exigeVisitaTecnica: string
+      regionalidade: string
+      permiteAdesao: string
+      percentualAdesao: string
+      vigenciaAtaMeses: string
+      vigenciaContratoDias: string
+      difal: string
+    }
+    itens: Array<{
+      itemId: string
+      numero: string
+      descricao: string
+      tipo: string
+      lote: string
+      quantidade: string
+      unidadeMedida: string
+      valorUnitarioEstimado: string
+      valorTotal: string
+      codigoNcmNbs: string
+      descricaoNcmNbs: string
+      codigoCatmatCatser: string
+      criterioJulgamento: string
+      beneficioTributario: string
+      observacao: string
+    }>
+    execucao: {
+      entrega: {
+        prazoEmDias: string
+        localEntrega: string
+        tipoEntrega: string
+        responsavelInstalacao: string
+      }
+      pagamento: {
+        prazoEmDias: string
+      }
+      aceite: {
+        prazoEmDias: string
+      }
+      validadeProposta: string
+      garantia: {
+        tipo: string
+        meses: string
+        tempoAtendimentoHoras: string
+      }
+    }
+    habilitacao: Array<{
+      tipo: string
+      categoria: string
+      obrigatorio: string
+    }>
+    informacaoComplementar: string
+  }
+}
+
+export type FinalizeOportunidadeRegistrationResponse = {
+  oportunidadeId: string
+  oportunidadeStatus: "ACTIVE"
+  licitacaoId: string
+  licitacaoStatus: "COMPLETED"
+  editalId: string
+  editalStatus: "COMPLETED"
+}
+
+export type LicitacaoDraftSummary = {
+  oportunidadeId: string
+  oportunidadeStatus: "DRAFT" | "ACTIVE" | "CANCELLED"
+  licitacaoId: string | null
+  licitacaoStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | null
+  editalId: string | null
+  editalStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | null
+  primaryDocumentName: string | null
+  primaryDocumentType: LicitacaoDocumentType | null
+  draftPreview: LicitacaoDraftPreview | null
+  documentCount: number
+  readyDocuments: number
+  processingDocuments: number
+  failedDocuments: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type ListLicitacaoDraftsResponse = {
+  drafts: LicitacaoDraftSummary[]
+}
+
+export type LicitacaoWorkspaceDocumentAnalysis = {
+  id: string
+  type: "EXTRACT_EDITAL" | "SUMMARY"
+  status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED"
+  markdownContent: string | null
+  result: unknown
+  metrics: unknown
+  errorMessage: string | null
+  startedAt: string | null
+  finishedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type LicitacaoWorkspaceDocument = {
+  id: string
+  type: LicitacaoDocumentType
+  displayName: string | null
+  originalName: string
+  mimeType: string
+  sizeBytes: number
+  status: "PROCESSING" | "READY" | "FAILED"
+  documentUrl: string
+  previewUrl: string
+  previewUrlExpiresAt: string
+  uploadedAt: string
+  analyses: LicitacaoWorkspaceDocumentAnalysis[]
+}
+
+export type LicitacaoWorkspaceResponse = {
+  oportunidade: {
+    id: string
+    status: "DRAFT" | "ACTIVE" | "CANCELLED"
+    draftPreview: LicitacaoDraftPreview | null
+    createdAt: string
+    updatedAt: string
+  }
+  licitacao: {
+    id: string | null
+    status: "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | null
+    draftPreview: LicitacaoDraftPreview | null
+    createdAt: string
+    updatedAt: string
+  }
+  edital: {
+    id: string
+    status: "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+    createdAt: string
+    updatedAt: string
+  } | null
+  documents: LicitacaoWorkspaceDocument[]
+}
+
+export type WorkflowNodeKind = {
+  id: string
+  key: string
+  label: string
+  description: string | null
+  order: number
+  parentKindId: string | null
+  color: string | null
+  metadata: unknown
+  createdAt: string
+  updatedAt: string
+}
+
+export type WorkflowNode = {
+  id: string
+  kindId: string
+  parentId: string | null
+  key: string
+  label: string
+  description: string | null
+  order: number
+  depth: number
+  path: string
+  color: string | null
+  isInitial: boolean
+  isTerminal: boolean
+  metadata: unknown
+  createdAt: string
+  updatedAt: string
+  kind: {
+    id: string
+    key: string
+    label: string
+    order: number
+    parentKindId: string | null
+    color: string | null
+  }
+}
+
+export type WorkflowTransition = {
+  id: string
+  fromNodeId: string
+  toNodeId: string
+  transitionType: string | null
+  metadata: unknown
+  createdAt: string
+  updatedAt: string
+}
+
+export type CompanyWorkflowResponse = {
+  workflow: {
+    id: string
+    companyId: string
+    name: string
+    slug: string
+    version: number
+    isActive: boolean
+    metadata: unknown
+    createdAt: string
+    updatedAt: string
+    nodeKinds: WorkflowNodeKind[]
+    nodes: WorkflowNode[]
+    transitions: WorkflowTransition[]
+  }
+}
+
+export type OportunidadeBoardNode = {
+  id: string
+  key: string
+  label: string
+  color: string | null
+  path: string
+  isInitial: boolean
+  isTerminal: boolean
+}
+
+export type OportunidadeBoardItem = {
+  oportunidadeId: string
+  oportunidadeStatus: "DRAFT" | "ACTIVE" | "CANCELLED"
+  licitacaoId: string | null
+  editalId: string | null
+  workflowDefinitionId: string | null
+  title: string
+  numero: string | null
+  modalidade: string | null
+  objetoResumo: string | null
+  valorEstimado: string | null
+  orgaoNome: string | null
+  responsavel: {
+    id: string
+    name: string
+    email: string
+  } | null
+  workflow: {
+    currentNode: OportunidadeBoardNode | null
+    phase: OportunidadeBoardNode | null
+    status: OportunidadeBoardNode | null
+    situation: OportunidadeBoardNode | null
+    updatedAt: string | null
+  }
+  itemCount: number
+  createdAt: string
+  updatedAt: string
+  canMove: boolean
+}
+
+export type ListOportunidadesBoardResponse = {
+  items: OportunidadeBoardItem[]
+  total: number
+}
+
+export type MoveOportunidadeWorkflowResponse = {
+  item: OportunidadeBoardItem
 }
 
 type ExtractedItem = NonNullable<NonNullable<ExtractEditalDataResponse["licitacao"]["edital"]>["itens"]>[number]
@@ -202,6 +540,174 @@ function toError(error: unknown): Error {
 }
 
 export function useLicitacaoService(_api: CoreApiClient) {
+  const listDrafts = useCallback(async ({
+    companyId,
+  }: {
+    companyId: string
+  }): Promise<ListLicitacaoDraftsResponse> => {
+    const res = await fetch(`/api/core/list-licitacao-drafts?companyId=${encodeURIComponent(companyId)}`, {
+      method: "GET",
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao listar rascunhos`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const getWorkspace = useCallback(async ({
+    companyId,
+    oportunidadeId,
+  }: {
+    companyId: string
+    oportunidadeId: string
+  }): Promise<LicitacaoWorkspaceResponse> => {
+    const query = new URLSearchParams({
+      companyId,
+      oportunidadeId,
+    })
+
+    const res = await fetch(`/api/core/get-licitacao-workspace?${query.toString()}`, {
+      method: "GET",
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao recuperar o workspace`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const getCompanyWorkflow = useCallback(async ({
+    companyId,
+  }: {
+    companyId: string
+  }): Promise<CompanyWorkflowResponse> => {
+    const res = await fetch(`/api/core/get-company-workflow?companyId=${encodeURIComponent(companyId)}`, {
+      method: "GET",
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao carregar o workflow da empresa`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const listOportunidadesBoard = useCallback(async ({
+    companyId,
+    currentPhaseNodeId,
+    currentStatusNodeId,
+    currentSituationNodeId,
+    responsavelUserId,
+    q,
+  }: {
+    companyId: string
+    currentPhaseNodeId?: string
+    currentStatusNodeId?: string
+    currentSituationNodeId?: string
+    responsavelUserId?: string
+    q?: string
+  }): Promise<ListOportunidadesBoardResponse> => {
+    const query = new URLSearchParams({ companyId })
+
+    if (currentPhaseNodeId) query.set("currentPhaseNodeId", currentPhaseNodeId)
+    if (currentStatusNodeId) query.set("currentStatusNodeId", currentStatusNodeId)
+    if (currentSituationNodeId) query.set("currentSituationNodeId", currentSituationNodeId)
+    if (responsavelUserId) query.set("responsavelUserId", responsavelUserId)
+    if (q?.trim()) query.set("q", q.trim())
+
+    const res = await fetch(`/api/core/list-oportunidades-board?${query.toString()}`, {
+      method: "GET",
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao carregar o board de oportunidades`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const moveOportunidadeWorkflow = useCallback(async ({
+    companyId,
+    oportunidadeId,
+    targetNodeId,
+  }: {
+    companyId: string
+    oportunidadeId: string
+    targetNodeId: string
+  }): Promise<MoveOportunidadeWorkflowResponse> => {
+    const res = await fetch("/api/core/move-oportunidade-workflow", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        companyId,
+        oportunidadeId,
+        targetNodeId,
+      }),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao mover a oportunidade no workflow`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const deleteDraft = useCallback(async ({
+    companyId,
+    oportunidadeId,
+  }: {
+    companyId: string
+    oportunidadeId: string
+  }): Promise<DeleteLicitacaoDraftResponse> => {
+    const res = await fetch("/api/core/delete-licitacao-draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ companyId, oportunidadeId }),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao excluir rascunho`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const finalizeRegistration = useCallback(async ({
+    companyId,
+    oportunidadeId,
+    form,
+  }: {
+    companyId: string
+    oportunidadeId?: string
+    form: FinalizeOportunidadeRegistrationPayload
+  }): Promise<FinalizeOportunidadeRegistrationResponse> => {
+    const res = await fetch("/api/core/finalize-oportunidade-registration", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        companyId,
+        oportunidadeId,
+        form,
+      }),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao concluir o cadastro`)
+    }
+
+    return await res.json()
+  }, [])
+
   const useUploadEdital = () => {
     const [isPending, setIsPending] = useState(false)
     const [error, setError] = useState<Error | null>(null)
@@ -447,7 +953,7 @@ export function useLicitacaoService(_api: CoreApiClient) {
       file,
       companyId,
       documentType,
-      licitacaoId,
+      oportunidadeId,
       editalId,
       replaceDocumentId,
       onEvent,
@@ -455,7 +961,7 @@ export function useLicitacaoService(_api: CoreApiClient) {
       file: File
       companyId: string
       documentType: LicitacaoDocumentType
-      licitacaoId?: string
+      oportunidadeId?: string
       editalId?: string
       replaceDocumentId?: string
       onEvent?: (event: UploadLicitacaoDocumentEvent) => void
@@ -472,7 +978,7 @@ export function useLicitacaoService(_api: CoreApiClient) {
           documentType,
         })
 
-        if (licitacaoId) query.set("licitacaoId", licitacaoId)
+        if (oportunidadeId) query.set("oportunidadeId", oportunidadeId)
         if (editalId) query.set("editalId", editalId)
         if (replaceDocumentId) query.set("replaceDocumentId", replaceDocumentId)
 
@@ -582,5 +1088,17 @@ export function useLicitacaoService(_api: CoreApiClient) {
     return { mutateAsync, isPending, error, reset }
   }
 
-  return { useUploadEdital, useUploadLicitacaoDocumentStream, useDeleteLicitacaoDocument, useExtractEdital }
+  return {
+    listDrafts,
+    getWorkspace,
+    getCompanyWorkflow,
+    listOportunidadesBoard,
+    moveOportunidadeWorkflow,
+    deleteDraft,
+    finalizeRegistration,
+    useUploadEdital,
+    useUploadLicitacaoDocumentStream,
+    useDeleteLicitacaoDocument,
+    useExtractEdital,
+  }
 }

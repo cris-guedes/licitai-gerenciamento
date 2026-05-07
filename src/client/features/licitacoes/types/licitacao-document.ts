@@ -4,16 +4,19 @@ import type {
 } from "../services/use-licitacao.service"
 
 export type LicitacaoDraftContext = {
-  licitacaoId: string
-  licitacaoStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
-  editalId: string
-  editalStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+  oportunidadeId: string
+  oportunidadeStatus: "DRAFT" | "ACTIVE" | "CANCELLED"
+  licitacaoId?: string | null
+  licitacaoStatus?: "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | null
+  editalId?: string | null
+  editalStatus?: "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | null
 }
 
 export type LicitacaoDocumentItem = {
   localId: string
   documentId?: string
   type: LicitacaoDocumentType
+  displayName?: string
   originalName: string
   mimeType: string
   sizeBytes: number

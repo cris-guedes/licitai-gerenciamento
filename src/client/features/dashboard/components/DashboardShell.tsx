@@ -6,25 +6,21 @@ import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import {
   Bell,
-  Bot,
   Building2,
+  Clock3,
   ChevronsUpDown,
   ChevronRight,
   FileText,
   LayoutDashboard,
-  Lock,
   LogOut,
   Menu,
-  MessageSquare,
   Plus,
   Radar,
-  Scale,
   Search,
   Settings,
   Target,
   User,
   Users,
-  Zap,
 } from "lucide-react"
 
 import {
@@ -138,7 +134,7 @@ function CompanySelector() {
           >
             <Link href={`${baseHref}/licitacoes/nova`}>
               <Plus className="size-4" />
-              Nova Licitação
+              Nova Oportunidade
             </Link>
           </Button>
         </SidebarMenuItem>
@@ -180,19 +176,6 @@ function DisabledSubItem({ icon: Icon, label, badge }: {
         <NavBadge type={badge} />
       </div>
     </SidebarMenuSubItem>
-  )
-}
-
-function SidebarDockToggle() {
-  const { state } = useSidebar()
-
-  if (state === "collapsed") return null
-
-  return (
-    <SidebarTrigger className="absolute -top-4 left-0 z-30 hidden h-11 w-10 -translate-x-[55%] rounded-r-[0.9rem] rounded-l-none border border-sidebar-border/30 border-l-0 bg-sidebar text-sidebar-foreground shadow-[0_10px_24px_rgba(4,22,39,0.22)] hover:bg-sidebar md:flex">
-      <Menu className="size-4" />
-      <span className="sr-only">Recolher sidebar</span>
-    </SidebarTrigger>
   )
 }
 
@@ -296,21 +279,21 @@ function NavMain() {
         <DisabledSubItem icon={Target} label="Licitações Estratégicas" badge="em-breve" />
       </NavCollapsible>
 
-      {/* Gerenciar Licitações */}
-      <NavCollapsible id="licitacoes" icon={FileText} label="Gerenciar Licitações" active={is("licitacoes")}>
+      {/* Gerenciar Oportunidades */}
+      <NavCollapsible id="licitacoes" icon={FileText} label="Gerenciar Oportunidades" active={is("licitacoes")}>
         <SidebarMenuSubItem>
           <SidebarMenuSubButton asChild isActive={pathname === `${base}/licitacoes`}>
             <Link href={`${base}/licitacoes`}>
               <FileText className="size-[14px]" />
-              <span className={NAV_LABEL_CLASS}>Minhas Licitações</span>
+              <span className={NAV_LABEL_CLASS}>Minhas Oportunidades</span>
             </Link>
           </SidebarMenuSubButton>
         </SidebarMenuSubItem>
         <SidebarMenuSubItem>
-          <SidebarMenuSubButton asChild isActive={is("licitacoes/nova")}>
-            <Link href={`${base}/licitacoes/nova`}>
-              <FileText className="size-[14px]" />
-              <span className={NAV_LABEL_CLASS}>Nova Licitação</span>
+          <SidebarMenuSubButton asChild isActive={pathname === `${base}/licitacoes/rascunhos`}>
+            <Link href={`${base}/licitacoes/rascunhos`}>
+              <Clock3 className="size-[14px]" />
+              <span className={NAV_LABEL_CLASS}>Rascunhos</span>
             </Link>
           </SidebarMenuSubButton>
         </SidebarMenuSubItem>
@@ -344,21 +327,6 @@ function NavMain() {
           </SidebarMenuSubButton>
         </SidebarMenuSubItem>
       </NavCollapsible>
-
-      {/* Inteligência Artificial */}
-      <NavCollapsible id="ia" icon={Bot} label="Inteligência Artificial" active={false} badge="em-breve" disabled highlight>
-        <DisabledSubItem icon={Bot}          label="Assistente IA"       badge="em-breve" />
-        <DisabledSubItem icon={Scale}        label="Consultor Jurídico"  badge="em-breve" />
-        <DisabledSubItem icon={FileText}     label="Resumo do Edital"    badge="em-breve" />
-        <DisabledSubItem icon={MessageSquare} label="Pergunte ao Edital" badge="em-breve" />
-      </NavCollapsible>
-
-      {/* Automação */}
-      <NavCollapsible id="automacao" icon={Zap} label="Automação" active={false} badge="em-breve" disabled>
-        <DisabledSubItem icon={Zap}  label="Robô de Lance"    badge="em-breve" />
-        <DisabledSubItem icon={Lock} label="Monitorar Portais" badge="em-breve" />
-      </NavCollapsible>
-
       </SidebarMenu>
     </div>
   )
@@ -430,8 +398,9 @@ function resolvePageMeta(pathname: string, base: string) {
 
   const matches: Array<{ key: string; title: string; subtitle: string }> = [
     { key: "search", title: "Captação", subtitle: "Monitore oportunidades com mais precisão." },
-    { key: "licitacoes/nova", title: "Nova Licitação", subtitle: "Monte o cadastro como um workspace editorial." },
-    { key: "licitacoes", title: "Gerenciar Licitações", subtitle: "Acompanhe processos, status e próximos movimentos." },
+    { key: "licitacoes/nova", title: "Nova Oportunidade", subtitle: "Monte o cadastro como um workspace editorial." },
+    { key: "licitacoes/rascunhos", title: "Rascunhos", subtitle: "Retome licitações em andamento com o contexto da IA preservado." },
+    { key: "licitacoes", title: "Gerenciar Oportunidades", subtitle: "Acompanhe oportunidades, status e próximos movimentos." },
     { key: "time", title: "Gerenciar Time", subtitle: "Coordene acessos, papéis e responsabilidades." },
     { key: "empresa", title: "Gerenciar Empresas", subtitle: "Organize os dados mestres da operação." },
     { key: "conta", title: "Minha Conta", subtitle: "Ajuste preferências e dados de acesso." },
@@ -455,6 +424,12 @@ function DashboardShellFrame({ children }: Pick<Props, "children">) {
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.015),transparent_22%)]" />
           <div className="relative flex h-full flex-col">
             <SidebarHeader className="px-2 pt-2 pb-4 group-data-[collapsible=icon]:px-1 group-data-[collapsible=icon]:py-2">
+              <div className="hidden items-center justify-end px-1 pb-2 group-data-[collapsible=icon]:hidden md:flex">
+                <SidebarTrigger className="size-8 rounded-[0.8rem] bg-white/[0.04] text-sidebar-foreground/72 hover:bg-white/[0.08] hover:text-white">
+                  <Menu className="size-4" />
+                  <span className="sr-only">Recolher sidebar</span>
+                </SidebarTrigger>
+              </div>
               <div className="border-b border-white/8 pb-4 group-data-[collapsible=icon]:border-b-0 group-data-[collapsible=icon]:pb-0">
                 <CompanySelector />
               </div>
@@ -473,8 +448,7 @@ function DashboardShellFrame({ children }: Pick<Props, "children">) {
         </Sidebar>
 
         <SidebarInset>
-          <div className="flex min-h-svh flex-col gap-4 px-4 py-4 md:px-6 md:py-4">
-            <SidebarDockToggle />
+          <div className="flex min-h-svh min-w-0 max-w-full flex-col gap-4 overflow-x-hidden px-4 py-4 md:px-6 md:py-4">
             {pageMeta ? (
               <header className="flex items-start justify-between gap-4 bg-transparent px-1 py-1">
                 <div className="flex items-start gap-3">
@@ -501,7 +475,7 @@ function DashboardShellFrame({ children }: Pick<Props, "children">) {
               </div>
             )}
 
-            <div className="min-w-0 flex flex-1 flex-col">
+            <div className="min-w-0 max-w-full flex flex-1 flex-col overflow-x-hidden">
               {children}
             </div>
           </div>
