@@ -1,12 +1,7 @@
 import type { HttpRequest, StreamController } from "@/server/modules/core-api/main/adapters/http-adapter";
+import { createSseResponse } from "@/server/modules/core-api/main/adapters/sse-response";
 import { DocumentType } from "@prisma/client";
 import { UploadLicitacaoDocument } from "./UploadLicitacaoDocument";
-
-const encoder = new TextEncoder();
-
-function sseEvent(data: object): Uint8Array {
-    return encoder.encode(`data: ${JSON.stringify(data)}\n\n`);
-}
 
 function errorResponse(message: string, status = 400): Response {
     return new Response(JSON.stringify({ message }), {
@@ -48,64 +43,50 @@ export class UploadLicitacaoDocumentStreamController implements StreamController
         const documentType = rawDocumentType as DocumentType;
         const { useCase } = this;
 
-        const stream = new ReadableStream({
-            async start(controller) {
-                const send = (data: object) => controller.enqueue(sseEvent(data));
+        return createSseResponse(async send => {
+            try {
+                send({
+                    type: "progress",
+                    step: "upload.received",
+                    message: "Arquivo recebido, iniciando processamento do documento.",
+                    percent: 4,
+                    status: "UPLOADING",
+                });
 
-                try {
-                    send({
-                        type: "progress",
-                        step: "upload.received",
-                        message: "Arquivo recebido, iniciando processamento do documento.",
-                        percent: 4,
-                        status: "UPLOADING",
-                    });
+                const result = await useCase.execute({
+                    companyId,
+                    oportunidadeId,
+                    editalId,
+                    replaceDocumentId,
+                    documentType,
+                    fileBuffer,
+                    fileFilename: file.name,
+                    fileMimeType: file.type || "application/pdf",
+                    fileSizeBytes: file.size,
+                    userId: user.id,
+                    createdById: user.id,
+                    onProgress: send,
+                });
 
-                    const result = await useCase.execute({
-                        companyId,
-                        oportunidadeId,
-                        editalId,
-                        replaceDocumentId,
-                        documentType,
-                        fileBuffer,
-                        fileFilename: file.name,
-                        fileMimeType: file.type || "application/pdf",
-                        fileSizeBytes: file.size,
-                        userId: user.id,
-                        createdById: user.id,
-                        onProgress: send,
-                    });
-
-                    send({
-                        type: "done",
-                        step: "done",
-                        message: "Documento processado com sucesso.",
-                        percent: 100,
-                        status: "READY",
-                        result,
-                    });
-                } catch (error: unknown) {
-                    send({
-                        type: "error",
-                        step: "error",
-                        message: error instanceof Error
-                            ? error.message
-                            : "Erro inesperado durante o processamento do documento.",
-                        percent: 0,
-                        status: "FAILED",
-                    });
-                } finally {
-                    controller.close();
-                }
-            },
-        });
-
-        return new Response(stream, {
-            headers: {
-                "Content-Type": "text/event-stream",
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-            },
+                send({
+                    type: "done",
+                    step: "done",
+                    message: "Documento processado com sucesso.",
+                    percent: 100,
+                    status: "READY",
+                    result,
+                });
+            } catch (error: unknown) {
+                send({
+                    type: "error",
+                    step: "error",
+                    message: error instanceof Error
+                        ? error.message
+                        : "Erro inesperado durante o processamento do documento.",
+                    percent: 0,
+                    status: "FAILED",
+                });
+            }
         });
     }
 }

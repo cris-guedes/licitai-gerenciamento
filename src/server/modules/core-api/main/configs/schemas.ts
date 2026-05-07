@@ -34,6 +34,10 @@ import { ExtractEditalDataPostEmbedingControllerSchemas } from "../../domain/use
 import { ExtractEditalDataPostEmbedingStreamControllerSchemas } from "../../domain/use-cases/licitacao/extract-edital-data-post-embeding/ExtractEditalDataPostEmbedingStreamControllerSchemas";
 import { DeleteLicitacaoDraftControllerSchemas } from "../../domain/use-cases/licitacao/delete-licitacao-draft/DeleteLicitacaoDraftControllerSchemas";
 import { DeleteLicitacaoDocumentControllerSchemas } from "../../domain/use-cases/licitacao/delete-licitacao-document/DeleteLicitacaoDocumentControllerSchemas";
+import { CreateCompanyWorkflowNodeControllerSchemas } from "../../domain/use-cases/licitacao/create-company-workflow-node/CreateCompanyWorkflowNodeControllerSchemas";
+import { CreateCompanyWorkflowTransitionControllerSchemas } from "../../domain/use-cases/licitacao/create-company-workflow-transition/CreateCompanyWorkflowTransitionControllerSchemas";
+import { DeleteCompanyWorkflowNodeControllerSchemas } from "../../domain/use-cases/licitacao/delete-company-workflow-node/DeleteCompanyWorkflowNodeControllerSchemas";
+import { DeleteCompanyWorkflowTransitionControllerSchemas } from "../../domain/use-cases/licitacao/delete-company-workflow-transition/DeleteCompanyWorkflowTransitionControllerSchemas";
 import { UploadEditalDocumentControllerSchemas } from "../../domain/use-cases/licitacao/upload-edital-document/UploadEditalDocumentControllerSchemas";
 import { UploadLicitacaoDocumentStreamControllerSchemas } from "../../domain/use-cases/licitacao/upload-licitacao-document-stream/UploadLicitacaoDocumentStreamControllerSchemas";
 import { ListLicitacaoDraftsControllerSchemas } from "../../domain/use-cases/licitacao/list-licitacao-drafts/ListLicitacaoDraftsControllerSchemas";
@@ -41,6 +45,8 @@ import { GetCompanyWorkflowControllerSchemas } from "../../domain/use-cases/lici
 import { GetLicitacaoWorkspaceControllerSchemas } from "../../domain/use-cases/licitacao/get-licitacao-workspace/GetLicitacaoWorkspaceControllerSchemas";
 import { ListOportunidadesBoardControllerSchemas } from "../../domain/use-cases/licitacao/list-oportunidades-board/ListOportunidadesBoardControllerSchemas";
 import { MoveOportunidadeWorkflowControllerSchemas } from "../../domain/use-cases/licitacao/move-oportunidade-workflow/MoveOportunidadeWorkflowControllerSchemas";
+import { UpdateCompanyWorkflowNodeControllerSchemas } from "../../domain/use-cases/licitacao/update-company-workflow-node/UpdateCompanyWorkflowNodeControllerSchemas";
+import { UpdateCompanyWorkflowTransitionControllerSchemas } from "../../domain/use-cases/licitacao/update-company-workflow-transition/UpdateCompanyWorkflowTransitionControllerSchemas";
 import { FinalizeOportunidadeRegistrationControllerSchemas } from "../../domain/use-cases/licitacao/finalize-oportunidade-registration/FinalizeOportunidadeRegistrationControllerSchemas";
 import { WorkflowDefinitionSchema, WorkflowNodeKindSchema, WorkflowNodeSchema, WorkflowTransitionSchema } from "../../domain/use-cases/licitacao/_shared/workflowSchemas";
 import { OportunidadeBoardItemSchema, OportunidadeBoardNodeSchema, OportunidadeBoardResponsavelSchema, OportunidadeBoardResponseSchema } from "../../domain/use-cases/licitacao/_shared/oportunidadeBoardSchemas";
@@ -563,6 +569,102 @@ export const apiEndpoints: EndpointConfig[] = [
       OportunidadeBoardNode: OportunidadeBoardNodeSchema,
       OportunidadeBoardResponsavel: OportunidadeBoardResponsavelSchema,
       OportunidadeBoardItem: OportunidadeBoardItemSchema,
+    },
+  },
+  {
+    path: "/create-company-workflow-node",
+    operationId: "createCompanyWorkflowNode",
+    tag: "Oportunidade",
+    summary: "Cria um nó no workflow da empresa",
+    description: "Cria uma nova etapa hierárquica no workflow ativo da empresa, respeitando os tipos de nó permitidos pela definição.",
+    successDescription: "Nó do workflow criado com sucesso",
+    method: "POST",
+    schemas: CreateCompanyWorkflowNodeControllerSchemas,
+    extraSchemas: {
+      WorkflowDefinition: WorkflowDefinitionSchema,
+      WorkflowNodeKind: WorkflowNodeKindSchema,
+      WorkflowNode: WorkflowNodeSchema,
+      WorkflowTransition: WorkflowTransitionSchema,
+    },
+  },
+  {
+    path: "/update-company-workflow-node",
+    operationId: "updateCompanyWorkflowNode",
+    tag: "Oportunidade",
+    summary: "Personaliza um nó do workflow da empresa",
+    description: "Atualiza propriedades editáveis de um nó da definição de workflow ativa da empresa.",
+    successDescription: "Nó do workflow atualizado com sucesso",
+    method: "POST",
+    schemas: UpdateCompanyWorkflowNodeControllerSchemas,
+    extraSchemas: {
+      WorkflowDefinition: WorkflowDefinitionSchema,
+      WorkflowNodeKind: WorkflowNodeKindSchema,
+      WorkflowNode: WorkflowNodeSchema,
+      WorkflowTransition: WorkflowTransitionSchema,
+    },
+  },
+  {
+    path: "/delete-company-workflow-node",
+    operationId: "deleteCompanyWorkflowNode",
+    tag: "Oportunidade",
+    summary: "Exclui um nó do workflow da empresa",
+    description: "Exclui um nó e seus filhos quando eles não estão vinculados a oportunidades ativas.",
+    successDescription: "Nó do workflow excluído com sucesso",
+    method: "POST",
+    schemas: DeleteCompanyWorkflowNodeControllerSchemas,
+    extraSchemas: {
+      WorkflowDefinition: WorkflowDefinitionSchema,
+      WorkflowNodeKind: WorkflowNodeKindSchema,
+      WorkflowNode: WorkflowNodeSchema,
+      WorkflowTransition: WorkflowTransitionSchema,
+    },
+  },
+  {
+    path: "/create-company-workflow-transition",
+    operationId: "createCompanyWorkflowTransition",
+    tag: "Oportunidade",
+    summary: "Cria uma transição no workflow da empresa",
+    description: "Cria uma ligação permitida entre dois nós existentes da definição de workflow da empresa.",
+    successDescription: "Transição do workflow criada com sucesso",
+    method: "POST",
+    schemas: CreateCompanyWorkflowTransitionControllerSchemas,
+    extraSchemas: {
+      WorkflowDefinition: WorkflowDefinitionSchema,
+      WorkflowNodeKind: WorkflowNodeKindSchema,
+      WorkflowNode: WorkflowNodeSchema,
+      WorkflowTransition: WorkflowTransitionSchema,
+    },
+  },
+  {
+    path: "/update-company-workflow-transition",
+    operationId: "updateCompanyWorkflowTransition",
+    tag: "Oportunidade",
+    summary: "Atualiza uma transição no workflow da empresa",
+    description: "Atualiza o tipo semântico de uma transição existente do workflow da empresa.",
+    successDescription: "Transição do workflow atualizada com sucesso",
+    method: "POST",
+    schemas: UpdateCompanyWorkflowTransitionControllerSchemas,
+    extraSchemas: {
+      WorkflowDefinition: WorkflowDefinitionSchema,
+      WorkflowNodeKind: WorkflowNodeKindSchema,
+      WorkflowNode: WorkflowNodeSchema,
+      WorkflowTransition: WorkflowTransitionSchema,
+    },
+  },
+  {
+    path: "/delete-company-workflow-transition",
+    operationId: "deleteCompanyWorkflowTransition",
+    tag: "Oportunidade",
+    summary: "Exclui uma transição no workflow da empresa",
+    description: "Remove uma ligação entre dois nós existentes da definição de workflow da empresa.",
+    successDescription: "Transição do workflow excluída com sucesso",
+    method: "POST",
+    schemas: DeleteCompanyWorkflowTransitionControllerSchemas,
+    extraSchemas: {
+      WorkflowDefinition: WorkflowDefinitionSchema,
+      WorkflowNodeKind: WorkflowNodeKindSchema,
+      WorkflowNode: WorkflowNodeSchema,
+      WorkflowTransition: WorkflowTransitionSchema,
     },
   },
   {

@@ -45,4 +45,20 @@ export const OportunidadeBoardItemSchema = z.object({
 export const OportunidadeBoardResponseSchema = z.object({
     items: z.array(OportunidadeBoardItemSchema).describe("Oportunidades ativas exibidas no board da empresa."),
     total: z.number().describe("Quantidade total de oportunidades retornadas pela consulta."),
+    columnSummaries: z.array(z.object({
+        phaseNodeId: z.string().describe("ID da fase/coluna do workflow."),
+        itemCount: z.number().describe("Quantidade de cards retornados nesta coluna."),
+        valorEstimadoTotal: z.string().describe("Soma dos valores estimados dos cards retornados nesta coluna."),
+    })).describe("Agregados por coluna considerando os filtros atuais."),
+    filterOptions: z.object({
+        responsaveis: z.array(OportunidadeBoardResponsavelSchema).describe("Responsáveis disponíveis para filtro."),
+        situations: z.array(z.object({
+            id: z.string().describe("ID da situação disponível para filtro."),
+            label: z.string().describe("Nome legível da situação."),
+        })).describe("Situações disponíveis para filtro."),
+        valueRange: z.object({
+            min: z.string().nullable().describe("Menor valor estimado disponível no board."),
+            max: z.string().nullable().describe("Maior valor estimado disponível no board."),
+        }).describe("Faixa total de valores estimados disponível no board."),
+    }).describe("Opções auxiliares para filtros da UI."),
 });

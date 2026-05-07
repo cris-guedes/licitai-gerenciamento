@@ -69,8 +69,10 @@ export class MoveOportunidadeWorkflow {
             throw new Error("Não foi possível resolver a posição final do workflow para o destino informado.");
         }
 
+        const sourceNodeIds = this.getNodeAncestryIds(workflow, oportunidade.currentNodeId);
+        const targetNodeIds = this.getNodeAncestryIds(workflow, targetNode.id);
         const canTransition = workflow.transitions.some(transition =>
-            transition.fromNodeId === oportunidade.currentNodeId && transition.toNodeId === targetNode.id,
+            sourceNodeIds.includes(transition.fromNodeId) && targetNodeIds.includes(transition.toNodeId),
         );
 
         if (!canTransition) {
@@ -103,6 +105,23 @@ export class MoveOportunidadeWorkflow {
                 currentUserId: params.userId,
             }),
         };
+    }
+
+    private getNodeAncestryIds(
+        workflow: PrismaWorkflowRepository.WorkflowDefinitionWithGraph,
+        nodeId: string,
+    ): string[] {
+        const ids: string[] = [];
+        let cursor = workflow.nodes.find(node => node.id === nodeId) ?? null;
+
+        while (cursor) {
+            ids.push(cursor.id);
+            cursor = cursor.parentId
+                ? workflow.nodes.find(node => node.id === cursor?.parentId) ?? null
+                : null;
+        }
+
+        return ids;
     }
 }
 
