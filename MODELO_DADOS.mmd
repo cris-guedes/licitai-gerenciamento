@@ -1,0 +1,49 @@
+erDiagram
+    USER ||--o{ MEMBERSHIP : has
+    USER ||--o{ SESSION : owns
+    USER ||--o{ INVITE : creates
+    USER ||--o{ OPORTUNIDADE : "responsible<br/>for"
+    
+    ORGANIZATION ||--o{ MEMBERSHIP : has
+    ORGANIZATION ||--o{ COMPANY : contains
+    ORGANIZATION ||--o{ INVITE : receives
+    ORGANIZATION ||--o{ DOCUMENT_CHAT : has
+    
+    COMPANY ||--o{ MEMBERSHIP : assigns
+    COMPANY ||--o{ LICITACAO : receives
+    COMPANY ||--o{ EDITAL : analyzes
+    COMPANY ||--o{ DOCUMENT : stores
+    COMPANY ||--o{ OPORTUNIDADE : manages
+    COMPANY ||--o{ WORKFLOW_DEFINITION : defines
+    
+    LICITACAO ||--|| EDITAL : "has one"
+    LICITACAO ||--o{ OPORTUNIDADE : "generates"
+    LICITACAO ||--o{ DOCUMENT : "attached to"
+    
+    EDITAL ||--o{ EDITAL_ITEM : contains
+    EDITAL ||--o{ EDITAL_CRONOGRAMA : "has one"
+    EDITAL ||--o{ EDITAL_CERTAME : "has one"
+    EDITAL ||--o{ EDITAL_ORGAO : "involves"
+    EDITAL ||--o{ EDITAL_HABILITACAO : requires
+    EDITAL ||--o{ DOCUMENT : "linked to"
+    EDITAL ||--o{ EDITAL_ANALYSIS : analyzed_by
+    
+    DOCUMENT ||--o{ DOCUMENT_ANALYSIS : "can be"
+    DOCUMENT ||--o{ DOCUMENT_CHAT : "discussed in"
+    
+    OPORTUNIDADE ||--|| WORKFLOW_DEFINITION : "uses"
+    OPORTUNIDADE ||--o{ OPORTUNIDADE_ITEM : "has"
+    OPORTUNIDADE ||--o{ WORKFLOW_NODE : "current position"
+    
+    WORKFLOW_DEFINITION ||--o{ WORKFLOW_NODE : defines
+    WORKFLOW_DEFINITION ||--o{ WORKFLOW_NODE_KIND : "organizes by"
+    WORKFLOW_DEFINITION ||--o{ WORKFLOW_TRANSITION : specifies
+    
+    WORKFLOW_NODE ||--o{ WORKFLOW_TRANSITION : connects
+    WORKFLOW_NODE_KIND ||--o{ WORKFLOW_NODE : "categorizes"
+    
+    EDITAL_ITEM ||--o{ OPORTUNIDADE_ITEM : "selected in"
+    EDITAL_ITEM ||--o{ EDITAL_ORGAO_ITEM : "distributed to"
+    
+    ORGAO_PUBLICO ||--o{ LICITACAO : manages
+    ORGAO_PUBLICO ||--o{ EDITAL_ORGAO : "participates in"

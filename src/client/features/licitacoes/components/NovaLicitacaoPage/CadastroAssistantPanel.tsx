@@ -1,6 +1,6 @@
 "use client"
 
-import { AlertCircle, Bot, CheckCircle2, FileText, Layers3, ListChecks, Loader2, ScanSearch } from "lucide-react"
+import { AlertCircle, Bot, FileText, Layers3, ListChecks, Loader2, ScanSearch } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/client/components/ui/alert"
 import { Badge } from "@/client/components/ui/badge"
 import { Button } from "@/client/components/ui/button"
@@ -36,6 +36,14 @@ export function CadastroAssistantPanel({
 }: Props) {
   const isReadyEdital = selectedDocument?.type === "EDITAL" && selectedDocument.status === "READY" && Boolean(selectedDocument.documentId)
   const licitacaoPreview = result?.licitacao ?? preview.partialResponse?.licitacao ?? null
+
+  async function handleRunExtractionClick() {
+    try {
+      await onRunExtraction()
+    } catch {
+      // O erro já é tratado pela feature e exibido no próprio painel.
+    }
+  }
 
   if (result) {
     return (
@@ -113,7 +121,7 @@ export function CadastroAssistantPanel({
                   <FeatureLine icon={ListChecks} text="Consolida itens e monta uma revisão antes de aplicar ao cadastro." />
                 </div>
 
-                <Button type="button" className="h-12 rounded-full px-6 text-sm font-semibold" onClick={() => void onRunExtraction()}>
+                <Button type="button" className="h-12 rounded-full px-6 text-sm font-semibold" onClick={() => void handleRunExtractionClick()}>
                   <ScanSearch className="mr-2 size-4" />
                   Extrair informações do edital para cadastro
                 </Button>

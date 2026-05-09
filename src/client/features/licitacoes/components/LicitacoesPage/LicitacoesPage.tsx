@@ -19,6 +19,7 @@ import { DashboardHeaderActions } from "@/client/features/dashboard/components/D
 import { useApp } from "@/client/hooks/app/useApp"
 import { useCoreApi } from "@/client/hooks/use-core-api"
 import { useLicitacaoService } from "../../services/use-licitacao.service"
+import { OportunidadeDetailDialog } from "./OportunidadeDetailDialog"
 import { OportunidadesKanbanView } from "./OportunidadesKanbanView"
 import { OportunidadesListView } from "./OportunidadesListView"
 import { WorkflowTreeFilter } from "./WorkflowTreeFilter"
@@ -31,8 +32,17 @@ export function LicitacoesPage() {
   const page = useLicitacoesPage({
     licitacaoService,
     companyId: empresaAtiva?.id ?? null,
+    organizationId: orgAtiva?.id ?? null,
   })
   const base = `/org/${orgAtiva?.id}/${empresaAtiva?.id}`
+  const detailWorkspaceHref = page.selectedDetailItem
+    ? `${base}/licitacoes/nova?oportunidadeId=${page.selectedDetailItem.oportunidadeId}`
+    : null
+  const detailErrorMessage = page.detailError instanceof Error
+    ? page.detailError.message
+    : page.detailError
+      ? "Não foi possível carregar os detalhes completos desta oportunidade."
+      : null
 
   return (
     <div className="min-w-0 max-w-full space-y-5 overflow-x-hidden">
@@ -46,37 +56,37 @@ export function LicitacoesPage() {
       </DashboardHeaderActions>
 
       <section className="min-w-0 max-w-full space-y-4">
-        <div className="flex justify-end">
-          <ToggleGroup
-            type="single"
-            value={page.viewMode}
-            onValueChange={(value) => {
-              if (value === "kanban" || value === "lista") {
-                page.setViewMode(value)
-              }
-            }}
-            variant="outline"
-            className="rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
-            >
-              <ToggleGroupItem value="kanban" aria-label="Visualização em kanban" className="rounded-lg border-0">
-                Kanban
-            </ToggleGroupItem>
-            <ToggleGroupItem value="lista" aria-label="Visualização em lista" className="rounded-lg border-0">
-              Lista
-            </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-
         <div className="rounded-[1.5rem] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,248,255,0.96))] p-4 shadow-[0_18px_40px_rgba(4,22,39,0.05)]">
           <div className="space-y-4">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={page.search}
-                onChange={event => page.setSearch(event.target.value)}
-                placeholder="Buscar por nome ou número do processo..."
-                className="h-12 rounded-xl border-slate-200 bg-white pl-11 text-[0.95rem] shadow-none"
-              />
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={page.search}
+                  onChange={event => page.setSearch(event.target.value)}
+                  placeholder="Buscar por nome ou número do processo..."
+                  className="h-12 rounded-xl border-slate-200 bg-white pl-11 text-[0.95rem] shadow-none"
+                />
+              </div>
+
+              <ToggleGroup
+                type="single"
+                value={page.viewMode}
+                onValueChange={(value) => {
+                  if (value === "kanban" || value === "lista") {
+                    page.setViewMode(value)
+                  }
+                }}
+                variant="outline"
+                className="w-full justify-start rounded-xl border border-slate-200 bg-white p-1 shadow-sm sm:w-auto"
+              >
+                <ToggleGroupItem value="kanban" aria-label="Visualização em kanban" className="flex-1 rounded-lg border-0 sm:flex-none">
+                  Kanban
+                </ToggleGroupItem>
+                <ToggleGroupItem value="lista" aria-label="Visualização em lista" className="flex-1 rounded-lg border-0 sm:flex-none">
+                  Lista
+                </ToggleGroupItem>
+              </ToggleGroup>
             </div>
 
             <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
@@ -184,6 +194,7 @@ export function LicitacoesPage() {
           getReachableNodeForPhase={page.getReachableNodeForPhase}
           onMoveToNode={page.moveToNode}
           onMoveToPhase={page.moveToPhase}
+          onOpenDetail={page.openDetail}
         />
       ) : (
         <OportunidadesListView
@@ -191,8 +202,34 @@ export function LicitacoesPage() {
           movingOportunidadeId={page.movingOportunidadeId}
           getMoveOptions={page.getMoveOptions}
           onMoveToNode={page.moveToNode}
+          onOpenDetail={page.openDetail}
         />
       )}
+
+      <OportunidadeDetailDialog
+        open={page.isDetailOpen}
+        onOpenChange={open => {
+          if (!open) page.closeDetail()
+        }}
+        item={page.selectedDetailItem}
+        workspace={page.detailWorkspace}
+        isLoading={page.isDetailLoading}
+        errorMessage={detailErrorMessage}
+        moveOptions={page.selectedDetailItem ? page.getMoveOptions(page.selectedDetailItem) : []}
+        isMoving={page.movingOportunidadeId === page.selectedDetailItem?.oportunidadeId}
+        isUpdating={page.isUpdatingDetail}
+        responsavelOptions={page.responsavelOptions}
+        workflowNodes={page.workflowNodes}
+        workflowMetadata={page.workflowMetadata}
+        onQuickUpdate={page.updateDetailItem}
+        onMove={targetNodeId => page.selectedDetailItem
+          ? page.moveToNode({
+            oportunidadeId: page.selectedDetailItem.oportunidadeId,
+            targetNodeId,
+          })
+          : Promise.resolve()}
+        workspaceHref={detailWorkspaceHref}
+      />
     </div>
   )
 }

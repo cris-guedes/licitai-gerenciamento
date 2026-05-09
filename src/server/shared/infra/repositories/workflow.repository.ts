@@ -523,8 +523,10 @@ export class PrismaWorkflowRepository {
         definition: PrismaWorkflowRepository.WorkflowDefinitionWithGraph,
         currentNodeId: string,
     ): PrismaWorkflowRepository.WorkflowPlacement | null {
-        const currentNode = definition.nodes.find(node => node.id === currentNodeId);
-        if (!currentNode) return null;
+        const targetNode = definition.nodes.find(node => node.id === currentNodeId);
+        if (!targetNode) return null;
+
+        const currentNode = this.resolveInitialDescendantFromNode(definition, targetNode);
 
         const metadata = this.getWorkflowMetadata(definition.metadata);
         const ancestry = this.getNodeAncestry(definition, currentNode);
@@ -551,20 +553,7 @@ export class PrismaWorkflowRepository {
         const initialRoot = rootNodes.find(node => node.isInitial) ?? rootNodes[0];
         if (!initialRoot) return null;
 
-        let current = initialRoot;
-
-        while (true) {
-            const childNodes = definition.nodes
-                .filter((node: PrismaWorkflowRepository.WorkflowDefinitionWithGraph["nodes"][number]) => node.parentId === current.id)
-                .sort(this.compareNodes);
-
-            const next = childNodes.find(node => node.isInitial) ?? null;
-            if (!next) break;
-
-            current = next;
-        }
-
-        return this.resolvePlacementFromDefinitionAndCurrentNode(definition, current.id);
+        return this.resolvePlacementFromDefinitionAndCurrentNode(definition, initialRoot.id);
     }
 
     private getWorkflowMetadata(metadata: Prisma.JsonValue | null | undefined) {
@@ -597,6 +586,26 @@ export class PrismaWorkflowRepository {
         return ancestry;
     }
 
+    private resolveInitialDescendantFromNode(
+        definition: PrismaWorkflowRepository.WorkflowDefinitionWithGraph,
+        targetNode: PrismaWorkflowRepository.WorkflowDefinitionWithGraph["nodes"][number],
+    ) {
+        let current = targetNode;
+
+        while (true) {
+            const childNodes = definition.nodes
+                .filter((node: PrismaWorkflowRepository.WorkflowDefinitionWithGraph["nodes"][number]) => node.parentId === current.id)
+                .sort(this.compareNodes);
+
+            const next = childNodes.find(node => node.isInitial) ?? childNodes[0] ?? null;
+            if (!next) break;
+
+            current = next;
+        }
+
+        return current;
+    }
+
     private buildNodePath(node: { parentPath?: string; kindKey: string; key: string }) {
         const segment = `${node.kindKey}:${node.key}`;
         return node.parentPath ? `${node.parentPath}/${segment}` : segment;
@@ -618,6 +627,7 @@ export class PrismaWorkflowRepository {
             ...baseMetadata,
             reactFlow: {
                 position: params.position ?? { x, y },
+                positionSource: params.position ? "manual" : "auto",
             },
         } as Prisma.InputJsonValue;
     }
@@ -698,6 +708,7 @@ export class PrismaWorkflowRepository {
             reactFlow: {
                 ...reactFlow,
                 position,
+                positionSource: "manual",
             },
         } as Prisma.InputJsonValue;
     }

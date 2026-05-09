@@ -27,6 +27,19 @@ type WorkflowMoveOption = {
   phaseLabel: string | null
 }
 
+type ResponsavelOption = {
+  id: string
+  name: string
+  email: string
+}
+
+type UpdateDetailPatch = {
+  responsavelUserId?: string | null
+  phaseNodeId?: string
+  statusNodeId?: string
+  situationNodeId?: string
+}
+
 const VIEW_STORAGE_KEY = "licitacoes-board:view-mode"
 
 function parseValueFilter(value: string): number | undefined {
@@ -64,8 +77,9 @@ function readWorkflowMetadata(definition: CompanyWorkflowResponse["workflow"] | 
 export function useLicitacoesPage(params: {
   licitacaoService: LicitacaoService
   companyId: string | null
+  organizationId: string | null
 }) {
-  const { licitacaoService, companyId } = params
+  const { licitacaoService, companyId, organizationId } = params
   const queryClient = useQueryClient()
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window === "undefined") return "kanban"
@@ -78,6 +92,8 @@ export function useLicitacoesPage(params: {
   const [selectedResponsavelId, setSelectedResponsavelId] = useState<string>("all")
   const [valorEstimadoMin, setValorEstimadoMin] = useState("")
   const [valorEstimadoMax, setValorEstimadoMax] = useState("")
+  const [detailOportunidadeId, setDetailOportunidadeId] = useState<string | null>(null)
+  const [detailItemSnapshot, setDetailItemSnapshot] = useState<OportunidadeBoardItem | null>(null)
   const deferredSearch = useDeferredValue(search)
   const deferredValorEstimadoMin = useDeferredValue(valorEstimadoMin)
   const deferredValorEstimadoMax = useDeferredValue(valorEstimadoMax)
@@ -93,6 +109,12 @@ export function useLicitacoesPage(params: {
     queryKey: ["licitacoes", "workflow", companyId],
     queryFn: () => licitacaoService.getCompanyWorkflow({ companyId: companyId! }),
     enabled: Boolean(companyId),
+  })
+
+  const teamMembersQuery = useQuery({
+    queryKey: ["team", "members", organizationId],
+    queryFn: () => licitacaoService.listTeamMembers({ organizationId: organizationId! }),
+    enabled: Boolean(organizationId),
   })
 
   const workflow = workflowQuery.data?.workflow
@@ -142,11 +164,38 @@ export function useLicitacoesPage(params: {
       oportunidadeId,
       targetNodeId,
     }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["licitacoes", "board", companyId] })
+    onSuccess: (response) => {
+      const phaseLabel = response.item.workflow.phase?.label
+      toast.success(phaseLabel ? `Oportunidade movida para ${phaseLabel}.` : "Oportunidade movida com sucesso.")
+      void queryClient.invalidateQueries({ queryKey: ["licitacoes", "board", companyId] })
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, "Não foi possível mover a oportunidade."))
+    },
+  })
+
+  const updateDetailMutation = useMutation({
+    mutationFn: ({
+      oportunidadeId,
+      ...patch
+    }: UpdateDetailPatch & {
+      oportunidadeId: string
+    }) => licitacaoService.updateOportunidadeBoardItem({
+      companyId: companyId!,
+      oportunidadeId,
+      ...patch,
+    }),
+    onSuccess: (response, variables) => {
+      if (detailOportunidadeId === variables.oportunidadeId) {
+        setDetailItemSnapshot(response.item)
+      }
+
+      const workflowUpdated = Boolean(variables.phaseNodeId || variables.statusNodeId || variables.situationNodeId)
+      toast.success(workflowUpdated ? "Workflow da oportunidade atualizado." : "Oportunidade atualizada com sucesso.")
+      void queryClient.invalidateQueries({ queryKey: ["licitacoes", "board", companyId] })
+    },
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "Não foi possível atualizar a oportunidade."))
     },
   })
 
@@ -174,7 +223,37 @@ export function useLicitacoesPage(params: {
 
   const boardItems = useMemo(() => boardQuery.data?.items ?? [], [boardQuery.data?.items])
 
+  const selectedDetailItem = useMemo(() => {
+    if (!detailOportunidadeId) return null
+
+    return (detailItemSnapshot?.oportunidadeId === detailOportunidadeId ? detailItemSnapshot : null)
+      ?? boardItems.find(item => item.oportunidadeId === detailOportunidadeId)
+      ?? null
+  }, [boardItems, detailItemSnapshot, detailOportunidadeId])
+
   const responsaveis = useMemo(() => boardQuery.data?.filterOptions.responsaveis ?? [], [boardQuery.data?.filterOptions.responsaveis])
+  const responsavelOptions = useMemo(() => {
+    const byId = new Map<string, ResponsavelOption>()
+
+    for (const member of teamMembersQuery.data?.members ?? []) {
+      byId.set(member.userId, {
+        id: member.userId,
+        name: member.name,
+        email: member.email,
+      })
+    }
+
+    for (const responsavel of responsaveis) {
+      byId.set(responsavel.id, responsavel)
+    }
+
+    if (selectedDetailItem?.responsavel) {
+      byId.set(selectedDetailItem.responsavel.id, selectedDetailItem.responsavel)
+    }
+
+    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [responsaveis, selectedDetailItem, teamMembersQuery.data?.members])
+
   const getNodeAncestors = (nodeId: string | null) => {
     const ancestors: WorkflowNode[] = []
     let cursor = nodeId ? nodeById.get(nodeId) ?? null : null
@@ -222,7 +301,20 @@ export function useLicitacoesPage(params: {
   }
 
   const moveToNode = async (params: { oportunidadeId: string; targetNodeId: string }) => {
-    await moveMutation.mutateAsync(params)
+    const response = await moveMutation.mutateAsync(params)
+
+    if (detailOportunidadeId === params.oportunidadeId) {
+      setDetailItemSnapshot(response.item)
+    }
+  }
+
+  const updateDetailItem = async (patch: UpdateDetailPatch) => {
+    if (!selectedDetailItem) return
+
+    await updateDetailMutation.mutateAsync({
+      oportunidadeId: selectedDetailItem.oportunidadeId,
+      ...patch,
+    })
   }
 
   const moveToPhase = async (item: OportunidadeBoardItem, phaseId: string) => {
@@ -254,6 +346,25 @@ export function useLicitacoesPage(params: {
     || deferredValorEstimadoMax.trim(),
   )
 
+  const detailWorkspaceQuery = useQuery({
+    queryKey: ["licitacoes", "workspace", companyId, detailOportunidadeId],
+    queryFn: () => licitacaoService.getWorkspace({
+      companyId: companyId!,
+      oportunidadeId: detailOportunidadeId!,
+    }),
+    enabled: Boolean(companyId && detailOportunidadeId),
+  })
+
+  const openDetail = (item: OportunidadeBoardItem) => {
+    setDetailOportunidadeId(item.oportunidadeId)
+    setDetailItemSnapshot(item)
+  }
+
+  const closeDetail = () => {
+    setDetailOportunidadeId(null)
+    setDetailItemSnapshot(null)
+  }
+
   return {
     viewMode,
     setViewMode: handleChangeViewMode,
@@ -272,19 +383,29 @@ export function useLicitacoesPage(params: {
     workflowNodes,
     phases,
     responsaveis,
+    responsavelOptions,
     items: boardItems,
     total: boardQuery.data?.total ?? 0,
     columnSummaries: boardQuery.data?.columnSummaries ?? [],
     valueRange: boardQuery.data?.filterOptions.valueRange ?? { min: null, max: null },
     isLoading: workflowQuery.isLoading || boardQuery.isLoading,
     isMoving: moveMutation.isPending,
+    isUpdatingDetail: updateDetailMutation.isPending,
     movingOportunidadeId: moveMutation.variables?.oportunidadeId ?? null,
     moveToNode,
     moveToPhase,
+    updateDetailItem,
     getMoveOptions,
     getReachableNodeForPhase,
     clearFilters,
     hasActiveFilters,
+    selectedDetailItem,
+    detailWorkspace: detailWorkspaceQuery.data ?? null,
+    isDetailLoading: detailWorkspaceQuery.isLoading,
+    detailError: detailWorkspaceQuery.error,
+    isDetailOpen: detailOportunidadeId !== null,
+    openDetail,
+    closeDetail,
     emptyState: hasActiveFilters
       ? "Nenhuma oportunidade encontrada com os filtros atuais."
       : "Nenhuma oportunidade ativa cadastrada nesta empresa ainda.",

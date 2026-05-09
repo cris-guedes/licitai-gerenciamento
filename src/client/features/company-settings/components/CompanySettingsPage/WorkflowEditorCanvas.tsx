@@ -1,243 +1,188 @@
 "use client"
 
-import { useCallback, useEffect, useMemo } from "react"
-import {
-  Background,
-  Controls,
-  MarkerType,
-  MiniMap,
-  ReactFlow,
-  type Connection,
-  type Edge,
-  type NodeTypes,
-  useEdgesState,
-  useNodesState,
-} from "@xyflow/react"
-import { GitBranch, LoaderCircle, Plus } from "lucide-react"
+import { useMemo } from "react"
+import { LoaderCircle, Plus } from "lucide-react"
 import { Button } from "@/client/components/ui/button"
-import type { WorkflowNode, WorkflowNodePosition, WorkflowTransition } from "../../types/workflow"
-import { WorkflowGraphNode, type WorkflowGraphNodeModel } from "./WorkflowGraphNode"
+import type { WorkflowNode, WorkflowNodeDraft, WorkflowNodeKind } from "../../types/workflow"
+import {
+  buildChildrenByParentId,
+  buildNodeById,
+  buildRootNodeIdByNodeId,
+  buildKindsByParentKindId,
+} from "../../utils/workflow-structure"
+import { WorkflowStructureColumn } from "./WorkflowStructureColumn"
+import { WorkflowNodeEditorDialog } from "./WorkflowNodeEditorDialog"
 
 type SelectedWorkflowElement =
   | { type: "node"; id: string }
   | { type: "transition"; id: string }
   | null
 
-const nodeTypes: NodeTypes = {
-  workflow: WorkflowGraphNode,
-}
-
-function sortNodes(a: WorkflowNode, b: WorkflowNode) {
-  if (a.depth !== b.depth) return a.depth - b.depth
-  if (a.order !== b.order) return a.order - b.order
-  if (a.createdAt !== b.createdAt) return a.createdAt.localeCompare(b.createdAt)
-  return a.id.localeCompare(b.id)
-}
-
-function readObject(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
-}
-
-function readPosition(node: WorkflowNode, index: number): WorkflowNodePosition {
-  const metadata = readObject(node.metadata)
-  const reactFlow = readObject(metadata.reactFlow)
-  const position = readObject(reactFlow.position)
-  const x = typeof position.x === "number" ? position.x : 80 + (node.depth * 320)
-  const y = typeof position.y === "number" ? position.y : 80 + (index * 94)
-
-  return { x, y }
-}
-
-function buildChildCountByNodeId(nodes: WorkflowNode[]) {
-  const map = new Map<string, number>()
-
-  for (const node of nodes) {
-    if (!node.parentId) continue
-    map.set(node.parentId, (map.get(node.parentId) ?? 0) + 1)
-  }
-
-  return map
-}
-
-function toFlowNodes(nodes: WorkflowNode[], selectedElement: SelectedWorkflowElement): WorkflowGraphNodeModel[] {
-  const childCountByNodeId = buildChildCountByNodeId(nodes)
-
-  return [...nodes].sort(sortNodes).map((node, index) => ({
-    id: node.id,
-    type: "workflow",
-    position: readPosition(node, index),
-    selected: selectedElement?.type === "node" && selectedElement.id === node.id,
-    data: {
-      workflowNode: node,
-      color: node.color ?? node.kind.color ?? "#3b82f6",
-      childCount: childCountByNodeId.get(node.id) ?? 0,
-    },
-  }))
-}
-
-function toFlowEdges(nodes: WorkflowNode[], transitions: WorkflowTransition[], selectedElement: SelectedWorkflowElement): Edge[] {
-  const hierarchyEdges: Edge[] = nodes
-    .filter(node => node.parentId)
-    .map(node => ({
-      id: `hierarchy:${node.parentId}:${node.id}`,
-      source: node.parentId!,
-      target: node.id,
-      type: "smoothstep",
-      selectable: false,
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        width: 14,
-        height: 14,
-      },
-      style: {
-        strokeWidth: 1.2,
-        stroke: "#cbd5e1",
-        strokeDasharray: "5 5",
-      },
-    }))
-
-  const transitionEdges: Edge[] = transitions.map(transition => ({
-    id: transition.id,
-    source: transition.fromNodeId,
-    target: transition.toNodeId,
-    label: transition.transitionType ?? undefined,
-    selected: selectedElement?.type === "transition" && selectedElement.id === transition.id,
-    type: "smoothstep",
-    markerEnd: {
-      type: MarkerType.ArrowClosed,
-      width: 18,
-      height: 18,
-    },
-    style: {
-      strokeWidth: selectedElement?.type === "transition" && selectedElement.id === transition.id ? 2.5 : 1.8,
-      stroke: selectedElement?.type === "transition" && selectedElement.id === transition.id ? "#0058be" : "#7c8aa5",
-    },
-    labelStyle: {
-      fill: "#334155",
-      fontSize: 11,
-      fontWeight: 700,
-    },
-    labelBgStyle: {
-      fill: "#ffffff",
-      fillOpacity: 0.86,
-    },
-  }))
-
-  return [...hierarchyEdges, ...transitionEdges]
+type CreateWorkflowNodeFromPaletteParams = {
+  kindId: string
+  parentNodeId: string | null
 }
 
 export function WorkflowEditorCanvas({
   nodes,
-  transitions,
+  nodeKinds,
   selectedElement,
   isLoading,
+  isSaving,
   canCreateRootNode,
+  nodeDraft,
+  hasNodeDraftChanges,
+  selectedNodeHasChildren,
   onSelectNode,
-  onSelectTransition,
-  onCreateRootNode,
-  onCreateTransition,
-  onPersistNodePosition,
+  onClearSelection,
+  onNodeDraftChange,
+  onSaveNode,
+  onDeleteNode,
+  onCreateNodeFromPalette,
 }: {
   nodes: WorkflowNode[]
-  transitions: WorkflowTransition[]
+  nodeKinds: WorkflowNodeKind[]
   selectedElement: SelectedWorkflowElement
   isLoading: boolean
+  isSaving: boolean
   canCreateRootNode: boolean
+  nodeDraft: WorkflowNodeDraft
+  hasNodeDraftChanges: boolean
+  selectedNodeHasChildren: boolean
   onSelectNode: (node: WorkflowNode) => void
-  onSelectTransition: (transition: WorkflowTransition) => void
-  onCreateRootNode: () => void
-  onCreateTransition: (fromNodeId: string, toNodeId: string) => Promise<unknown>
-  onPersistNodePosition: (nodeId: string, position: WorkflowNodePosition) => void
+  onClearSelection: () => void
+  onNodeDraftChange: (patch: Partial<WorkflowNodeDraft>) => void
+  onSaveNode: () => Promise<unknown>
+  onDeleteNode: () => Promise<unknown>
+  onCreateNodeFromPalette: (params: CreateWorkflowNodeFromPaletteParams) => Promise<unknown>
 }) {
-  const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<WorkflowGraphNodeModel>([])
-  const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>([])
+  const childrenByParentId = useMemo(() => buildChildrenByParentId(nodes), [nodes])
+  const nodeById = useMemo(() => buildNodeById(nodes), [nodes])
+  const rootNodeIdByNodeId = useMemo(() => buildRootNodeIdByNodeId(nodes), [nodes])
+  const nodeKindsByParentKindId = useMemo(() => buildKindsByParentKindId(nodeKinds), [nodeKinds])
+  const rootNodes = childrenByParentId.get(null) ?? []
+  const rootKind = nodeKindsByParentKindId.get(null)?.[0] ?? null
+  const selectedNode = selectedElement?.type === "node"
+    ? nodeById.get(selectedElement.id) ?? null
+    : null
+  const selectedChildKind = selectedNode
+    ? nodeKindsByParentKindId.get(selectedNode.kindId)?.[0] ?? null
+    : null
+  const selectedRootNodeId = selectedNode
+    ? rootNodeIdByNodeId.get(selectedNode.id) ?? null
+    : null
 
-  useEffect(() => {
-    setFlowNodes(toFlowNodes(nodes, selectedElement))
-  }, [nodes, selectedElement, setFlowNodes])
+  const createRootNode = () => {
+    if (!rootKind) return
 
-  useEffect(() => {
-    setFlowEdges(toFlowEdges(nodes, transitions, selectedElement))
-  }, [nodes, selectedElement, setFlowEdges, transitions])
+    void onCreateNodeFromPalette({
+      kindId: rootKind.id,
+      parentNodeId: null,
+    })
+  }
 
-  const transitionById = useMemo(() => {
-    const map = new Map<string, WorkflowTransition>()
-    for (const transition of transitions) map.set(transition.id, transition)
-    return map
-  }, [transitions])
+  const createSelectedNodeChild = () => {
+    if (!selectedNode || !selectedChildKind) return
 
-  const onConnect = useCallback((connection: Connection) => {
-    if (!connection.source || !connection.target) return
-    void onCreateTransition(connection.source, connection.target)
-  }, [onCreateTransition])
+    void onCreateNodeFromPalette({
+      kindId: selectedChildKind.id,
+      parentNodeId: selectedNode.id,
+    })
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[420px] items-center justify-center rounded-[1.75rem] border border-slate-200/80 bg-white shadow-[0_20px_50px_rgba(4,22,39,0.05)]">
+        <div className="flex items-center gap-3 text-sm text-slate-600">
+          <LoaderCircle className="size-4 animate-spin" />
+          Carregando estrutura do workflow...
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-w-0 overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_12px_30px_rgba(4,22,39,0.04)]">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-            <GitBranch className="size-4" />
+    <div className="min-w-0 overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white shadow-[0_18px_40px_rgba(4,22,39,0.05)]">
+      <div className="space-y-5 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-slate-500">
+            {rootNodes.length} {rootNodes.length === 1 ? "fase" : "fases"} configuradas
           </div>
-          <div className="min-w-0">
-            <h2 className="truncate text-sm font-bold text-primary">Workflow do Board</h2>
-            <p className="truncate text-xs text-muted-foreground">{nodes.length} etapas · {transitions.length} transições</p>
-          </div>
+          {canCreateRootNode && rootKind ? (
+            <Button
+              type="button"
+              size="sm"
+              className="rounded-xl"
+              disabled={isSaving}
+              onClick={createRootNode}
+            >
+              <Plus className="size-4" />
+              Adicionar {rootKind.label.toLowerCase()}
+            </Button>
+          ) : null}
         </div>
 
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="rounded-lg"
-          disabled={!canCreateRootNode || isLoading}
-          onClick={onCreateRootNode}
-        >
-          <Plus className="size-4" />
-          Nova fase
-        </Button>
-      </div>
-
-      <div className="h-[660px] min-w-0 bg-slate-50">
-        {isLoading ? (
-          <div className="flex h-full items-center justify-center gap-2 text-sm font-medium text-muted-foreground">
-            <LoaderCircle className="size-4 animate-spin" />
-            Carregando workflow...
+        {nodeKinds.length === 0 ? (
+          <div className="flex min-h-[220px] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white px-6 text-center text-sm leading-6 text-slate-500">
+            Ainda não existe uma hierarquia conceitual configurada para este workflow.
           </div>
-        ) : nodes.length === 0 ? (
-          <div className="flex h-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
-            Nenhum workflow encontrado para esta empresa.
+        ) : rootNodes.length === 0 ? (
+          <div className="flex min-h-[260px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white px-6 text-center">
+            <p className="text-base font-semibold text-slate-800">Nenhuma coluna criada ainda</p>
+            <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
+              Comece adicionando o primeiro nível do workflow. Depois você poderá montar os níveis internos dentro de cada coluna.
+            </p>
+            {canCreateRootNode && rootKind ? (
+              <Button
+                type="button"
+                size="sm"
+                className="mt-4 rounded-xl"
+                disabled={isSaving}
+                onClick={createRootNode}
+              >
+                <Plus className="size-4" />
+                Adicionar {rootKind.label.toLowerCase()}
+              </Button>
+            ) : null}
           </div>
         ) : (
-          <ReactFlow
-            nodes={flowNodes}
-            edges={flowEdges}
-            nodeTypes={nodeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={(_, node) => onSelectNode(node.data.workflowNode)}
-            onEdgeClick={(_, edge) => {
-              const transition = transitionById.get(edge.id)
-              if (transition) onSelectTransition(transition)
-            }}
-            onNodeDragStop={(_, node) => onPersistNodePosition(node.id, node.position)}
-            fitView
-            minZoom={0.25}
-            maxZoom={1.4}
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background color="#d7deeb" gap={20} />
-            <Controls position="bottom-left" />
-            <MiniMap
-              pannable
-              zoomable
-              nodeColor={node => typeof node.data.color === "string" ? node.data.color : "#3b82f6"}
-              nodeStrokeWidth={2}
-              className="!rounded-lg !border !border-slate-200 !bg-white/90"
-            />
-          </ReactFlow>
+          <div className="space-y-4">
+            <div className="overflow-x-auto overflow-y-hidden pb-2">
+              <div className="flex min-w-max items-start gap-4">
+                {rootNodes.map(rootNode => (
+                  <WorkflowStructureColumn
+                    key={rootNode.id}
+                    rootNode={rootNode}
+                    childrenByParentId={childrenByParentId}
+                    nodeKindsByParentKindId={nodeKindsByParentKindId}
+                    selectedNodeId={selectedNode?.id ?? null}
+                    selectedRootNodeId={selectedRootNodeId}
+                    onSelectNode={onSelectNode}
+                    onCreateNodeFromPalette={onCreateNodeFromPalette}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
         )}
       </div>
+
+      <WorkflowNodeEditorDialog
+        open={Boolean(selectedNode)}
+        node={selectedNode}
+        nodeDraft={nodeDraft}
+        isSaving={isSaving}
+        hasNodeDraftChanges={hasNodeDraftChanges}
+        selectedNodeHasChildren={selectedNodeHasChildren}
+        childKindLabel={selectedChildKind?.label ?? null}
+        onOpenChange={(open) => {
+          if (!open) onClearSelection()
+        }}
+        onDraftChange={onNodeDraftChange}
+        onSave={onSaveNode}
+        onDelete={onDeleteNode}
+        onAddChild={createSelectedNodeChild}
+      />
     </div>
   )
 }

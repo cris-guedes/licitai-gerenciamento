@@ -38,6 +38,7 @@ export function OportunidadesListView({
   movingOportunidadeId,
   getMoveOptions,
   onMoveToNode,
+  onOpenDetail,
 }: {
   items: OportunidadeBoardItem[]
   movingOportunidadeId: string | null
@@ -49,6 +50,7 @@ export function OportunidadesListView({
     phaseLabel: string | null
   }>
   onMoveToNode: (params: { oportunidadeId: string; targetNodeId: string }) => Promise<void>
+  onOpenDetail: (item: OportunidadeBoardItem) => void
 }) {
   return (
     <div className="overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white shadow-[0_14px_34px_rgba(4,22,39,0.05)]">
@@ -66,7 +68,18 @@ export function OportunidadesListView({
         </TableHeader>
         <TableBody>
           {items.map(item => (
-            <TableRow key={item.oportunidadeId}>
+            <TableRow
+              key={item.oportunidadeId}
+              role="button"
+              tabIndex={0}
+              onClick={() => onOpenDetail(item)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return
+                event.preventDefault()
+                onOpenDetail(item)
+              }}
+              className="cursor-pointer"
+            >
               <TableCell className="pl-5 align-top">
                 <div className="min-w-[280px]">
                   <p className="font-semibold text-primary">{item.title}</p>
@@ -129,7 +142,12 @@ export function OportunidadesListView({
                   {formatDate(item.workflow.updatedAt ?? item.updatedAt)}
                 </div>
               </TableCell>
-              <TableCell className="align-top text-right">
+              <TableCell
+                className="align-top text-right"
+                onClick={event => event.stopPropagation()}
+                onPointerDown={event => event.stopPropagation()}
+                onKeyDown={event => event.stopPropagation()}
+              >
                 <OportunidadeWorkflowActions
                   item={item}
                   moveOptions={getMoveOptions(item)}

@@ -68,7 +68,12 @@ export function ExtractEditalModal({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!pdfFile) return
-    await onExtractFile(pdfFile)
+
+    try {
+      await onExtractFile(pdfFile)
+    } catch {
+      // O erro já é refletido no estado da extração e na UI do modal.
+    }
   }
 
   function handleClose(nextOpen: boolean) {
@@ -469,4 +474,3 @@ function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
-

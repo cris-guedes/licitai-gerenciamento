@@ -57,6 +57,10 @@ function createLocalDocumentId() {
   return `local-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
+function delay(ms: number) {
+  return new Promise(resolve => window.setTimeout(resolve, ms))
+}
+
 function mapStreamStatus(status: "UPLOADING" | "PROCESSING" | "READY" | "FAILED"): LicitacaoDocumentProcessingStatus {
   return status
 }
@@ -436,18 +440,75 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId, initialOport
     setExtractionResult(savedExtractionResultsByDocumentId[localId] ?? null)
   }
 
+  async function tryRecoverExtractionFromWorkspace(localId: string, documentId: string) {
+    if (!companyId || !draftContext?.oportunidadeId) return null
+
+    const maxAttempts = 3
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const workspace = await getWorkspace({
+        companyId,
+        oportunidadeId: draftContext.oportunidadeId,
+      }).catch(() => null)
+
+      if (!workspace) {
+        if (attempt < maxAttempts - 1) {
+          await delay(1200)
+        }
+        continue
+      }
+
+      const workspaceDocument = workspace.documents.find(document => document.id === documentId)
+      const analysis = workspaceDocument?.analyses.find(item => item.type === "EXTRACT_EDITAL")
+      const savedResult = analysis ? buildSavedExtractionResult(analysis) : null
+
+      if (savedResult) {
+        extraction.reset()
+        setSavedExtractionResultsByDocumentId(prev => ({
+          ...prev,
+          [localId]: savedResult,
+        }))
+        setExtractionResult(current => {
+          if (selectedDocumentId && selectedDocumentId !== localId) return current
+          return savedResult
+        })
+
+        return savedResult
+      }
+
+      if (attempt < maxAttempts - 1) {
+        await delay(1200)
+      }
+    }
+
+    return null
+  }
+
   async function handleExtractDocument(documentId: string, localId: string) {
     if (!companyId) {
       throw new Error("Nenhuma empresa ativa selecionada para vincular este documento.")
     }
 
     setExtractionResult(null)
-    const result = await extraction.mutateAsync({ companyId, documentId })
-    setSavedExtractionResultsByDocumentId(prev => ({
-      ...prev,
-      [localId]: result,
-    }))
-    setExtractionResult(result)
+
+    try {
+      const result = await extraction.mutateAsync({ companyId, documentId })
+      setSavedExtractionResultsByDocumentId(prev => ({
+        ...prev,
+        [localId]: result,
+      }))
+      setExtractionResult(result)
+      return
+    } catch (error: unknown) {
+      const recoveredResult = await tryRecoverExtractionFromWorkspace(localId, documentId)
+
+      if (recoveredResult) {
+        toast.success("A extração foi recuperada do workspace após uma instabilidade na conexão.")
+        return
+      }
+
+      throw error
+    }
   }
 
   function handleApplyExtraction() {

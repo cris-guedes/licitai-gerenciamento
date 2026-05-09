@@ -19,6 +19,7 @@ export function useCompanyWorkflowEditorService(api: CoreApiClient) {
     companyId,
     workflowDefinitionId,
     parentNodeId,
+    kindId,
     label,
     description,
     color,
@@ -29,6 +30,7 @@ export function useCompanyWorkflowEditorService(api: CoreApiClient) {
     companyId: string
     workflowDefinitionId: string
     parentNodeId?: string | null
+    kindId?: string | null
     label: string
     description?: string | null
     color?: string | null
@@ -41,6 +43,7 @@ export function useCompanyWorkflowEditorService(api: CoreApiClient) {
         companyId,
         workflowDefinitionId,
         parentNodeId,
+        kindId,
         label,
         description,
         color,

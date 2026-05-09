@@ -124,6 +124,14 @@ export function AiWorkspaceModal({
     onOpenChange(false)
   }
 
+  async function handleRunExtractionClick() {
+    try {
+      await onRunCadastroAssistantExtraction()
+    } catch {
+      // O estado de erro já é exibido no painel do assistente.
+    }
+  }
+
   async function handleSubmitDialog() {
     if (!dialogFile) return
 
@@ -134,11 +142,25 @@ export function AiWorkspaceModal({
     setDialogState({ open: false, mode: "add" })
     setDialogFile(null)
 
-    await onUpload({
-      file,
-      documentType,
-      replaceDocumentLocalId,
-    })
+    try {
+      await onUpload({
+        file,
+        documentType,
+        replaceDocumentLocalId,
+      })
+    } catch {
+      // O fluxo de upload já reflete o erro no toast e no estado do documento.
+    }
+  }
+
+  async function handleDeleteSelectedDocument() {
+    if (!selectedDocument) return
+
+    try {
+      await onDeleteDocument(selectedDocument.localId)
+    } catch {
+      // O fluxo de exclusão já exibe o erro via toast.
+    }
   }
 
   function openAddDialog() {
@@ -350,7 +372,7 @@ export function AiWorkspaceModal({
                           size="lg"
                           className="rounded-none"
                           disabled={!selectedDocument || isExtractPending}
-                          onClick={() => void onRunCadastroAssistantExtraction()}
+                          onClick={() => void handleRunExtractionClick()}
                         >
                           {isExtractPending ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <ScanSearch className="mr-2 size-4" />}
                           {isExtractPending ? "Extraindo informações..." : "Extrair informações"}
@@ -376,7 +398,7 @@ export function AiWorkspaceModal({
                         variant="outline"
                         className="min-w-40 rounded-none"
                         disabled={!selectedDocument || isUploadPending || isDeletePending}
-                        onClick={() => selectedDocument && onDeleteDocument(selectedDocument.localId)}
+                        onClick={() => void handleDeleteSelectedDocument()}
                       >
                         <Trash2 className="mr-2 size-4" />
                         Excluir
@@ -400,7 +422,7 @@ export function AiWorkspaceModal({
                     error={extractionError}
                     progress={extractionProgress}
                     preview={extractionPreview}
-                    onRunExtraction={onRunCadastroAssistantExtraction}
+                    onRunExtraction={handleRunExtractionClick}
                   />
                 ) : selectedDocument?.status === "READY" && (selectedDocument.previewUrl || selectedDocument.file) ? (
                   <div className="flex h-full min-h-0 overflow-hidden bg-white">
@@ -458,7 +480,7 @@ export function AiWorkspaceModal({
                       variant="outline"
                       className="min-w-40 rounded-none"
                       disabled={isExtractPending}
-                      onClick={() => void onRunCadastroAssistantExtraction()}
+                      onClick={() => void handleRunExtractionClick()}
                     >
                       <RefreshCcw className="mr-2 size-4" />
                       Refazer

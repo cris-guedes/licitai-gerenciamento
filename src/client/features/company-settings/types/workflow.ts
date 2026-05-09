@@ -47,6 +47,14 @@ export type WorkflowTransition = {
   updatedAt: string
 }
 
+export type WorkflowNodeDraft = {
+  label: string
+  description: string
+  color: string
+  isInitial: boolean
+  isTerminal: boolean
+}
+
 export type CompanyWorkflow = {
   id: string
   companyId: string

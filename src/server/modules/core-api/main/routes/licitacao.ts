@@ -24,6 +24,7 @@ import { makeListOportunidadesBoard } from "../../domain/use-cases/licitacao/lis
 import { makeMoveOportunidadeWorkflow } from "../../domain/use-cases/licitacao/move-oportunidade-workflow/makeMoveOportunidadeWorkflow";
 import { makeUpdateCompanyWorkflowNode } from "../../domain/use-cases/licitacao/update-company-workflow-node/makeUpdateCompanyWorkflowNode";
 import { makeUpdateCompanyWorkflowTransition } from "../../domain/use-cases/licitacao/update-company-workflow-transition/makeUpdateCompanyWorkflowTransition";
+import { makeUpdateOportunidadeBoardItem } from "../../domain/use-cases/licitacao/update-oportunidade-board-item/makeUpdateOportunidadeBoardItem";
 import { makeUploadEditalDocument } from "../../domain/use-cases/licitacao/upload-edital-document/makeUploadEditalDocument";
 import { makeUploadLicitacaoDocumentStream } from "../../domain/use-cases/licitacao/upload-licitacao-document-stream/makeUploadLicitacaoDocumentStream";
 
@@ -32,6 +33,7 @@ export const licitacaoRoutes: Record<string, RouteConfig> = {
     "list-licitacao-drafts": { make: makeListLicitacaoDrafts, method: "GET", preHandlers: [authMiddleware] },
     "list-oportunidades-board": { make: makeListOportunidadesBoard, method: "GET", preHandlers: [authMiddleware] },
     "move-oportunidade-workflow": { make: makeMoveOportunidadeWorkflow, method: "POST", preHandlers: [authMiddleware] },
+    "update-oportunidade-board-item": { make: makeUpdateOportunidadeBoardItem, method: "POST", preHandlers: [authMiddleware] },
     "create-company-workflow-node": { make: makeCreateCompanyWorkflowNode, method: "POST", preHandlers: [authMiddleware] },
     "update-company-workflow-node": { make: makeUpdateCompanyWorkflowNode, method: "POST", preHandlers: [authMiddleware] },
     "delete-company-workflow-node": { make: makeDeleteCompanyWorkflowNode, method: "POST", preHandlers: [authMiddleware] },

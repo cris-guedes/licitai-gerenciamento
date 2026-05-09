@@ -29,7 +29,7 @@ export class GetLicitacaoWorkspaceController implements Controller<GetLicitacaoW
             });
 
             if (!result) {
-                return notFound(new Error("Licitação em andamento não encontrada."));
+                return notFound(new Error("Workspace da oportunidade não encontrado."));
             }
 
             return ok(result);

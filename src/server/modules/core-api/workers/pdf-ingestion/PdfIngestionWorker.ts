@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-namespace */
 import type { IEmbeddingProvider } from "@/server/modules/core-api/domain/data/IEmbeddingProvider";
 import type { IVectorStore } from "@/server/modules/core-api/domain/data/IVectorStore";
 import type { DocumentHandlerFileParsingProvider } from "@/server/shared/infra/providers/pdf/document-handler-file-parsing-provider";
@@ -8,6 +9,55 @@ import type { MetricsProvider } from "@/server/shared/infra/providers/metrics/me
 import type { ProcessedChunk } from "@/server/modules/core-api/domain/data/ProcessedChunk";
 import { performance } from "perf_hooks";
 import { buildDocumentChunkPayload } from "./build-document-chunk-payload";
+
+type RawDocumentChunk = Record<string, unknown> & {
+    content: string;
+    embedInput: string;
+    raw?: string;
+    header?: string;
+    metadata?: Record<string, unknown> & {
+        base?: {
+            type?: string;
+            page?: number;
+            origin?: string;
+            section?: string;
+            level?: number;
+        };
+    };
+};
+
+type EmbeddedDocumentEntry = {
+    entry: {
+        id: string;
+        embedInput: string;
+        original: RawDocumentChunk;
+    };
+    embedding: Float32Array;
+};
+
+function serializeError(error: unknown): Record<string, unknown> {
+    if (error instanceof Error) {
+        return {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+            cause: error.cause,
+        };
+    }
+
+    return { message: String(error) };
+}
+
+function logPdfIngestion(traceId: string | undefined, message: string, data?: Record<string, unknown>) {
+    console.info(`[PdfIngestionWorker:${traceId ?? "no-trace"}] ${message}`, data ?? {});
+}
+
+function logPdfIngestionError(traceId: string | undefined, message: string, error: unknown, data?: Record<string, unknown>) {
+    console.error(`[PdfIngestionWorker:${traceId ?? "no-trace"}] ${message}`, {
+        ...data,
+        ...serializeError(error),
+    });
+}
 
 export class PdfIngestionWorker {
     private readonly MIN_EMBEDDING_BATCH_SIZE = 100;
@@ -29,18 +79,69 @@ export class PdfIngestionWorker {
         parsedResponse,
         embeddingConcurrency = 1,
         storeConcurrency = 1,
-        onProgress
+        onProgress,
+        traceId,
     }: PdfIngestionWorker.Input): Promise<PdfIngestionWorker.Result> {
         const ingestStartedAt = performance.now();
 
-        const ensureCollectionTimeMs = await this.stepEnsureVectorCollectionExists();
+        logPdfIngestion(traceId, "ingest.started", {
+            documentId,
+            bytes: pdfBuffer.byteLength,
+            hasParsedResponse: Boolean(parsedResponse),
+            embeddingConcurrency,
+            storeConcurrency,
+        });
 
-        const { response, timeMs: parseTimeMs } = await this.stepParseDocument(pdfBuffer, documentId, parsedResponse);
+        logPdfIngestion(traceId, "collection.ensure.started", {
+            documentId,
+            collectionName: this.config.collectionName,
+        });
+        const ensureCollectionTimeMs = await this.stepEnsureVectorCollectionExists();
+        logPdfIngestion(traceId, "collection.ensure.done", {
+            documentId,
+            durationMs: ensureCollectionTimeMs,
+        });
+
+        let response: ProcessPdfResponse;
+        let parseTimeMs = 0;
+
+        try {
+            logPdfIngestion(traceId, "parse.started", {
+                documentId,
+                bytes: pdfBuffer.byteLength,
+            });
+            const parsed = await this.stepParseDocument(pdfBuffer, documentId, parsedResponse);
+            response = parsed.response;
+            parseTimeMs = parsed.timeMs;
+            logPdfIngestion(traceId, "parse.done", {
+                documentId,
+                durationMs: parseTimeMs,
+                providerReportedParseTimeMs: response.processing_time_ms,
+                sections: response.sections.length,
+                tables: response.tables.length,
+                totalChars: response.total_chars,
+                totalWords: response.total_words,
+            });
+        } catch (error) {
+            logPdfIngestionError(traceId, "parse.failed", error, {
+                documentId,
+                elapsedMs: performance.now() - ingestStartedAt,
+            });
+            throw error;
+        }
 
         const allChunks = this.stepExtractRawChunksFromResponse(response);
+        logPdfIngestion(traceId, "chunks.extracted", {
+            documentId,
+            chunks: allChunks.length,
+        });
         onProgress?.onParsed(parseTimeMs);
 
         if (allChunks.length === 0) {
+            logPdfIngestion(traceId, "ingest.empty", {
+                documentId,
+                elapsedMs: performance.now() - ingestStartedAt,
+            });
             return this.stepReturnEmptyResult(documentId, response, {
                 ensureCollectionTimeMs,
                 parseTimeMs,
@@ -52,35 +153,65 @@ export class PdfIngestionWorker {
         const targetEmbeddingConcurrency = this.calculateTargetConcurrency(allChunks.length, embeddingConcurrency, this.MIN_EMBEDDING_BATCH_SIZE);
         const hasEmbeddingConcurrency = targetEmbeddingConcurrency > 1;
 
+        logPdfIngestion(traceId, "embeddings.started", {
+            documentId,
+            chunks: allChunks.length,
+            targetEmbeddingConcurrency,
+        });
         const { embeddedEntries, embeddingTokensUsed, timeMs: embeddingTimeMs } = hasEmbeddingConcurrency
             ? await this.stepGenerateEmbeddingsForChunksWithConcurrency(allChunks, targetEmbeddingConcurrency, onProgress)
             : await this.stepGenerateEmbeddingsForChunks(allChunks, onProgress);
+        logPdfIngestion(traceId, "embeddings.done", {
+            documentId,
+            embeddedEntries: embeddedEntries.length,
+            embeddingTokensUsed,
+            durationMs: embeddingTimeMs,
+        });
 
         // Decisão de concorrência para Storage
         const targetStoreConcurrency = this.calculateTargetConcurrency(embeddedEntries.length, storeConcurrency, this.MIN_STORAGE_BATCH_SIZE);
         const hasStoreConcurrency = targetStoreConcurrency > 1;
 
+        logPdfIngestion(traceId, "vector.upsert.started", {
+            documentId,
+            points: embeddedEntries.length,
+            targetStoreConcurrency,
+        });
         const indexingTimeMs = hasStoreConcurrency
             ? await this.stepSavePointsToVectorStoreWithConcurrency(documentId, embeddedEntries, targetStoreConcurrency, onProgress)
             : await this.stepSavePointsToVectorStore(documentId, embeddedEntries, onProgress);
+        logPdfIngestion(traceId, "vector.upsert.done", {
+            documentId,
+            points: embeddedEntries.length,
+            durationMs: indexingTimeMs,
+        });
 
         // Mapear para ProcessedChunk garantindo que as propriedades obrigatórias do metadados existam
-        const entries: ProcessedChunk[] = allChunks.map((c, i) => ({
-            id: this.identifierProvider.generate(),
-            embedInput: c.embedInput,
-            content: c.content,
-            raw: c.raw ?? c.content,
-            metadata: {
-                ...c.metadata,
-                type: c.metadata.base?.type ?? "text",
-                page: c.metadata.base?.page ?? 0,
-                origin: c.metadata.base?.origin ?? documentId,
-                chunk_index: i,
-                word_count: c.content.split(/\s+/).length,
-            }
-        }));
+        const entries: ProcessedChunk[] = allChunks.map((c, i) => {
+            const baseType = c.metadata?.base?.type === "table_row" ? "table_row" : "text";
+
+            return {
+                id: this.identifierProvider.generate(),
+                embedInput: c.embedInput,
+                content: c.content,
+                raw: c.raw ?? c.content,
+                metadata: {
+                    ...c.metadata,
+                    type: baseType,
+                    page: c.metadata?.base?.page ?? 0,
+                    origin: c.metadata?.base?.origin ?? documentId,
+                    chunk_index: i,
+                    word_count: c.content.split(/\s+/).length,
+                }
+            };
+        });
 
         const totalTimeMs = performance.now() - ingestStartedAt;
+        logPdfIngestion(traceId, "ingest.done", {
+            documentId,
+            entriesCount: allChunks.length,
+            totalTimeMs,
+        });
 
         return {
             documentId,
@@ -126,8 +257,8 @@ export class PdfIngestionWorker {
         return { response, timeMs };
     }
 
-    private stepExtractRawChunksFromResponse(response: ProcessPdfResponse): any[] {
-        const chunks: any[] = [];
+    private stepExtractRawChunksFromResponse(response: ProcessPdfResponse): RawDocumentChunk[] {
+        const chunks: RawDocumentChunk[] = [];
 
         response.sections.forEach(section => {
             section.chunks.forEach(chunk => {
@@ -151,7 +282,7 @@ export class PdfIngestionWorker {
 
         response.tables.forEach(table => {
             table.chunks.forEach(chunk => {
-                const rowContent = Object.values(chunk.data).join(" | ");
+                const rowContent = Object.values(chunk.data as Record<string, unknown>).join(" | ");
                 chunks.push({
                     ...chunk,
                     content: rowContent,
@@ -171,7 +302,7 @@ export class PdfIngestionWorker {
         return chunks;
     }
 
-    private async stepGenerateEmbeddingsForChunks(chunks: any[], onProgress?: PdfIngestionWorker.IngestionProgress) {
+    private async stepGenerateEmbeddingsForChunks(chunks: RawDocumentChunk[], onProgress?: PdfIngestionWorker.IngestionProgress) {
         const stopTimer = this.metrics.startTimer("pdf-ingestion:generate-embeddings");
 
         const { results: embeddedEntries, tokensUsed: embeddingTokensUsed } = await this.embeddingProvider.embedMany(
@@ -184,7 +315,7 @@ export class PdfIngestionWorker {
         return { embeddedEntries, embeddingTokensUsed, timeMs };
     }
 
-    private async stepGenerateEmbeddingsForChunksWithConcurrency(chunks: any[], concurrency: number, onProgress?: PdfIngestionWorker.IngestionProgress) {
+    private async stepGenerateEmbeddingsForChunksWithConcurrency(chunks: RawDocumentChunk[], concurrency: number, onProgress?: PdfIngestionWorker.IngestionProgress) {
         const stopTimer = this.metrics.startTimer("pdf-ingestion:generate-embeddings-parallel");
         const partitions = this.partitionItems(chunks, concurrency);
 
@@ -207,7 +338,7 @@ export class PdfIngestionWorker {
         return { embeddedEntries, embeddingTokensUsed, timeMs };
     }
 
-    private async stepSavePointsToVectorStore(documentId: string, embeddedEntries: Array<{ entry: any; embedding: Float32Array }>, onProgress?: PdfIngestionWorker.IngestionProgress): Promise<number> {
+    private async stepSavePointsToVectorStore(documentId: string, embeddedEntries: EmbeddedDocumentEntry[], onProgress?: PdfIngestionWorker.IngestionProgress): Promise<number> {
         const stopTimer = this.metrics.startTimer("pdf-ingestion:save-to-vector-store");
 
         const points = this.mapToVectorPoints(documentId, embeddedEntries);
@@ -217,7 +348,7 @@ export class PdfIngestionWorker {
         return stopTimer({ pointsCount: points.length, documentId, concurrency: 1 });
     }
 
-    private async stepSavePointsToVectorStoreWithConcurrency(documentId: string, embeddedEntries: Array<{ entry: any; embedding: Float32Array }>, concurrency: number, onProgress?: PdfIngestionWorker.IngestionProgress): Promise<number> {
+    private async stepSavePointsToVectorStoreWithConcurrency(documentId: string, embeddedEntries: EmbeddedDocumentEntry[], concurrency: number, onProgress?: PdfIngestionWorker.IngestionProgress): Promise<number> {
         const stopTimer = this.metrics.startTimer("pdf-ingestion:save-to-vector-store-parallel");
 
         const points = this.mapToVectorPoints(documentId, embeddedEntries);
@@ -239,7 +370,7 @@ export class PdfIngestionWorker {
         });
     }
 
-    private mapToVectorPoints(documentId: string, embeddedEntries: Array<{ entry: any; embedding: Float32Array }>) {
+    private mapToVectorPoints(documentId: string, embeddedEntries: EmbeddedDocumentEntry[]) {
         return embeddedEntries.map(({ entry, embedding }) => ({
             id: entry.id,
             vector: Array.from(embedding),
@@ -319,6 +450,7 @@ export namespace PdfIngestionWorker {
         embeddingConcurrency?: number;
         storeConcurrency?: number;
         onProgress?: IngestionProgress;
+        traceId?: string;
     };
 
     export type Result = {
