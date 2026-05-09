@@ -49,7 +49,6 @@ export function OportunidadesKanbanView({
   isMoving,
   movingOportunidadeId,
   getMoveOptions,
-  getReachableNodeForPhase,
   onMoveToNode,
   onMoveToPhase,
   onOpenDetail,
@@ -70,9 +69,6 @@ export function OportunidadesKanbanView({
     phaseId: string | null
     phaseLabel: string | null
   }>
-  getReachableNodeForPhase: (item: OportunidadeBoardItem, phaseId: string) => {
-    nodeId: string
-  } | null
   onMoveToNode: (params: { oportunidadeId: string; targetNodeId: string }) => Promise<void>
   onMoveToPhase: (item: OportunidadeBoardItem, phaseId: string) => Promise<void>
   onOpenDetail: (item: OportunidadeBoardItem) => void
@@ -161,7 +157,6 @@ export function OportunidadesKanbanView({
                 setDraggingId(null)
 
                 if (!item) return
-                if (!getReachableNodeForPhase(item, phase.id)) return
 
                 void onMoveToPhase(item, phase.id)
               }}

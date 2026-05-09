@@ -19,6 +19,7 @@ import {
   Search,
   Settings,
   SlidersHorizontal,
+  Sparkles,
   Target,
   User,
   Users,
@@ -280,6 +281,22 @@ function NavMain() {
         <DisabledSubItem icon={Target} label="Licitações Estratégicas" badge="em-breve" />
       </NavCollapsible>
 
+      {/* Inteligência */}
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          asChild
+          isActive={is("workspace-ia")}
+          className={is("workspace-ia")
+            ? "relative text-[13px] font-medium leading-none rounded-none bg-white/[0.04] pl-5 text-white before:absolute before:top-0 before:bottom-0 before:left-0 before:w-1 before:bg-secondary before:content-[''] group-data-[collapsible=icon]:rounded-[0.9rem] group-data-[collapsible=icon]:bg-[linear-gradient(135deg,rgba(0,88,190,0.96),rgba(33,112,228,0.92))] group-data-[collapsible=icon]:pl-2.5 group-data-[collapsible=icon]:shadow-[0_10px_22px_rgba(0,88,190,0.18)] group-data-[collapsible=icon]:before:hidden"
+            : "text-[13px] font-medium leading-none text-sidebar-foreground/78 hover:bg-white/[0.04] hover:text-white"}
+        >
+          <Link href={`${base}/workspace-ia`}>
+            <Sparkles className="size-[15px]" />
+            <span className={NAV_LABEL_CLASS}>Análise IA</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+
       {/* Gerenciar Oportunidades */}
       <NavCollapsible id="licitacoes" icon={FileText} label="Gerenciar Oportunidades" active={is("licitacoes")}>
         <SidebarMenuSubItem>
@@ -407,6 +424,7 @@ function resolvePageMeta(pathname: string, base: string) {
 
   const matches: Array<{ key: string; title: string; subtitle: string }> = [
     { key: "search", title: "Captação", subtitle: "Monitore oportunidades com mais precisão." },
+    { key: "workspace-ia", title: "Análise IA", subtitle: "Analise documentos e oportunidades com assistentes especializados." },
     { key: "licitacoes/nova", title: "Nova Oportunidade", subtitle: "Monte o cadastro como um workspace editorial." },
     { key: "licitacoes/rascunhos", title: "Rascunhos", subtitle: "Retome licitações em andamento com o contexto da IA preservado." },
     { key: "licitacoes", title: "Gerenciar Oportunidades", subtitle: "Acompanhe oportunidades, status e próximos movimentos." },

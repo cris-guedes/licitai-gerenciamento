@@ -270,13 +270,16 @@ export function useLicitacoesPage(params: {
     const currentNodeId = item.workflow.currentNode?.id
     if (!currentNodeId) return []
     const currentNodeIds = getNodeAncestors(currentNodeId).map(node => node.id)
+    const currentPhaseNode = item.workflow.phase?.id
+      ? nodeById.get(item.workflow.phase.id) ?? null
+      : getNodeAncestors(currentNodeId).find(node => node.kind.key === workflowMetadata.boardColumnKindKey) ?? null
     const transitions = Array.from(new Map(
       currentNodeIds
         .flatMap(nodeId => transitionsByFromNodeId.get(nodeId) ?? [])
         .map(transition => [transition.id, transition]),
     ).values())
 
-    return transitions
+    const transitionOptions = transitions
       .map(transition => {
         const targetNode = nodeById.get(transition.toNodeId)
         if (!targetNode) return null
@@ -293,6 +296,25 @@ export function useLicitacoesPage(params: {
         } satisfies WorkflowMoveOption
       })
       .filter((option): option is WorkflowMoveOption => Boolean(option))
+
+    const optionsByNodeId = new Map(transitionOptions.map(option => [option.nodeId, option]))
+
+    if (currentPhaseNode) {
+      for (const phase of phases) {
+        if (phase.id === currentPhaseNode.id || sortNodes(phase, currentPhaseNode) >= 0) continue
+        if (optionsByNodeId.has(phase.id)) continue
+
+        optionsByNodeId.set(phase.id, {
+          nodeId: phase.id,
+          label: `Voltar para ${phase.label}`,
+          transitionType: "retorno",
+          phaseId: phase.id,
+          phaseLabel: phase.label,
+        })
+      }
+    }
+
+    return Array.from(optionsByNodeId.values())
   }
 
   const getReachableNodeForPhase = (item: OportunidadeBoardItem, phaseId: string) => {
@@ -391,7 +413,7 @@ export function useLicitacoesPage(params: {
     isLoading: workflowQuery.isLoading || boardQuery.isLoading,
     isMoving: moveMutation.isPending,
     isUpdatingDetail: updateDetailMutation.isPending,
-    movingOportunidadeId: moveMutation.variables?.oportunidadeId ?? null,
+    movingOportunidadeId: moveMutation.isPending ? moveMutation.variables?.oportunidadeId ?? null : null,
     moveToNode,
     moveToPhase,
     updateDetailItem,

@@ -9,6 +9,9 @@ import { OportunidadeBoardViewMapper } from "../_shared/oportunidadeBoardView";
 import type { MoveOportunidadeWorkflowDTO } from "./dtos/MoveOportunidadeWorkflowDTOs";
 import type { MoveOportunidadeWorkflowView } from "./dtos/MoveOportunidadeWorkflowView";
 
+type WorkflowDefinition = PrismaWorkflowRepository.WorkflowDefinitionWithGraph;
+type WorkflowNode = WorkflowDefinition["nodes"][number];
+
 export class MoveOportunidadeWorkflow {
     constructor(
         private readonly oportunidadeRepository: PrismaOportunidadeRepository,
@@ -71,11 +74,12 @@ export class MoveOportunidadeWorkflow {
 
         const sourceNodeIds = this.getNodeAncestryIds(workflow, oportunidade.currentNodeId);
         const targetNodeIds = this.getNodeAncestryIds(workflow, targetNode.id);
-        const canTransition = workflow.transitions.some(transition =>
+        const hasExplicitTransition = workflow.transitions.some(transition =>
             sourceNodeIds.includes(transition.fromNodeId) && targetNodeIds.includes(transition.toNodeId),
         );
+        const canMoveBackward = this.isBackwardBoardMove(workflow, oportunidade.currentNodeId, targetNode.id);
 
-        if (!canTransition) {
+        if (!hasExplicitTransition && !canMoveBackward) {
             throw new Error("A transição solicitada não é permitida pelo workflow atual.");
         }
 
@@ -108,9 +112,16 @@ export class MoveOportunidadeWorkflow {
     }
 
     private getNodeAncestryIds(
-        workflow: PrismaWorkflowRepository.WorkflowDefinitionWithGraph,
+        workflow: WorkflowDefinition,
         nodeId: string,
     ): string[] {
+        return this.getNodeAncestry(workflow, nodeId).map(node => node.id);
+    }
+
+    private getNodeAncestry(
+        workflow: WorkflowDefinition,
+        nodeId: string,
+    ): WorkflowDefinition["nodes"] {
         const ids: string[] = [];
         let cursor = workflow.nodes.find(node => node.id === nodeId) ?? null;
 
@@ -121,7 +132,46 @@ export class MoveOportunidadeWorkflow {
                 : null;
         }
 
-        return ids;
+        return ids
+            .map(id => workflow.nodes.find(node => node.id === id))
+            .filter((node): node is WorkflowNode => Boolean(node));
+    }
+
+    private isBackwardBoardMove(
+        workflow: WorkflowDefinition,
+        sourceNodeId: string,
+        targetNodeId: string,
+    ): boolean {
+        const { boardColumnKindKey } = this.readWorkflowMetadata(workflow);
+        const sourcePhase = this.getNodeAncestry(workflow, sourceNodeId)
+            .find(node => node.kind.key === boardColumnKindKey) ?? null;
+        const targetPhase = this.getNodeAncestry(workflow, targetNodeId)
+            .find(node => node.kind.key === boardColumnKindKey) ?? null;
+
+        if (!sourcePhase || !targetPhase || sourcePhase.id === targetPhase.id) {
+            return false;
+        }
+
+        return this.compareNodes(targetPhase, sourcePhase) < 0;
+    }
+
+    private readWorkflowMetadata(workflow: WorkflowDefinition) {
+        const object = workflow.metadata && typeof workflow.metadata === "object" && !Array.isArray(workflow.metadata)
+            ? workflow.metadata as Record<string, unknown>
+            : {};
+
+        return {
+            boardColumnKindKey: typeof object.boardColumnKindKey === "string" ? object.boardColumnKindKey : "phase",
+        };
+    }
+
+    private compareNodes(a: WorkflowNode, b: WorkflowNode): number {
+        if (a.order !== b.order) return a.order - b.order;
+
+        const createdAtDiff = a.createdAt.getTime() - b.createdAt.getTime();
+        if (createdAtDiff !== 0) return createdAtDiff;
+
+        return a.id.localeCompare(b.id);
     }
 }
 

@@ -31,7 +31,7 @@ type Props = {
     documentType: LicitacaoDocumentType
     replaceDocumentLocalId?: string
   }) => Promise<unknown>
-  onSkip: () => void
+  onSkip?: () => void
 }
 
 export function UploadEditalStep({
@@ -135,12 +135,14 @@ export function UploadEditalStep({
                 />
               </label>
 
-              <div className="flex justify-center px-8 pb-10">
-                <Button type="button" size="lg" variant="ghost" className="rounded-none" onClick={onSkip}>
-                  Pular etapa e cadastrar manualmente
-                  <ArrowRight className="ml-2 size-4" />
-                </Button>
-              </div>
+              {onSkip ? (
+                <div className="flex justify-center px-8 pb-10">
+                  <Button type="button" size="lg" variant="ghost" className="rounded-none" onClick={onSkip}>
+                    Pular etapa e cadastrar manualmente
+                    <ArrowRight className="ml-2 size-4" />
+                  </Button>
+                </div>
+              ) : null}
             </div>
 
             <section className="space-y-6">

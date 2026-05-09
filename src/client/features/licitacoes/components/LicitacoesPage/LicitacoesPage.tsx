@@ -36,7 +36,7 @@ export function LicitacoesPage() {
   })
   const base = `/org/${orgAtiva?.id}/${empresaAtiva?.id}`
   const detailWorkspaceHref = page.selectedDetailItem
-    ? `${base}/licitacoes/nova?oportunidadeId=${page.selectedDetailItem.oportunidadeId}`
+    ? `${base}/workspace-ia?oportunidadeId=${page.selectedDetailItem.oportunidadeId}`
     : null
   const detailErrorMessage = page.detailError instanceof Error
     ? page.detailError.message
@@ -191,7 +191,6 @@ export function LicitacoesPage() {
           isMoving={page.isMoving}
           movingOportunidadeId={page.movingOportunidadeId}
           getMoveOptions={page.getMoveOptions}
-          getReachableNodeForPhase={page.getReachableNodeForPhase}
           onMoveToNode={page.moveToNode}
           onMoveToPhase={page.moveToPhase}
           onOpenDetail={page.openDetail}
