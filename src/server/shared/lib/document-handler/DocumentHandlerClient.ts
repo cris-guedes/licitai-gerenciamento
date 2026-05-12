@@ -57,12 +57,28 @@ export class DocumentHandlerClient {
         console.log(`[DocumentHandlerClient] POST ${url} — ${file.byteLength} bytes, filename: ${filename}`);
 
         let response: Response;
+        const startedAt = Date.now();
         try {
             response = await fetch(url, { method: "POST", body: formData });
-        } catch (err: any) {
-            console.error(`[DocumentHandlerClient] Fetch falhou para ${url}:`, err.message, err.cause ?? "");
+        } catch (err: unknown) {
+            const error = err instanceof Error ? err : new Error(String(err));
+            console.error(`[DocumentHandlerClient] Fetch falhou para ${url}:`, {
+                filename,
+                bytes: file.byteLength,
+                durationMs: Date.now() - startedAt,
+                message: error.message,
+                cause: error.cause ?? "",
+            });
             throw err;
         }
+
+        console.info(`[DocumentHandlerClient] Response ${url}`, {
+            filename,
+            status: response.status,
+            ok: response.ok,
+            durationMs: Date.now() - startedAt,
+            contentType: response.headers.get("content-type"),
+        });
 
         if (!response.ok) {
             const errorBody = await response.text().catch(() => "(sem body)");

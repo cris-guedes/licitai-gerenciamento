@@ -1,6 +1,7 @@
 import type { DocumentType } from "@prisma/client";
 
 export interface UploadLicitacaoDocumentDTO {
+    traceId?: string;
     companyId: string;
     userId: string;
     createdById?: string;

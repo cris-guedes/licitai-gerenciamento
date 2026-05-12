@@ -32,7 +32,7 @@ export class GetLicitacaoWorkspace {
             companyId: params.companyId,
         });
 
-        if (!workspace || workspace.status !== "DRAFT") {
+        if (!workspace || workspace.status === "CANCELLED") {
             return null;
         }
 

@@ -50,14 +50,14 @@ export const LicitacaoWorkspaceDocumentSchema = z.object({
 
 export const LicitacaoWorkspaceSchema = z.object({
     oportunidade: z.object({
-        id: z.string().describe("ID da oportunidade em rascunho."),
+        id: z.string().describe("ID da oportunidade."),
         status: z.enum(["DRAFT", "ACTIVE", "CANCELLED"]).describe("Status atual da oportunidade."),
         draftPreview: LicitacaoDraftPreviewSchema.nullable().describe("Prévia leve derivada da primeira página do edital principal."),
         createdAt: z.string().describe("Data ISO de criação da oportunidade."),
         updatedAt: z.string().describe("Data ISO da última atualização da oportunidade."),
     }),
     licitacao: z.object({
-        id: z.string().nullable().describe("ID da licitação em andamento, quando já criada."),
+        id: z.string().nullable().describe("ID da licitação, quando já criada."),
         status: z.enum(["IN_PROGRESS", "COMPLETED", "CANCELLED"]).nullable().describe("Status atual da licitação, quando já criada."),
         draftPreview: LicitacaoDraftPreviewSchema.nullable().describe("Prévia leve derivada da primeira página do edital principal."),
         createdAt: z.string().describe("Data ISO de criação da licitação."),

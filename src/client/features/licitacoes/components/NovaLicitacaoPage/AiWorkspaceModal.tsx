@@ -51,9 +51,7 @@ const DOCUMENT_TYPE_OPTIONS: Array<{ value: LicitacaoDocumentType; label: string
   { value: "OUTRO", label: "Outro", helper: "Arquivos complementares que não entram nas categorias acima." },
 ]
 
-type Props = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+type AiWorkspaceBaseProps = {
   initialView?: WorkspaceView
   isUploadPending: boolean
   isExtractPending: boolean
@@ -74,6 +72,18 @@ type Props = {
   onDeleteDocument: (localId: string) => Promise<void>
   onSelectDocument: (localId: string) => void
   onRunCadastroAssistantExtraction: () => Promise<void>
+}
+
+export type AiWorkspaceBodyProps = AiWorkspaceBaseProps & {
+  className?: string
+  showApplyExtractionFooter?: boolean
+  onApplyExtraction?: () => boolean
+  onApplyExtractionSuccess?: () => void
+}
+
+type Props = AiWorkspaceBaseProps & {
+  open: boolean
+  onOpenChange: (open: boolean) => void
   onApplyExtraction: () => boolean
 }
 
@@ -85,9 +95,8 @@ type UploadDialogState = {
 
 export type WorkspaceView = "document" | "assistant-cadastro"
 
-export function AiWorkspaceModal({
-  open,
-  onOpenChange,
+export function AiWorkspaceBody({
+  className,
   initialView = "document",
   isUploadPending,
   isExtractPending,
@@ -105,7 +114,9 @@ export function AiWorkspaceModal({
   onSelectDocument,
   onRunCadastroAssistantExtraction,
   onApplyExtraction,
-}: Props) {
+  onApplyExtractionSuccess,
+  showApplyExtractionFooter = Boolean(onApplyExtraction),
+}: AiWorkspaceBodyProps) {
   const [dialogState, setDialogState] = useState<UploadDialogState>({ open: false, mode: "add" })
   const [dialogDocumentType, setDialogDocumentType] = useState<LicitacaoDocumentType>("ANEXO")
   const [dialogFile, setDialogFile] = useState<File | null>(null)
@@ -116,12 +127,20 @@ export function AiWorkspaceModal({
     documents.length === 1 ? "1 arquivo carregado" : `${documents.length} arquivos carregados`
 
   const isCadastroAssistantActive = activeView === "assistant-cadastro"
-  const shouldShowApplyFooter = isCadastroAssistantActive && Boolean(extractionResult)
+  const shouldShowApplyFooter = showApplyExtractionFooter && isCadastroAssistantActive && Boolean(extractionResult)
 
   function handleApplyExtractionAndClose() {
-    const applied = onApplyExtraction()
+    const applied = onApplyExtraction?.() ?? false
     if (!applied) return
-    onOpenChange(false)
+    onApplyExtractionSuccess?.()
+  }
+
+  async function handleRunExtractionClick() {
+    try {
+      await onRunCadastroAssistantExtraction()
+    } catch {
+      // O estado de erro já é exibido no painel do assistente.
+    }
   }
 
   async function handleSubmitDialog() {
@@ -134,11 +153,25 @@ export function AiWorkspaceModal({
     setDialogState({ open: false, mode: "add" })
     setDialogFile(null)
 
-    await onUpload({
-      file,
-      documentType,
-      replaceDocumentLocalId,
-    })
+    try {
+      await onUpload({
+        file,
+        documentType,
+        replaceDocumentLocalId,
+      })
+    } catch {
+      // O fluxo de upload já reflete o erro no toast e no estado do documento.
+    }
+  }
+
+  async function handleDeleteSelectedDocument() {
+    if (!selectedDocument) return
+
+    try {
+      await onDeleteDocument(selectedDocument.localId)
+    } catch {
+      // O fluxo de exclusão já exibe o erro via toast.
+    }
   }
 
   function openAddDialog() {
@@ -170,29 +203,7 @@ export function AiWorkspaceModal({
 
   return (
     <>
-      <Dialog
-        open={open}
-        onOpenChange={nextOpen => {
-          if (!nextOpen) {
-            setManualView(null)
-          }
-          onOpenChange(nextOpen)
-        }}
-      >
-        <DialogContent
-          className="h-[92vh] max-w-none overflow-hidden border-0 bg-white p-0 shadow-[0_30px_80px_rgba(4,22,39,0.18)]"
-          style={{
-            width: "min(1580px, calc(100vw - 3rem))",
-            maxWidth: "min(1580px, calc(100vw - 3rem))",
-          }}
-        >
-          <DialogHeader className="sr-only">
-            <DialogTitle>Workspace da IA</DialogTitle>
-            <DialogDescription>
-              Gerencie documentos, abra assistentes especialistas e acompanhe o processamento do edital.
-            </DialogDescription>
-          </DialogHeader>
-
+      <div className={cn("relative h-full min-h-0 overflow-hidden bg-white", className)}>
           <div className="grid h-full min-h-0 gap-0 lg:grid-cols-[300px_minmax(0,1fr)]">
             <aside className="flex min-h-0 flex-col border-r border-slate-200 bg-slate-50/55">
               <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
@@ -350,7 +361,7 @@ export function AiWorkspaceModal({
                           size="lg"
                           className="rounded-none"
                           disabled={!selectedDocument || isExtractPending}
-                          onClick={() => void onRunCadastroAssistantExtraction()}
+                          onClick={() => void handleRunExtractionClick()}
                         >
                           {isExtractPending ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <ScanSearch className="mr-2 size-4" />}
                           {isExtractPending ? "Extraindo informações..." : "Extrair informações"}
@@ -376,7 +387,7 @@ export function AiWorkspaceModal({
                         variant="outline"
                         className="min-w-40 rounded-none"
                         disabled={!selectedDocument || isUploadPending || isDeletePending}
-                        onClick={() => selectedDocument && onDeleteDocument(selectedDocument.localId)}
+                        onClick={() => void handleDeleteSelectedDocument()}
                       >
                         <Trash2 className="mr-2 size-4" />
                         Excluir
@@ -400,7 +411,7 @@ export function AiWorkspaceModal({
                     error={extractionError}
                     progress={extractionProgress}
                     preview={extractionPreview}
-                    onRunExtraction={onRunCadastroAssistantExtraction}
+                    onRunExtraction={handleRunExtractionClick}
                   />
                 ) : selectedDocument?.status === "READY" && (selectedDocument.previewUrl || selectedDocument.file) ? (
                   <div className="flex h-full min-h-0 overflow-hidden bg-white">
@@ -458,7 +469,7 @@ export function AiWorkspaceModal({
                       variant="outline"
                       className="min-w-40 rounded-none"
                       disabled={isExtractPending}
-                      onClick={() => void onRunCadastroAssistantExtraction()}
+                      onClick={() => void handleRunExtractionClick()}
                     >
                       <RefreshCcw className="mr-2 size-4" />
                       Refazer
@@ -477,8 +488,7 @@ export function AiWorkspaceModal({
               ) : null}
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+      </div>
 
       <Dialog
         open={dialogState.open}
@@ -541,6 +551,37 @@ export function AiWorkspaceModal({
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+export function AiWorkspaceModal({
+  open,
+  onOpenChange,
+  ...workspaceProps
+}: Props) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="h-[92vh] max-w-none overflow-hidden border-0 bg-white p-0 shadow-[0_30px_80px_rgba(4,22,39,0.18)]"
+        style={{
+          width: "min(1580px, calc(100vw - 3rem))",
+          maxWidth: "min(1580px, calc(100vw - 3rem))",
+        }}
+      >
+        <DialogHeader className="sr-only">
+          <DialogTitle>Workspace da IA</DialogTitle>
+          <DialogDescription>
+            Gerencie documentos, abra assistentes especialistas e acompanhe o processamento do edital.
+          </DialogDescription>
+        </DialogHeader>
+
+        <AiWorkspaceBody
+          {...workspaceProps}
+          showApplyExtractionFooter
+          onApplyExtractionSuccess={() => onOpenChange(false)}
+        />
+      </DialogContent>
+    </Dialog>
   )
 }
 

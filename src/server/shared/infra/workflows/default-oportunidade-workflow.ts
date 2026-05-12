@@ -86,28 +86,28 @@ export function buildDefaultOportunidadeWorkflowDefinition(): WorkflowDefinition
             { kindKey: "situation", key: "impugnacao_recusada", label: "Impugnação recusada", parentPath: statusPath("analise_documental", "impugnar_edital"), order: 3 },
             { kindKey: "situation", key: "retorna_para_analise", label: "Retorna para análise", parentPath: statusPath("analise_documental", "impugnar_edital"), order: 4 },
 
-            { kindKey: "phase", key: "aguardando_resposta", label: "Aguardando resposta", order: 2, color: "#22c55e" },
+            { kindKey: "phase", key: "enviar_para_esclarecimento", label: "Enviar para esclarecimento", order: 2, color: "#22c55e" },
+            { kindKey: "status", key: "esclarecimento", label: "Esclarecimento", parentPath: phasePath("enviar_para_esclarecimento"), order: 1, isInitial: true, color: "#3b82f6" },
+
+            { kindKey: "phase", key: "aguardando_resposta", label: "Aguardando resposta", order: 3, color: "#22c55e" },
             { kindKey: "status", key: "esclarecimento", label: "Esclarecimento", parentPath: phasePath("aguardando_resposta"), order: 1, isInitial: true, color: "#3b82f6" },
             { kindKey: "status", key: "descartado", label: "Descartado", parentPath: phasePath("aguardando_resposta"), order: 2, isTerminal: true, color: "#3b82f6" },
             { kindKey: "situation", key: "respondido", label: "Respondido", parentPath: statusPath("aguardando_resposta", "esclarecimento"), order: 1, isInitial: true },
             { kindKey: "situation", key: "produto_atendido", label: "Produto atendido", parentPath: statusPath("aguardando_resposta", "esclarecimento"), order: 2 },
             { kindKey: "situation", key: "produto_nao_atendido", label: "Produto não atendido", parentPath: statusPath("aguardando_resposta", "esclarecimento"), order: 3 },
 
-            { kindKey: "phase", key: "precificacao", label: "Precificação", order: 3, color: "#22c55e" },
+            { kindKey: "phase", key: "precificacao", label: "Precificação", order: 4, color: "#22c55e" },
             { kindKey: "status", key: "proposta_enviada", label: "Proposta enviada", parentPath: phasePath("precificacao"), order: 1, isInitial: true, color: "#3b82f6" },
             { kindKey: "situation", key: "cadastrar_proposta", label: "Cadastrar proposta", parentPath: statusPath("precificacao", "proposta_enviada"), order: 1, isInitial: true },
             { kindKey: "situation", key: "aguardar_abertura_pregao", label: "Aguardar abertura do pregão", parentPath: statusPath("precificacao", "proposta_enviada"), order: 2 },
 
-            { kindKey: "phase", key: "enviar_para_esclarecimento", label: "Enviar para esclarecimento", order: 4, color: "#22c55e" },
-            { kindKey: "status", key: "esclarecimento", label: "Esclarecimento", parentPath: phasePath("enviar_para_esclarecimento"), order: 1, isInitial: true, color: "#3b82f6" },
-
-            { kindKey: "phase", key: "pregao_suspenso", label: "Pregão suspenso", order: 5, color: "#22c55e" },
-            { kindKey: "status", key: "pregao_suspenso", label: "Pregão suspenso", parentPath: phasePath("pregao_suspenso"), order: 1, isInitial: true, color: "#3b82f6" },
-
-            { kindKey: "phase", key: "fase_de_lances", label: "Fase de lances", order: 6, color: "#22c55e" },
+            { kindKey: "phase", key: "fase_de_lances", label: "Fase de lances", order: 5, color: "#22c55e" },
             { kindKey: "status", key: "em_disputa", label: "Em disputa", parentPath: phasePath("fase_de_lances"), order: 1, isInitial: true, color: "#3b82f6" },
             { kindKey: "status", key: "pregao_perdido", label: "Pregão perdido", parentPath: phasePath("fase_de_lances"), order: 2, isTerminal: true, color: "#3b82f6" },
             { kindKey: "status", key: "pregao_ganho", label: "Pregão ganho", parentPath: phasePath("fase_de_lances"), order: 3, color: "#3b82f6" },
+
+            { kindKey: "phase", key: "pregao_suspenso", label: "Pregão suspenso", order: 6, color: "#22c55e" },
+            { kindKey: "status", key: "pregao_suspenso", label: "Pregão suspenso", parentPath: phasePath("pregao_suspenso"), order: 1, isInitial: true, color: "#3b82f6" },
 
             { kindKey: "phase", key: "ganho", label: "Ganho", order: 7, color: "#22c55e" },
             { kindKey: "status", key: "ganho", label: "Ganho", parentPath: phasePath("ganho"), order: 1, isInitial: true, color: "#3b82f6" },
@@ -138,6 +138,20 @@ export function buildDefaultOportunidadeWorkflowDefinition(): WorkflowDefinition
             { kindKey: "status", key: "enviar_para_contrato", label: "\"Enviar para Contrato\"", parentPath: phasePath("enviar_para_contrato"), order: 1, isInitial: true, isTerminal: true, color: "#3b82f6" },
         ],
         transitions: [
+            { fromPath: phasePath("analise_documental"), toPath: phasePath("enviar_para_esclarecimento"), transitionType: "advance" },
+            { fromPath: phasePath("enviar_para_esclarecimento"), toPath: phasePath("aguardando_resposta"), transitionType: "advance" },
+            { fromPath: phasePath("aguardando_resposta"), toPath: phasePath("precificacao"), transitionType: "advance" },
+            { fromPath: phasePath("precificacao"), toPath: phasePath("fase_de_lances"), transitionType: "advance" },
+            { fromPath: phasePath("fase_de_lances"), toPath: phasePath("pregao_suspenso"), transitionType: "pause" },
+            { fromPath: phasePath("pregao_suspenso"), toPath: phasePath("fase_de_lances"), transitionType: "resume" },
+            { fromPath: phasePath("pregao_suspenso"), toPath: phasePath("ganho"), transitionType: "advance" },
+            { fromPath: phasePath("fase_de_lances"), toPath: phasePath("ganho"), transitionType: "win" },
+            { fromPath: phasePath("ganho"), toPath: phasePath("em_habilitacao"), transitionType: "advance" },
+            { fromPath: phasePath("em_habilitacao"), toPath: phasePath("recurso"), transitionType: "appeal" },
+            { fromPath: phasePath("em_habilitacao"), toPath: phasePath("aguardando_contrato_ata"), transitionType: "advance" },
+            { fromPath: phasePath("recurso"), toPath: phasePath("contrarrazao"), transitionType: "advance" },
+            { fromPath: phasePath("contrarrazao"), toPath: phasePath("aguardando_contrato_ata"), transitionType: "advance" },
+            { fromPath: phasePath("aguardando_contrato_ata"), toPath: phasePath("enviar_para_contrato"), transitionType: "advance" },
             { fromPath: statusPath("analise_documental", "na_fila"), toPath: statusPath("analise_documental", "em_analise"), transitionType: "advance" },
             { fromPath: statusPath("analise_documental", "em_analise"), toPath: statusPath("analise_documental", "impugnar_edital"), transitionType: "branch" },
             { fromPath: statusPath("analise_documental", "impugnar_edital"), toPath: situationPath("analise_documental", "impugnar_edital", "impugnacao_aceita"), transitionType: "decision" },
@@ -177,4 +191,3 @@ export function buildDefaultOportunidadeWorkflowDefinition(): WorkflowDefinition
         ],
     };
 }
-

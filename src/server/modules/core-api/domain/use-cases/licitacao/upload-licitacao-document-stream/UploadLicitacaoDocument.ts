@@ -31,6 +31,30 @@ type ProgressEvent = {
 
 type ProgressPayload = Omit<ProgressEvent, "type">;
 
+function serializeError(error: unknown): Record<string, unknown> {
+    if (error instanceof Error) {
+        return {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+            cause: error.cause,
+        };
+    }
+
+    return { message: String(error) };
+}
+
+function logUpload(traceId: string | undefined, message: string, data?: Record<string, unknown>) {
+    console.info(`[UploadLicitacaoDocument:${traceId ?? "no-trace"}] ${message}`, data ?? {});
+}
+
+function logUploadError(traceId: string | undefined, message: string, error: unknown, data?: Record<string, unknown>) {
+    console.error(`[UploadLicitacaoDocument:${traceId ?? "no-trace"}] ${message}`, {
+        ...data,
+        ...serializeError(error),
+    });
+}
+
 export class UploadLicitacaoDocument {
     constructor(
         private readonly identifierProvider: IIdentifierProvider,
@@ -46,18 +70,51 @@ export class UploadLicitacaoDocument {
     ) {}
 
     async execute(params: UploadLicitacaoDocument.Params): Promise<UploadLicitacaoDocument.Response> {
+        const startedAt = Date.now();
+        const traceId = params.traceId;
+        let stage = "access.check";
+
+        logUpload(traceId, "execute.started", {
+            companyId: params.companyId,
+            oportunidadeId: params.oportunidadeId,
+            editalId: params.editalId,
+            replaceDocumentId: params.replaceDocumentId,
+            documentType: params.documentType,
+            fileFilename: params.fileFilename,
+            fileMimeType: params.fileMimeType,
+            fileSizeBytes: params.fileSizeBytes,
+        });
+
+        const accessStartedAt = Date.now();
         const company = await assertUserCanAccessCompany({
             companyRepository: this.companyRepository,
             membershipRepository: this.membershipRepository,
             userId: params.userId,
             companyId: params.companyId,
         });
+        logUpload(traceId, "access.ready", {
+            companyId: company.id,
+            durationMs: Date.now() - accessStartedAt,
+        });
 
+        stage = "file.validation";
         this.assertSupportedFile(params);
+        logUpload(traceId, "file.validated", {
+            filename: params.fileFilename,
+            mimeType: params.fileMimeType,
+            sizeBytes: params.fileSizeBytes,
+        });
 
+        stage = "document.lookup";
+        const existingDocumentStartedAt = Date.now();
         const existingDocument = params.replaceDocumentId
             ? await this.documentRepository.findById({ id: params.replaceDocumentId })
             : null;
+        logUpload(traceId, "document.lookup.done", {
+            replaceDocumentId: params.replaceDocumentId,
+            found: Boolean(existingDocument),
+            durationMs: Date.now() - existingDocumentStartedAt,
+        });
 
         if (params.replaceDocumentId && !existingDocument) {
             throw new Error("Documento a ser substituído não foi encontrado.");
@@ -67,11 +124,19 @@ export class UploadLicitacaoDocument {
             throw new Error("Você não tem acesso a este documento.");
         }
 
+        stage = "draft.resolve";
+        const contextStartedAt = Date.now();
         const context = await this.resolveDraftContext({
             companyId: company.id,
             createdById: params.createdById,
             oportunidadeId: params.oportunidadeId,
             editalId: params.editalId ?? existingDocument?.editalId ?? undefined,
+        });
+        logUpload(traceId, "draft.ready", {
+            oportunidadeId: context.oportunidade.id,
+            licitacaoId: context.licitacao.id,
+            editalId: context.edital.id,
+            durationMs: Date.now() - contextStartedAt,
         });
 
         const documentId = existingDocument?.id ?? this.identifierProvider.generate();
@@ -105,6 +170,7 @@ export class UploadLicitacaoDocument {
         const previousStorageKey = existingDocument?.storageKey ?? null;
 
         try {
+            stage = "storage.upload";
             send(this.createProgressEvent({
                 step: "storage.upload",
                 message: "Enviando documento para o armazenamento seguro.",
@@ -119,6 +185,13 @@ export class UploadLicitacaoDocument {
                 },
             }));
 
+            const storageStartedAt = Date.now();
+            logUpload(traceId, "storage.upload.started", {
+                documentId,
+                key: logicalStorageKey,
+                bytes: params.fileBuffer.byteLength,
+            });
+
             storedDocument = await this.objectStorageProvider.putDocument({
                 key: logicalStorageKey,
                 body: params.fileBuffer,
@@ -132,7 +205,16 @@ export class UploadLicitacaoDocument {
                     ...(params.createdById ? { createdById: params.createdById } : {}),
                 },
             });
+            logUpload(traceId, "storage.upload.done", {
+                documentId,
+                bucket: storedDocument.bucket,
+                storageKey: storedDocument.storageKey,
+                sizeBytes: storedDocument.sizeBytes,
+                durationMs: Date.now() - storageStartedAt,
+            });
 
+            stage = existingDocument ? "document.update" : "document.create";
+            const persistStartedAt = Date.now();
             if (existingDocument) {
                 persistedDocument = await this.documentRepository.update({
                     id: existingDocument.id,
@@ -170,11 +252,27 @@ export class UploadLicitacaoDocument {
                     status: DocumentStatus.PROCESSING,
                 });
             }
+            logUpload(traceId, "document.persisted", {
+                documentId: persistedDocument.id,
+                status: persistedDocument.status,
+                durationMs: Date.now() - persistStartedAt,
+            });
 
+            stage = "vector.cleanup";
+            const vectorCleanupStartedAt = Date.now();
+            logUpload(traceId, "vector.cleanup.started", {
+                collectionName: this.config.vectorCollectionName,
+                documentId,
+            });
             await this.vectorStore.deleteByFilter(this.config.vectorCollectionName, {
                 must: [{ key: "document_id", match: { value: documentId } }],
             });
+            logUpload(traceId, "vector.cleanup.done", {
+                documentId,
+                durationMs: Date.now() - vectorCleanupStartedAt,
+            });
 
+            stage = "processing.ingest";
             send(this.createProgressEvent({
                 step: "processing.start",
                 message: "Documento salvo. Iniciando parsing e indexação vetorial.",
@@ -191,6 +289,7 @@ export class UploadLicitacaoDocument {
 
             const draftPreviewPromise = this.shouldExtractDraftPreview(params.documentType)
                 ? this.generateDraftPreview({
+                    traceId,
                     documentId,
                     oportunidadeId: context.oportunidade.id,
                     currentMetadata: context.oportunidade.metadata,
@@ -199,8 +298,16 @@ export class UploadLicitacaoDocument {
                 })
                 : Promise.resolve(null);
 
+            const ingestionStartedAt = Date.now();
+            logUpload(traceId, "ingestion.started", {
+                documentId,
+                bytes: params.fileBuffer.byteLength,
+                embeddingConcurrency: this.config.embeddingConcurrency,
+                storeConcurrency: this.config.storeConcurrency,
+            });
             await this.pdfIngestionWorker.ingest(documentId, {
                 pdfBuffer: params.fileBuffer,
+                traceId,
                 embeddingConcurrency: this.config.embeddingConcurrency,
                 storeConcurrency: this.config.storeConcurrency,
                 onProgress: {
@@ -251,28 +358,51 @@ export class UploadLicitacaoDocument {
                     },
                 },
             });
+            logUpload(traceId, "ingestion.done", {
+                documentId,
+                durationMs: Date.now() - ingestionStartedAt,
+            });
 
+            stage = "document.ready";
+            const readyStartedAt = Date.now();
             const document = await this.documentRepository.update({
                 id: documentId,
                 data: {
                     status: DocumentStatus.READY,
                 },
             });
+            logUpload(traceId, "document.ready", {
+                documentId,
+                status: document.status,
+                durationMs: Date.now() - readyStartedAt,
+            });
 
+            stage = "draft.preview.await";
             const oportunidade = await draftPreviewPromise;
+            logUpload(traceId, "draft.preview.awaited", {
+                updated: Boolean(oportunidade),
+            });
 
             if (previousStorageKey && previousStorageKey !== storedDocument.storageKey) {
+                stage = "storage.previous.delete";
                 await this.objectStorageProvider.deleteDocument({ key: previousStorageKey }).catch(() => undefined);
             }
 
+            stage = "temporary_url.create";
+            const urlStartedAt = Date.now();
             const temporaryUrl = await this.objectStorageProvider.getDocumentTemporaryUrl({
                 key: document.storageKey,
                 bucket: document.storageBucket,
                 filename: document.originalName,
                 contentType: document.mimeType,
             });
+            logUpload(traceId, "temporary_url.created", {
+                documentId,
+                expiresAt: temporaryUrl.expiresAt.toISOString(),
+                durationMs: Date.now() - urlStartedAt,
+            });
 
-            return UploadLicitacaoDocumentMapper.toView({
+            const response = UploadLicitacaoDocumentMapper.toView({
                 oportunidade: oportunidade ?? context.oportunidade,
                 licitacao: context.licitacao,
                 edital: context.edital,
@@ -280,7 +410,19 @@ export class UploadLicitacaoDocument {
                 documentUrl: temporaryUrl.url,
                 previewUrlExpiresAt: temporaryUrl.expiresAt,
             });
+            logUpload(traceId, "execute.done", {
+                documentId,
+                elapsedMs: Date.now() - startedAt,
+            });
+
+            return response;
         } catch (error) {
+            logUploadError(traceId, "execute.failed", error, {
+                stage,
+                documentId,
+                elapsedMs: Date.now() - startedAt,
+            });
+
             if (persistedDocument) {
                 await this.documentRepository.update({
                     id: persistedDocument.id,
@@ -386,6 +528,7 @@ export class UploadLicitacaoDocument {
     }
 
     private async generateDraftPreview(params: {
+        traceId?: string;
         documentId: string;
         oportunidadeId: string;
         currentMetadata: PrismaOportunidadeRepository.OportunidadeResponse["metadata"];
@@ -393,6 +536,11 @@ export class UploadLicitacaoDocument {
         filename: string;
     }) {
         try {
+            const startedAt = Date.now();
+            logUpload(params.traceId, "draft.preview.started", {
+                documentId: params.documentId,
+                filename: params.filename,
+            });
             const draftPreview = await this.draftPreviewExtractor.extract({
                 documentId: params.documentId,
                 pdfBuffer: params.pdfBuffer,
@@ -400,17 +548,27 @@ export class UploadLicitacaoDocument {
             });
 
             if (!draftPreview) {
+                logUpload(params.traceId, "draft.preview.empty", {
+                    documentId: params.documentId,
+                    durationMs: Date.now() - startedAt,
+                });
                 return null;
             }
 
-            return await this.oportunidadeRepository.update({
+            const oportunidade = await this.oportunidadeRepository.update({
                 id: params.oportunidadeId,
                 data: {
                     metadata: withDraftPreview(params.currentMetadata, draftPreview),
                 },
             });
+            logUpload(params.traceId, "draft.preview.done", {
+                documentId: params.documentId,
+                durationMs: Date.now() - startedAt,
+            });
+
+            return oportunidade;
         } catch (error) {
-            console.warn("[UploadLicitacaoDocument] Falha ao gerar preview leve do edital:", error);
+            console.warn(`[UploadLicitacaoDocument:${params.traceId ?? "no-trace"}] draft.preview.failed`, serializeError(error));
             return null;
         }
     }

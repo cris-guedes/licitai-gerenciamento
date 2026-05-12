@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { useCompanyWorkflowEditorService } from "../../../services/use-company-workflow-editor.service"
-import type { CompanyWorkflowResponse, WorkflowNode, WorkflowNodeKind, WorkflowNodePosition, WorkflowTransition } from "../../../types/workflow"
+import type { CompanyWorkflowResponse, WorkflowNode, WorkflowNodeDraft, WorkflowNodeKind, WorkflowNodePosition, WorkflowTransition } from "../../../types/workflow"
 
 type WorkflowEditorService = ReturnType<typeof useCompanyWorkflowEditorService>
 
@@ -13,12 +13,10 @@ type SelectedWorkflowElement =
   | { type: "transition"; id: string }
   | null
 
-type NodeDraft = {
-  label: string
-  description: string
-  color: string
-  isInitial: boolean
-  isTerminal: boolean
+type CreateNodeFromPaletteParams = {
+  kindId: string
+  parentNodeId: string | null
+  position?: WorkflowNodePosition | null
 }
 
 const DEFAULT_NODE_COLOR = "#3b82f6"
@@ -32,7 +30,7 @@ function getInitialColor(node: WorkflowNode | null) {
   return node?.color ?? node?.kind.color ?? DEFAULT_NODE_COLOR
 }
 
-function createNodeDraftFromNode(node: WorkflowNode): NodeDraft {
+function createNodeDraftFromNode(node: WorkflowNode): WorkflowNodeDraft {
   return {
     label: node.label,
     description: node.description ?? "",
@@ -42,7 +40,7 @@ function createNodeDraftFromNode(node: WorkflowNode): NodeDraft {
   }
 }
 
-function createEmptyNodeDraft(kind: WorkflowNodeKind | null): NodeDraft {
+function createEmptyNodeDraft(kind: WorkflowNodeKind | null): WorkflowNodeDraft {
   return {
     label: "",
     description: "",
@@ -58,6 +56,39 @@ function sortKinds(a: WorkflowNodeKind, b: WorkflowNodeKind) {
   return a.id.localeCompare(b.id)
 }
 
+function normalizeParentId(parentNodeId: string | null | undefined) {
+  return parentNodeId ?? null
+}
+
+function buildPaletteNodeLabel({
+  kind,
+  nodes,
+  parentNodeId,
+}: {
+  kind: WorkflowNodeKind
+  nodes: WorkflowNode[]
+  parentNodeId: string | null
+}) {
+  const siblingCount = nodes.filter(node =>
+    node.kindId === kind.id
+    && normalizeParentId(node.parentId) === parentNodeId,
+  ).length
+
+  return `${kind.label} ${siblingCount + 1}`
+}
+
+function findPaletteCreatedNode(data: CompanyWorkflowResponse, variables: CreateNodeFromPaletteParams) {
+  return data.workflow.nodes
+    .filter(node =>
+      node.kindId === variables.kindId
+      && normalizeParentId(node.parentId) === normalizeParentId(variables.parentNodeId),
+    )
+    .sort((a, b) => {
+      if (a.createdAt !== b.createdAt) return b.createdAt.localeCompare(a.createdAt)
+      return b.id.localeCompare(a.id)
+    })[0] ?? null
+}
+
 export function useCompanySettingsPage({
   companyId,
   workflowEditorService,
@@ -68,7 +99,7 @@ export function useCompanySettingsPage({
   const queryClient = useQueryClient()
   const [selectedElement, setSelectedElement] = useState<SelectedWorkflowElement>(null)
   const [createParentNodeId, setCreateParentNodeId] = useState<string | null | undefined>(undefined)
-  const [nodeDraft, setNodeDraft] = useState<NodeDraft>(() => createEmptyNodeDraft(null))
+  const [nodeDraft, setNodeDraft] = useState<WorkflowNodeDraft>(() => createEmptyNodeDraft(null))
   const [transitionTypeDraft, setTransitionTypeDraft] = useState("")
 
   const workflowQuery = useQuery({
@@ -161,6 +192,48 @@ export function useCompanySettingsPage({
     onSuccess: async (data) => {
       await updateWorkflowCaches(data)
       setCreateParentNodeId(undefined)
+      toast.success("Etapa criada.")
+    },
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "Não foi possível criar a etapa."))
+    },
+  })
+
+  const createNodeFromPaletteMutation = useMutation({
+    mutationFn: (params: CreateNodeFromPaletteParams) => {
+      if (!companyId || !workflow) {
+        throw new Error("Workflow da empresa não carregado.")
+      }
+
+      const kind = nodeKinds.find(item => item.id === params.kindId)
+      if (!kind) {
+        throw new Error("Tipo de etapa inválido.")
+      }
+
+      const parentNodeId = normalizeParentId(params.parentNodeId)
+
+      return workflowEditorService.createNode({
+        companyId,
+        workflowDefinitionId: workflow.id,
+        parentNodeId,
+        kindId: kind.id,
+        label: buildPaletteNodeLabel({ kind, nodes, parentNodeId }),
+        color: kind.color ?? DEFAULT_NODE_COLOR,
+        isInitial: false,
+        isTerminal: false,
+        position: params.position ?? null,
+      })
+    },
+    onSuccess: async (data, variables) => {
+      await updateWorkflowCaches(data)
+      setCreateParentNodeId(undefined)
+
+      const createdNode = findPaletteCreatedNode(data, variables)
+      if (createdNode) {
+        setSelectedElement({ type: "node", id: createdNode.id })
+        setNodeDraft(createNodeDraftFromNode(createdNode))
+      }
+
       toast.success("Etapa criada.")
     },
     onError: (error: unknown) => {
@@ -295,6 +368,13 @@ export function useCompanySettingsPage({
     setTransitionTypeDraft(transition.transitionType ?? "")
   }
 
+  const clearSelection = () => {
+    setCreateParentNodeId(undefined)
+    setSelectedElement(null)
+    setNodeDraft(createEmptyNodeDraft(null))
+    setTransitionTypeDraft("")
+  }
+
   const startCreateNode = (parentNodeId: string | null) => {
     const childKind = getAllowedChildKind(parentNodeId)
     setSelectedElement(null)
@@ -307,7 +387,7 @@ export function useCompanySettingsPage({
     setNodeDraft(createEmptyNodeDraft(null))
   }
 
-  const updateNodeDraft = (patch: Partial<NodeDraft>) => {
+  const updateNodeDraft = (patch: Partial<WorkflowNodeDraft>) => {
     setNodeDraft(current => ({ ...current, ...patch }))
   }
 
@@ -317,6 +397,7 @@ export function useCompanySettingsPage({
   const selectedNodeCanHaveChildren = selectedNode
     ? Boolean(getAllowedChildKind(selectedNode.id))
     : false
+  const canNodeHaveChildren = (nodeId: string) => Boolean(getAllowedChildKind(nodeId))
   const canCreateRootNode = Boolean(getAllowedChildKind(null))
   const hasNodeDraftChanges = Boolean(
     selectedNode
@@ -337,6 +418,7 @@ export function useCompanySettingsPage({
     workflow,
     nodes,
     transitions,
+    nodeKinds,
     selectedElement,
     selectedNode,
     selectedTransition,
@@ -347,6 +429,7 @@ export function useCompanySettingsPage({
     isLoading: workflowQuery.isLoading,
     isSaving: updateNodeMutation.isPending
       || createNodeMutation.isPending
+      || createNodeFromPaletteMutation.isPending
       || deleteNodeMutation.isPending
       || createTransitionMutation.isPending
       || updateTransitionMutation.isPending
@@ -355,15 +438,18 @@ export function useCompanySettingsPage({
     hasTransitionDraftChanges,
     selectedNodeHasChildren,
     selectedNodeCanHaveChildren,
+    canNodeHaveChildren,
     canCreateRootNode,
     selectNode,
     selectTransition,
+    clearSelection,
     startCreateNode,
     cancelCreateNode,
     updateNodeDraft,
     setTransitionTypeDraft,
     saveSelectedNode: () => updateNodeMutation.mutateAsync(),
     createDraftNode: () => createNodeMutation.mutateAsync(),
+    createNodeFromPalette: (params: CreateNodeFromPaletteParams) => createNodeFromPaletteMutation.mutateAsync(params),
     deleteSelectedNode: () => deleteNodeMutation.mutateAsync(),
     createTransition: (fromNodeId: string, toNodeId: string) => createTransitionMutation.mutateAsync({ fromNodeId, toNodeId }),
     saveSelectedTransition: () => updateTransitionMutation.mutateAsync(),

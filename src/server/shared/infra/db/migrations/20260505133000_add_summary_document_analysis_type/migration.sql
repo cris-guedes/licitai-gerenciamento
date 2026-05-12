@@ -1,1 +1,0 @@
-ALTER TYPE "DocumentAnalysisType" ADD VALUE IF NOT EXISTS 'SUMMARY';

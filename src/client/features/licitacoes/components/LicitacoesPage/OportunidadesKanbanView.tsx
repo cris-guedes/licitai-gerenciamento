@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { CalendarClock, Check, MoreHorizontal, UserRound } from "lucide-react"
 import { Badge } from "@/client/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/client/components/ui/card"
@@ -49,9 +49,9 @@ export function OportunidadesKanbanView({
   isMoving,
   movingOportunidadeId,
   getMoveOptions,
-  getReachableNodeForPhase,
   onMoveToNode,
   onMoveToPhase,
+  onOpenDetail,
 }: {
   phases: WorkflowNode[]
   items: OportunidadeBoardItem[]
@@ -69,14 +69,13 @@ export function OportunidadesKanbanView({
     phaseId: string | null
     phaseLabel: string | null
   }>
-  getReachableNodeForPhase: (item: OportunidadeBoardItem, phaseId: string) => {
-    nodeId: string
-  } | null
   onMoveToNode: (params: { oportunidadeId: string; targetNodeId: string }) => Promise<void>
   onMoveToPhase: (item: OportunidadeBoardItem, phaseId: string) => Promise<void>
+  onOpenDetail: (item: OportunidadeBoardItem) => void
 }) {
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [hoveredPhaseId, setHoveredPhaseId] = useState<string | null>(null)
+  const suppressCardClickUntilRef = useRef(0)
 
   const phaseToneById = useMemo(() => {
     const palette = [
@@ -150,13 +149,14 @@ export function OportunidadesKanbanView({
               }}
               onDrop={(event) => {
                 event.preventDefault()
+                event.stopPropagation()
+                suppressCardClickUntilRef.current = Date.now() + 300
                 const oportunidadeId = event.dataTransfer.getData("text/oportunidadeId")
                 const item = items.find(entry => entry.oportunidadeId === oportunidadeId)
                 setHoveredPhaseId(null)
                 setDraggingId(null)
 
                 if (!item) return
-                if (!getReachableNodeForPhase(item, phase.id)) return
 
                 void onMoveToPhase(item, phase.id)
               }}
@@ -198,17 +198,33 @@ export function OportunidadesKanbanView({
                       <Card
                         key={item.oportunidadeId}
                         draggable={item.canMove && !isMoving}
+                        role="button"
+                        tabIndex={0}
                         onDragStart={(event) => {
                           if (!item.canMove) return
                           event.dataTransfer.setData("text/oportunidadeId", item.oportunidadeId)
                           setDraggingId(item.oportunidadeId)
                         }}
                         onDragEnd={() => {
+                          suppressCardClickUntilRef.current = Date.now() + 300
                           setDraggingId(null)
                           setHoveredPhaseId(null)
                         }}
+                        onClick={(event) => {
+                          if (Date.now() < suppressCardClickUntilRef.current) {
+                            event.preventDefault()
+                            return
+                          }
+
+                          onOpenDetail(item)
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter" && event.key !== " ") return
+                          event.preventDefault()
+                          onOpenDetail(item)
+                        }}
                         className={cn(
-                          "rounded-lg border border-slate-300/80 bg-white shadow-[0_1px_2px_rgba(9,30,66,0.18)] transition-shadow hover:shadow-[0_3px_8px_rgba(9,30,66,0.2)]",
+                          "cursor-pointer rounded-lg border border-slate-300/80 bg-white shadow-[0_1px_2px_rgba(9,30,66,0.18)] transition-shadow hover:shadow-[0_3px_8px_rgba(9,30,66,0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200",
                           draggingId === item.oportunidadeId && "opacity-60",
                         )}
                       >

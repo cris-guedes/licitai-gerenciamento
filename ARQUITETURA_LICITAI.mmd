@@ -1,0 +1,91 @@
+graph TB
+    subgraph Frontend["🎨 Frontend - Next.js/React"]
+        Auth["Auth Pages<br/>Login/Signup/Onboarding"]
+        Dashboard["Dashboard"]
+        OrgPage["Org Profile"]
+        CompanySettings["Company Settings"]
+        Board["Oportunidades Board<br/>Kanban/Lista"]
+        DocViewer["Document Viewer<br/>& Chat"]
+        Search["Search & Discovery"]
+    end
+
+    subgraph Backend["⚙️ Backend - Fastify/Next.js API"]
+        AuthAPI["Auth API<br/>Sessions & OAuth"]
+        CoreAPI["Core API<br/>CRUD Operations"]
+        LicitAPI["Licitação API<br/>Import & Processing"]
+        AnalysisAPI["Analysis API<br/>Document & Edital"]
+        SearchAPI["Search API<br/>Full-text & Vector"]
+        ChatAPI["Chat API<br/>AI Interactions"]
+        WorkflowAPI["Workflow API<br/>Transitions & Nodes"]
+    end
+
+    subgraph AI["🤖 AI/ML Pipeline"]
+        LangChain["LangChain<br/>Chains & Agents"]
+        GPT4["OpenAI GPT-4<br/>Text Generation"]
+        Embeddings["Embeddings<br/>Vectorization"]
+        Transformers["Transformers<br/>Token Counting"]
+    end
+
+    subgraph Database["💾 Data Layer"]
+        PostgreSQL["PostgreSQL<br/>Prisma ORM"]
+        Qdrant["Qdrant<br/>Vector Store"]
+        R2["Cloudflare R2<br/>Document Storage"]
+    end
+
+    subgraph External["🌐 External APIs"]
+        PNCP["PNCP API<br/>Government Data"]
+        DocumentHandler["Document Handler<br/>PDF Processing"]
+    end
+
+    subgraph Models["📊 Core Models"]
+        User["User & Auth"]
+        Org["Organization"]
+        Company["Company"]
+        Membership["Membership"]
+        Licitacao["Licitacao"]
+        Edital["Edital"]
+        Document["Document"]
+        Oportunidade["Oportunidade"]
+        Workflow["Workflow<br/>Definition & Nodes"]
+    end
+
+    Frontend --> Backend
+    Backend --> AI
+    Backend --> Database
+    Backend --> External
+    Backend --> Models
+
+    Dashboard --> CoreAPI
+    Board --> WorkflowAPI
+    Board --> AnalysisAPI
+    DocViewer --> ChatAPI
+    DocViewer --> SearchAPI
+    Search --> SearchAPI
+    Auth --> AuthAPI
+
+    CoreAPI --> PostgreSQL
+    WorkflowAPI --> PostgreSQL
+    AnalysisAPI --> PostgreSQL
+    LicitAPI --> PostgreSQL
+    SearchAPI --> Qdrant
+    SearchAPI --> PostgreSQL
+
+    LicitAPI --> PNCP
+    AnalysisAPI --> GPT4
+    AnalysisAPI --> Embeddings
+    ChatAPI --> GPT4
+    ChatAPI --> LangChain
+    Embeddings --> Qdrant
+
+    LicitAPI --> R2
+    AnalysisAPI --> R2
+    DocViewer --> R2
+
+    PostgreSQL -.contains.- Models
+
+    style Frontend fill:#e1f5ff
+    style Backend fill:#f3e5f5
+    style AI fill:#fff3e0
+    style Database fill:#e8f5e9
+    style External fill:#fce4ec
+    style Models fill:#f1f8e9

@@ -426,6 +426,23 @@ export type MoveOportunidadeWorkflowResponse = {
   item: OportunidadeBoardItem
 }
 
+export type UpdateOportunidadeBoardItemResponse = {
+  item: OportunidadeBoardItem
+}
+
+export type TeamMemberOption = {
+  membershipId: string
+  userId: string
+  name: string
+  email: string
+  role: string
+  createdAt: string
+}
+
+export type ListTeamMembersResponse = {
+  members: TeamMemberOption[]
+}
+
 type ExtractedItem = NonNullable<NonNullable<ExtractEditalDataResponse["licitacao"]["edital"]>["itens"]>[number]
 
 type PartialExtractionResponse = Pick<ExtractEditalDataResponse, "sessionId" | "mdContent" | "licitacao">
@@ -561,6 +578,89 @@ function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error))
 }
 
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeoutMs = 20000,
+) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("A requisição demorou demais para responder. Tente novamente em instantes.")
+    }
+
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+function normalizeStreamError(error: unknown, fallbackMessage: string): Error {
+  const err = toError(error)
+
+  if (/input stream/i.test(err.message) || /stream.+terminated/i.test(err.message) || /networkerror/i.test(err.message)) {
+    const normalizedError = new Error(fallbackMessage)
+    Object.defineProperty(normalizedError, "cause", {
+      value: err,
+      enumerable: false,
+    })
+    return normalizedError
+  }
+
+  return err
+}
+
+function normalizeExtractionStreamError(error: unknown): Error {
+  return normalizeStreamError(
+    error,
+    "A conexão da extração foi interrompida antes da conclusão. Vamos tentar recuperar o resultado salvo no workspace.",
+  )
+}
+
+function normalizeUploadStreamError(error: unknown): Error {
+  return normalizeStreamError(
+    error,
+    "A conexão do upload foi interrompida durante o processamento do documento. Tente novamente em alguns instantes.",
+  )
+}
+
+function createUploadTraceId() {
+  const randomId = typeof globalThis.crypto?.randomUUID === "function"
+    ? globalThis.crypto.randomUUID()
+    : Math.random().toString(36).slice(2, 10)
+
+  return `upload-${Date.now()}-${randomId}`
+}
+
+function logUploadDebug(traceId: string, message: string, data?: Record<string, unknown>) {
+  console.debug(`[UploadLicitacaoDocument:${traceId}] ${message}`, data ?? {})
+}
+
+function describeError(error: unknown) {
+  const err = toError(error)
+
+  return {
+    name: err.name,
+    message: err.message,
+    stack: err.stack,
+    cause: err.cause,
+  }
+}
+
+function logUploadFailure(traceId: string, originalError: unknown, normalizedError: Error) {
+  console.warn(`[UploadLicitacaoDocument:${traceId}] request.failed`, {
+    original: describeError(originalError),
+    normalized: describeError(normalizedError),
+  })
+}
+
 export function useLicitacaoService(_api: CoreApiClient) {
   const listDrafts = useCallback(async ({
     companyId,
@@ -591,7 +691,7 @@ export function useLicitacaoService(_api: CoreApiClient) {
       oportunidadeId,
     })
 
-    const res = await fetch(`/api/core/get-licitacao-workspace?${query.toString()}`, {
+    const res = await fetchWithTimeout(`/api/core/get-licitacao-workspace?${query.toString()}`, {
       method: "GET",
     })
 
@@ -615,6 +715,23 @@ export function useLicitacaoService(_api: CoreApiClient) {
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       throw new Error(body.message ?? `Erro ${res.status} ao carregar o workflow da empresa`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const listTeamMembers = useCallback(async ({
+    organizationId,
+  }: {
+    organizationId: string
+  }): Promise<ListTeamMembersResponse> => {
+    const res = await fetch(`/api/core/team/list-members?organizationId=${encodeURIComponent(organizationId)}`, {
+      method: "GET",
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao carregar responsáveis`)
     }
 
     return await res.json()
@@ -673,7 +790,7 @@ export function useLicitacaoService(_api: CoreApiClient) {
     oportunidadeId: string
     targetNodeId: string
   }): Promise<MoveOportunidadeWorkflowResponse> => {
-    const res = await fetch("/api/core/move-oportunidade-workflow", {
+    const res = await fetchWithTimeout("/api/core/move-oportunidade-workflow", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -686,6 +803,42 @@ export function useLicitacaoService(_api: CoreApiClient) {
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       throw new Error(body.message ?? `Erro ${res.status} ao mover a oportunidade no workflow`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const updateOportunidadeBoardItem = useCallback(async ({
+    companyId,
+    oportunidadeId,
+    responsavelUserId,
+    phaseNodeId,
+    statusNodeId,
+    situationNodeId,
+  }: {
+    companyId: string
+    oportunidadeId: string
+    responsavelUserId?: string | null
+    phaseNodeId?: string
+    statusNodeId?: string
+    situationNodeId?: string
+  }): Promise<UpdateOportunidadeBoardItemResponse> => {
+    const res = await fetchWithTimeout("/api/core/update-oportunidade-board-item", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        companyId,
+        oportunidadeId,
+        responsavelUserId,
+        phaseNodeId,
+        statusNodeId,
+        situationNodeId,
+      }),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao atualizar a oportunidade`)
     }
 
     return await res.json()
@@ -994,7 +1147,7 @@ export function useLicitacaoService(_api: CoreApiClient) {
 
         return finalResult
       } catch (e: unknown) {
-        const err = toError(e)
+        const err = normalizeExtractionStreamError(e)
         setError(err)
         throw err
       } finally {
@@ -1032,6 +1185,7 @@ export function useLicitacaoService(_api: CoreApiClient) {
     }): Promise<UploadLicitacaoDocumentResponse> => {
       setPendingCount(current => current + 1)
       setError(null)
+      const traceId = createUploadTraceId()
 
       try {
         const formData = new FormData()
@@ -1040,23 +1194,50 @@ export function useLicitacaoService(_api: CoreApiClient) {
         const query = new URLSearchParams({
           companyId,
           documentType,
+          traceId,
         })
 
         if (oportunidadeId) query.set("oportunidadeId", oportunidadeId)
         if (editalId) query.set("editalId", editalId)
         if (replaceDocumentId) query.set("replaceDocumentId", replaceDocumentId)
 
+        logUploadDebug(traceId, "request.started", {
+          companyId,
+          documentType,
+          oportunidadeId,
+          editalId,
+          replaceDocumentId,
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+        })
+
         const res = await fetch(`/api/core/upload-licitacao-document/stream?${query.toString()}`, {
           method: "POST",
+          headers: {
+            "x-upload-trace-id": traceId,
+          },
           body: formData,
+        })
+
+        logUploadDebug(traceId, "response.received", {
+          ok: res.ok,
+          status: res.status,
+          statusText: res.statusText,
+          contentType: res.headers.get("content-type"),
         })
 
         if (!res.ok) {
           const body = await res.json().catch(() => ({}))
+          logUploadDebug(traceId, "response.failed", {
+            status: res.status,
+            body,
+          })
           throw new Error(body.message ?? `Erro ${res.status} no upload do documento`)
         }
 
         if (!res.body) {
+          logUploadDebug(traceId, "response.empty_body")
           throw new Error("O stream de upload não retornou conteúdo.")
         }
 
@@ -1076,6 +1257,14 @@ export function useLicitacaoService(_api: CoreApiClient) {
             const event = parseEventBlock<UploadLicitacaoDocumentEvent>(block)
             if (!event) continue
 
+            logUploadDebug(traceId, "sse.event", {
+              type: event.type,
+              step: event.step,
+              percent: event.percent,
+              status: event.status,
+              context: event.type === "progress" ? event.context : undefined,
+            })
+
             onEvent?.(event)
 
             if (event.type === "done") {
@@ -1091,12 +1280,22 @@ export function useLicitacaoService(_api: CoreApiClient) {
         }
 
         if (!finalResult) {
+          logUploadDebug(traceId, "sse.missing_final_result", {
+            bufferedChars: buffer.length,
+          })
           throw new Error("O upload terminou sem enviar o resultado final.")
         }
 
+        logUploadDebug(traceId, "request.completed", {
+          documentId: finalResult.documentId,
+          oportunidadeId: finalResult.oportunidadeId,
+          status: finalResult.status,
+        })
+
         return finalResult
       } catch (e: unknown) {
-        const err = toError(e)
+        const err = normalizeUploadStreamError(e)
+        logUploadFailure(traceId, e, err)
         setError(err)
         throw err
       } finally {
@@ -1156,8 +1355,10 @@ export function useLicitacaoService(_api: CoreApiClient) {
     listDrafts,
     getWorkspace,
     getCompanyWorkflow,
+    listTeamMembers,
     listOportunidadesBoard,
     moveOportunidadeWorkflow,
+    updateOportunidadeBoardItem,
     updateCompanyWorkflowNode,
     deleteDraft,
     finalizeRegistration,

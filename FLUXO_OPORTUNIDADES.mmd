@@ -1,0 +1,51 @@
+graph LR
+    A["📋 Licitação<br/>PNCP/Portal"] --> B["📄 Edital<br/>PDF Upload"]
+    
+    B --> C["🔄 Document Processing<br/>PDF → Markdown"]
+    
+    C --> D["🤖 AI Analysis Pipeline"]
+    
+    D --> E["Extração de Dados:<br/>- Cronograma<br/>- Itens<br/>- Habilitações<br/>- Órgãos"]
+    
+    D --> F["Vetorização<br/>Embeddings + Qdrant"]
+    
+    E --> G["📊 Edital Estruturado"]
+    G --> H["Armazena em<br/>PostgreSQL"]
+    
+    F --> I["Busca Vetorizada<br/>Similarity Search"]
+    
+    H --> J["👤 Criação de<br/>Oportunidade"]
+    
+    J --> K["🎯 Workflow Engine<br/>Phase → Status → Situation"]
+    
+    K --> L["📍 Board de Oportunidades<br/>Kanban/Lista"]
+    
+    L --> M["💬 Chat & Analysis<br/>per Oportunidade"]
+    
+    M --> N["💾 Armazena:<br/>- Responsável<br/>- Status Atual<br/>- Metadados<br/>- Análises"]
+    
+    N --> O["📈 Dashboard<br/>Métricas & Tracking"]
+    
+    I --> P["🔍 Search Feature<br/>Encontrar Licitações"]
+    
+    P --> Q["📌 Quick Capture<br/>Nova Oportunidade"]
+    
+    Q --> K
+    
+    style A fill:#fff3e0
+    style B fill:#fff3e0
+    style C fill:#ffe0b2
+    style D fill:#ffcc80
+    style E fill:#ffa726
+    style F fill:#ffa726
+    style G fill:#e8f5e9
+    style H fill:#81c784
+    style I fill:#66bb6a
+    style J fill:#e1f5fe
+    style K fill:#64b5f6
+    style L fill:#42a5f5
+    style M fill:#2196f3
+    style N fill:#1976d2
+    style O fill:#1565c0
+    style P fill:#66bb6a
+    style Q fill:#4caf50
