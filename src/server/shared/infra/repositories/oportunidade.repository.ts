@@ -156,6 +156,26 @@ export class PrismaOportunidadeRepository {
         });
     }
 
+    async listItemsByOportunidadeId(
+        params: PrismaOportunidadeRepository.ListItemsByOportunidadeIdParams,
+    ): Promise<PrismaOportunidadeRepository.OportunidadeItemRecord[]> {
+        return prisma.oportunidadeItem.findMany({
+            where: {
+                oportunidadeId: params.oportunidadeId,
+                oportunidade: {
+                    companyId: params.companyId,
+                },
+            },
+            include: {
+                editalItem: true,
+            },
+            orderBy: [
+                { editalItem: { numeroItem: "asc" } },
+                { createdAt: "asc" },
+            ],
+        });
+    }
+
     async listDraftsByCompanyId(
         params: PrismaOportunidadeRepository.ListDraftsByCompanyIdParams,
     ): Promise<PrismaOportunidadeRepository.OportunidadeDraftRecord[]> {
@@ -168,10 +188,42 @@ export class PrismaOportunidadeRepository {
                 licitacao: true,
                 edital: {
                     include: {
+                        cronograma: true,
+                        certame: true,
                         documents: {
                             orderBy: [
                                 { createdAt: "asc" },
                                 { originalName: "asc" },
+                            ],
+                        },
+                        habilitacoes: {
+                            orderBy: [
+                                { ordem: "asc" },
+                                { createdAt: "asc" },
+                            ],
+                        },
+                        itensDetalhados: {
+                            orderBy: [
+                                { numeroItem: "asc" },
+                                { createdAt: "asc" },
+                            ],
+                        },
+                        orgaos: {
+                            include: {
+                                orgao: true,
+                                itens: {
+                                    include: {
+                                        editalItem: true,
+                                    },
+                                    orderBy: [
+                                        { editalItem: { numeroItem: "asc" } },
+                                        { createdAt: "asc" },
+                                    ],
+                                },
+                            },
+                            orderBy: [
+                                { papel: "asc" },
+                                { createdAt: "asc" },
                             ],
                         },
                     },
@@ -193,10 +245,42 @@ export class PrismaOportunidadeRepository {
                 licitacao: true,
                 edital: {
                     include: {
+                        cronograma: true,
+                        certame: true,
                         documents: {
                             orderBy: [
                                 { createdAt: "asc" },
                                 { originalName: "asc" },
+                            ],
+                        },
+                        habilitacoes: {
+                            orderBy: [
+                                { ordem: "asc" },
+                                { createdAt: "asc" },
+                            ],
+                        },
+                        itensDetalhados: {
+                            orderBy: [
+                                { numeroItem: "asc" },
+                                { createdAt: "asc" },
+                            ],
+                        },
+                        orgaos: {
+                            include: {
+                                orgao: true,
+                                itens: {
+                                    include: {
+                                        editalItem: true,
+                                    },
+                                    orderBy: [
+                                        { editalItem: { numeroItem: "asc" } },
+                                        { createdAt: "asc" },
+                                    ],
+                                },
+                            },
+                            orderBy: [
+                                { papel: "asc" },
+                                { createdAt: "asc" },
                             ],
                         },
                     },
@@ -344,6 +428,67 @@ export class PrismaOportunidadeRepository {
                 ...params.data,
                 metadata: this.toJsonInput(params.data.metadata),
             },
+        });
+    }
+
+    async updateDetails(
+        params: PrismaOportunidadeRepository.UpdateDetailsParams,
+    ): Promise<PrismaOportunidadeRepository.OportunidadeBoardRecord> {
+        return prisma.$transaction(async tx => {
+            const oportunidade = await tx.oportunidade.findFirst({
+                where: {
+                    id: params.oportunidadeId,
+                    companyId: params.companyId,
+                },
+                include: {
+                    licitacao: true,
+                    edital: true,
+                },
+            });
+
+            if (!oportunidade) {
+                throw new Error("Oportunidade não encontrada.");
+            }
+
+            const licitacaoData = this.toLicitacaoDetailsUpdateData(params.data);
+            const editalData = this.toEditalDetailsUpdateData(params.data);
+
+            if (oportunidade.licitacaoId && Object.keys(licitacaoData).length > 0) {
+                await tx.licitacao.update({
+                    where: { id: oportunidade.licitacaoId },
+                    data: licitacaoData,
+                });
+            }
+
+            if (oportunidade.editalId && Object.keys(editalData).length > 0) {
+                await tx.edital.update({
+                    where: { id: oportunidade.editalId },
+                    data: editalData,
+                });
+            }
+
+            if (params.data.metadata !== undefined) {
+                await tx.oportunidade.update({
+                    where: { id: oportunidade.id },
+                    data: {
+                        metadata: this.toJsonInput(params.data.metadata),
+                    },
+                });
+            }
+
+            const updated = await tx.oportunidade.findFirst({
+                where: {
+                    id: params.oportunidadeId,
+                    companyId: params.companyId,
+                },
+                include: this.boardInclude,
+            });
+
+            if (!updated) {
+                throw new Error("Não foi possível recarregar a oportunidade após a atualização.");
+            }
+
+            return updated;
         });
     }
 
@@ -720,6 +865,39 @@ export class PrismaOportunidadeRepository {
         return value;
     }
 
+    private toLicitacaoDetailsUpdateData(
+        data: PrismaOportunidadeRepository.UpdateDetailsData,
+    ): Prisma.LicitacaoUpdateInput {
+        const updateData: Prisma.LicitacaoUpdateInput = {};
+
+        if (data.numero !== undefined) updateData.numeroLicitacao = data.numero;
+        if (data.processo !== undefined) updateData.processoAdministrativo = data.processo;
+        if (data.modalidade !== undefined) updateData.modalidadeNome = data.modalidade;
+        if (data.objetoResumo !== undefined) updateData.objetoResumo = data.objetoResumo;
+        if (data.valorEstimado !== undefined) updateData.valorEstimadoTotal = data.valorEstimado;
+        if (data.dataAbertura !== undefined) updateData.dataAberturaProposta = data.dataAbertura;
+        if (data.dataEncerramento !== undefined) updateData.dataEncerramentoProposta = data.dataEncerramento;
+
+        return updateData;
+    }
+
+    private toEditalDetailsUpdateData(
+        data: PrismaOportunidadeRepository.UpdateDetailsData,
+    ): Prisma.EditalUpdateInput {
+        const updateData: Prisma.EditalUpdateInput = {};
+
+        if (data.numero !== undefined) updateData.numero = data.numero;
+        if (data.processo !== undefined) updateData.processo = data.processo;
+        if (data.modalidade !== undefined) updateData.modalidade = data.modalidade;
+        if (data.orgaoNome !== undefined) updateData.orgaoRazaoSocial = data.orgaoNome;
+        if (data.objetoResumo !== undefined) updateData.objeto = data.objetoResumo;
+        if (data.valorEstimado !== undefined) updateData.valorEstimado = data.valorEstimado;
+        if (data.dataAbertura !== undefined) updateData.dataAbertura = data.dataAbertura;
+        if (data.dataEncerramento !== undefined) updateData.dataEncerramento = data.dataEncerramento;
+
+        return updateData;
+    }
+
     private toOrgaoPublicoData(orgao: PrismaOportunidadeRepository.FinalizeRegistrationOrgaoData) {
         return {
             cnpj: orgao.cnpj,
@@ -825,6 +1003,11 @@ export namespace PrismaOportunidadeRepository {
         companyId?: string;
     };
 
+    export type ListItemsByOportunidadeIdParams = {
+        oportunidadeId: string;
+        companyId: string;
+    };
+
     export type ListDraftsByCompanyIdParams = {
         companyId: string;
     };
@@ -870,6 +1053,24 @@ export namespace PrismaOportunidadeRepository {
         data: UpdateData;
     };
 
+    export type UpdateDetailsData = {
+        numero?: string | null;
+        processo?: string | null;
+        modalidade?: string | null;
+        orgaoNome?: string | null;
+        objetoResumo?: string | null;
+        valorEstimado?: number | null;
+        dataAbertura?: Date | null;
+        dataEncerramento?: Date | null;
+        metadata?: Prisma.InputJsonValue | null;
+    };
+
+    export type UpdateDetailsParams = {
+        companyId: string;
+        oportunidadeId: string;
+        data: UpdateDetailsData;
+    };
+
     export type DeleteDraftByIdParams = {
         oportunidadeId: string;
         companyId: string;
@@ -888,7 +1089,36 @@ export namespace PrismaOportunidadeRepository {
         }) | null;
     };
 
-    export type OportunidadeWorkspaceRecord = OportunidadeDraftRecord;
+    export type OportunidadeWorkspaceRecord = Prisma.OportunidadeGetPayload<{
+        include: {
+            licitacao: true;
+            edital: {
+                include: {
+                    cronograma: true;
+                    certame: true;
+                    documents: true;
+                    habilitacoes: true;
+                    itensDetalhados: true;
+                    orgaos: {
+                        include: {
+                            orgao: true;
+                            itens: {
+                                include: {
+                                    editalItem: true;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    }>;
+
+    export type OportunidadeItemRecord = Prisma.OportunidadeItemGetPayload<{
+        include: {
+            editalItem: true;
+        };
+    }>;
 
     export type OportunidadeBoardRecord = Prisma.OportunidadeGetPayload<{
         include: {

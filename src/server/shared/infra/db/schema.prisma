@@ -124,6 +124,7 @@ model Company {
   editalAnalyses     EditalAnalysis[]
   oportunidades      Oportunidade[]
   workflowDefinitions WorkflowDefinition[]
+  contratos          Contrato[]
 }
 
 // ─── Membership ───────────────────────────────────────────────────────────────
@@ -385,6 +386,7 @@ model Oportunidade {
   currentSituationNode WorkflowNode?      @relation("OportunidadeCurrentSituationNode", fields: [currentSituationNodeId], references: [id], onDelete: SetNull)
   responsavel         User?               @relation("OportunidadeResponsavel", fields: [responsavelUserId], references: [id], onDelete: SetNull)
   itens               OportunidadeItem[]
+  contratos           Contrato[]
 
   @@unique([companyId, licitacaoId])
   @@index([companyId, createdAt])
@@ -408,6 +410,7 @@ model OportunidadeItem {
 
   oportunidade Oportunidade @relation(fields: [oportunidadeId], references: [id], onDelete: Cascade)
   editalItem   EditalItem   @relation(fields: [editalItemId], references: [id], onDelete: Cascade)
+  contratoItens ContratoItem[]
 
   @@unique([oportunidadeId, editalItemId])
   @@index([oportunidadeId, createdAt])
@@ -793,4 +796,211 @@ enum ChatMessageRole {
   USER
   ASSISTANT
   SYSTEM
+}
+
+enum ContratoStatus {
+  RASCUNHO
+  VIGENTE
+  ENCERRADO
+  RESCINDIDO
+  CANCELADO
+}
+
+enum ContratoEmpenhoStatus {
+  ATIVO
+  CANCELADO
+  UTILIZADO
+}
+
+enum EmpenhoEntregaStatus {
+  PENDENTE
+  ENTREGUE
+  ACEITE_PROVISORIO
+  ACEITE_DEFINITIVO
+  PAGO
+  REJEITADO
+}
+
+// ─── Contratos ────────────────────────────────────────────────────────────────
+
+model Contrato {
+  id                    String          @id @default(cuid())
+  oportunidadeId        String
+  companyId             String
+
+  numeroContrato        String?
+  anoContrato           Int?
+  processo              String?
+  objetoContrato        String?
+  tipoContrato          String?          // "contrato" | "ata_registro_precos" | "empenho_direto"
+
+  fornecedorCnpjCpf     String?
+  fornecedorNome        String?
+
+  valorInicial          Decimal?         @db.Decimal(15, 2)
+  valorGlobal           Decimal?         @db.Decimal(15, 2)
+
+  dataAssinatura        DateTime?
+  dataVigenciaInicio    DateTime?
+  dataVigenciaFim       DateTime?
+  dataPublicacao        DateTime?
+
+  prazoEntregaDias      Int?
+  prazoPagamentoDias    Int?
+  prazoAceiteDias       Int?
+
+  garantiaTipo          String?
+  garantiaMeses         Int?
+
+  numeroControlePncp    String?          @unique
+  sequencialContrato    Int?
+
+  status                ContratoStatus   @default(RASCUNHO)
+  informacaoComplementar String?
+  metadata              Json?
+
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  oportunidade          Oportunidade     @relation(fields: [oportunidadeId], references: [id], onDelete: Cascade)
+  company               Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  itens                 ContratoItem[]
+  empenhos              ContratoEmpenho[]
+
+  @@index([oportunidadeId, createdAt])
+  @@index([companyId, createdAt])
+  @@index([status, createdAt])
+  @@index([dataVigenciaFim])
+}
+
+model ContratoItem {
+  id                    String   @id @default(cuid())
+  contratoId            String
+  oportunidadeItemId    String
+
+  quantidadeContratada  Decimal? @db.Decimal(18, 4)
+  valorUnitario         Decimal? @db.Decimal(15, 2)
+  valorTotal            Decimal? @db.Decimal(15, 2)
+
+  quantidadeEmpenhada   Decimal  @default(0) @db.Decimal(18, 4)
+  quantidadeEntregue    Decimal  @default(0) @db.Decimal(18, 4)
+  quantidadePaga        Decimal  @default(0) @db.Decimal(18, 4)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  contrato              Contrato         @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  oportunidadeItem      OportunidadeItem @relation(fields: [oportunidadeItemId], references: [id], onDelete: Cascade)
+  empenhoItens          EmpenhoItem[]
+
+  @@unique([contratoId, oportunidadeItemId])
+  @@index([contratoId, createdAt])
+  @@index([oportunidadeItemId, createdAt])
+}
+
+model ContratoEmpenho {
+  id                    String              @id @default(cuid())
+  contratoId            String
+
+  numeroEmpenho         String
+  tipoEmpenho           String?             // "ordinario" | "estimativo" | "global"
+  valor                 Decimal             @db.Decimal(15, 2)
+  dataEmissao           DateTime?
+
+  orgaoCnpj             String?
+  orgaoNome             String?
+  orgaoUnidadeNome      String?
+
+  observacao            String?
+  status                ContratoEmpenhoStatus @default(ATIVO)
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  contrato              Contrato            @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  itens                 EmpenhoItem[]
+  locaisEntrega         EmpenhoLocalEntrega[]
+
+  @@unique([contratoId, numeroEmpenho])
+  @@index([contratoId, createdAt])
+  @@index([status, createdAt])
+}
+
+model EmpenhoItem {
+  id                    String   @id @default(cuid())
+  empenhoId             String
+  contratoItemId        String
+
+  quantidade            Decimal  @db.Decimal(18, 4)
+  valorUnitario         Decimal? @db.Decimal(15, 2)
+  valorTotal            Decimal? @db.Decimal(15, 2)
+
+  quantidadeEntregue    Decimal  @default(0) @db.Decimal(18, 4)
+  quantidadeAceita      Decimal  @default(0) @db.Decimal(18, 4)
+  quantidadePaga        Decimal  @default(0) @db.Decimal(18, 4)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  empenho               ContratoEmpenho @relation(fields: [empenhoId], references: [id], onDelete: Cascade)
+  contratoItem          ContratoItem    @relation(fields: [contratoItemId], references: [id], onDelete: Cascade)
+  entregas              EmpenhoEntrega[]
+
+  @@unique([empenhoId, contratoItemId])
+  @@index([empenhoId, createdAt])
+  @@index([contratoItemId, createdAt])
+}
+
+model EmpenhoLocalEntrega {
+  id                    String   @id @default(cuid())
+  empenhoId             String
+
+  descricao             String?
+  endereco              String?
+  municipio             String?
+  uf                    String?
+  responsavel           String?
+  telefone              String?
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  empenho               ContratoEmpenho   @relation(fields: [empenhoId], references: [id], onDelete: Cascade)
+  entregas              EmpenhoEntrega[]
+
+  @@index([empenhoId, createdAt])
+}
+
+model EmpenhoEntrega {
+  id                    String                @id @default(cuid())
+  empenhoItemId         String
+  localEntregaId        String?
+
+  descricao             String?
+  quantidadeEntregue    Decimal               @db.Decimal(18, 4)
+  numeroNotaFiscal      String?
+  valorNotaFiscal       Decimal?              @db.Decimal(15, 2)
+
+  dataEntrega           DateTime?
+  dataAceiteProvisorio  DateTime?
+  dataAceiteDefinitivo  DateTime?
+  dataLimitePagamento   DateTime?
+  dataPagamento         DateTime?
+
+  entregueNoPrazo       Boolean?
+  pagoNoPrazo           Boolean?
+
+  status                EmpenhoEntregaStatus  @default(PENDENTE)
+  motivoRejeicao        String?
+  observacao            String?
+
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  empenhoItem           EmpenhoItem           @relation(fields: [empenhoItemId], references: [id], onDelete: Cascade)
+  localEntrega          EmpenhoLocalEntrega?  @relation(fields: [localEntregaId], references: [id], onDelete: SetNull)
+
+  @@index([empenhoItemId, createdAt])
+  @@index([localEntregaId, createdAt])
+  @@index([status, createdAt])
 }

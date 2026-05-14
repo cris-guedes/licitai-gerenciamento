@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { makeAskDocumentChat } from "@/server/modules/core-api/domain/use-cases/licitacao/ask-document-chat/makeAskDocumentChat";
+import { makeAskDocumentChat } from "@/server/modules/core-api/domain/use-cases/document/chat/ask-document-chat/makeAskDocumentChat";
 import { adaptNextDynamicRoute } from "@/server/modules/core-api/main/adapters/next-dynamic-http-adapter";
 
 type Params = { documentId: string };

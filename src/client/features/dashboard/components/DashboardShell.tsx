@@ -11,6 +11,8 @@ import {
   ChevronsUpDown,
   ChevronRight,
   FileText,
+  FileCheck,
+  Handshake,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -317,6 +319,18 @@ function NavMain() {
         </SidebarMenuSubItem>
       </NavCollapsible>
 
+      {/* Execução e Contratos */}
+      <NavCollapsible id="contratos" icon={Handshake} label="Execução e Contratos" active={is("contratos")}>
+        <SidebarMenuSubItem>
+          <SidebarMenuSubButton asChild isActive={pathname === `${base}/contratos`}>
+            <Link href={`${base}/contratos`}>
+              <FileCheck className="size-[14px]" />
+              <span className={NAV_LABEL_CLASS}>Meus Contratos</span>
+            </Link>
+          </SidebarMenuSubButton>
+        </SidebarMenuSubItem>
+      </NavCollapsible>
+
       {/* Minha Empresa */}
       <NavCollapsible id="empresa" icon={Building2} label="Minha Empresa" active={is("time") || is("empresa") || is("configuracoes") || is("conta")}>
         <SidebarMenuSubItem>
@@ -428,6 +442,7 @@ function resolvePageMeta(pathname: string, base: string) {
     { key: "licitacoes/nova", title: "Nova Oportunidade", subtitle: "Monte o cadastro como um workspace editorial." },
     { key: "licitacoes/rascunhos", title: "Rascunhos", subtitle: "Retome licitações em andamento com o contexto da IA preservado." },
     { key: "licitacoes", title: "Gerenciar Oportunidades", subtitle: "Acompanhe oportunidades, status e próximos movimentos." },
+    { key: "contratos", title: "Execução e Contratos", subtitle: "Gestão de contratos, empenhos e pipeline logístico." },
     { key: "time", title: "Gerenciar Time", subtitle: "Coordene acessos, papéis e responsabilidades." },
     { key: "empresa", title: "Gerenciar Empresas", subtitle: "Organize os dados mestres da operação." },
     { key: "configuracoes", title: "Configurações", subtitle: "Defina ajustes globais da empresa ativa." },

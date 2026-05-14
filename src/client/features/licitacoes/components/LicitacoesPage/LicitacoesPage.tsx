@@ -36,7 +36,7 @@ export function LicitacoesPage() {
   })
   const base = `/org/${orgAtiva?.id}/${empresaAtiva?.id}`
   const detailWorkspaceHref = page.selectedDetailItem
-    ? `${base}/workspace-ia?oportunidadeId=${page.selectedDetailItem.oportunidadeId}`
+    ? `${base}/oportunidades/${page.selectedDetailItem.oportunidadeId}`
     : null
   const detailErrorMessage = page.detailError instanceof Error
     ? page.detailError.message
@@ -107,7 +107,7 @@ export function LicitacoesPage() {
                   </Select>
                 </FilterField>
 
-                <FilterField label="Workflow">
+                <FilterField label="Fluxo">
                   <WorkflowTreeFilter
                     nodes={page.workflowNodes}
                     selectedNodeIds={page.selectedWorkflowNodeIds}
@@ -160,7 +160,7 @@ export function LicitacoesPage() {
         <Card className="rounded-[1.35rem]">
           <CardContent className="flex min-h-[380px] flex-col items-center justify-center gap-3 text-center">
             <LoaderCircle className="size-8 animate-spin text-secondary" />
-            <p className="font-medium text-muted-foreground">Carregando workflow e oportunidades...</p>
+            <p className="font-medium text-muted-foreground">Carregando fluxo e oportunidades...</p>
           </CardContent>
         </Card>
       ) : page.items.length === 0 ? (

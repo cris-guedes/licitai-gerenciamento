@@ -54,6 +54,15 @@ import { GetInviteControllerSchemas, GetInviteResponseSchema } from "../../domai
 import { AcceptInviteControllerSchemas, AcceptInviteResponseSchema } from "../../domain/use-cases/team/accept-invite/AcceptInviteControllerSchemas";
 import { UpdateMemberRoleControllerSchemas, UpdateMemberRoleResponseSchema } from "../../domain/use-cases/team/update-member-role/UpdateMemberRoleControllerSchemas";
 import { RemoveMemberControllerSchemas, RemoveMemberResponseSchema } from "../../domain/use-cases/team/remove-member/RemoveMemberControllerSchemas";
+import { CreateContratoControllerSchemas } from "../../domain/use-cases/contrato/root/create-contrato/CreateContratoControllerSchemas";
+import { ListContratosControllerSchemas } from "../../domain/use-cases/contrato/root/list-contratos/ListContratosControllerSchemas";
+import { GetContratoWorkspaceControllerSchemas } from "../../domain/use-cases/contrato/root/get-contrato-workspace/GetContratoWorkspaceControllerSchemas";
+import { UpdateContratoControllerSchemas } from "../../domain/use-cases/contrato/root/update-contrato/UpdateContratoControllerSchemas";
+import { CreateEmpenhoControllerSchemas } from "../../domain/use-cases/contrato/empenho/create-empenho/CreateEmpenhoControllerSchemas";
+import { ListEmpenhosControllerSchemas } from "../../domain/use-cases/contrato/empenho/list-empenhos/ListEmpenhosControllerSchemas";
+import { CreateLocalEntregaControllerSchemas } from "../../domain/use-cases/contrato/empenho/create-local-entrega/CreateLocalEntregaControllerSchemas";
+import { CreateEntregaControllerSchemas } from "../../domain/use-cases/contrato/empenho/create-entrega/CreateEntregaControllerSchemas";
+import { UpdateEntregaStatusControllerSchemas } from "../../domain/use-cases/contrato/empenho/update-entrega-status/UpdateEntregaStatusControllerSchemas";
 import { ZodType } from "zod";
 import type { ZodOpenApiRequestBodyObject, ZodOpenApiResponsesObject } from "zod-openapi";
 
@@ -881,5 +890,95 @@ export const apiEndpoints: EndpointConfig[] = [
         },
       },
     },
+  },
+  {
+    path: "/contratos",
+    operationId: "postCoreContratos",
+    tag: "Contratos",
+    summary: "Criar novo contrato",
+    description: "Cria um contrato a partir de uma oportunidade ganha",
+    successDescription: "Contrato criado com sucesso",
+    method: "POST",
+    schemas: CreateContratoControllerSchemas,
+  },
+  {
+    path: "/contratos/list",
+    operationId: "getCoreContratosList",
+    tag: "Contratos",
+    summary: "Listar contratos",
+    description: "Lista os contratos da empresa",
+    successDescription: "Lista de contratos retornada",
+    method: "GET",
+    schemas: ListContratosControllerSchemas,
+  },
+  {
+    path: "/contratos/workspace",
+    operationId: "getCoreContratosContratoIdWorkspace",
+    tag: "Contratos",
+    summary: "Obter Workspace do Contrato",
+    description: "Obtém todos os detalhes do contrato, itens, empenhos e pipeline",
+    successDescription: "Workspace carregado com sucesso",
+    method: "GET",
+    schemas: GetContratoWorkspaceControllerSchemas as unknown as EndpointSchemas,
+  },
+  {
+    path: "/contratos/update",
+    operationId: "postCoreContratosUpdate",
+    tag: "Contratos",
+    summary: "Atualizar contrato",
+    description: "Atualiza dados cadastrais e status de um contrato",
+    successDescription: "Contrato atualizado com sucesso",
+    method: "POST",
+    schemas: UpdateContratoControllerSchemas as unknown as EndpointSchemas,
+  },
+  {
+    path: "/contratos/empenhos",
+    operationId: "postCoreContratosContratoIdEmpenhos",
+    tag: "Empenhos",
+    summary: "Criar novo empenho",
+    description: "Cria uma nota de empenho vinculada a um contrato, deduzindo do saldo",
+    successDescription: "Empenho criado com sucesso",
+    method: "POST",
+    schemas: CreateEmpenhoControllerSchemas as unknown as EndpointSchemas,
+  },
+  {
+    path: "/contratos/empenhos/list",
+    operationId: "getCoreContratosContratoIdEmpenhosList",
+    tag: "Empenhos",
+    summary: "Listar empenhos do contrato",
+    description: "Lista todas as notas de empenho registradas em um contrato",
+    successDescription: "Empenhos encontrados",
+    method: "GET",
+    schemas: ListEmpenhosControllerSchemas as unknown as EndpointSchemas,
+  },
+  {
+    path: "/contratos/empenhos/locais",
+    operationId: "postCoreContratosContratoIdEmpenhosEmpenhoIdLocais",
+    tag: "Empenhos",
+    summary: "Adicionar Local de Entrega",
+    description: "Adiciona um local de entrega à nota de empenho",
+    successDescription: "Local adicionado com sucesso",
+    method: "POST",
+    schemas: CreateLocalEntregaControllerSchemas as unknown as EndpointSchemas,
+  },
+  {
+    path: "/contratos/empenhos/entregas",
+    operationId: "postCoreContratosContratoIdEmpenhosEmpenhoIdEntregas",
+    tag: "Empenhos",
+    summary: "Criar Entrega (Pipeline Logístico)",
+    description: "Adiciona uma nova entrega pendente para um item de empenho",
+    successDescription: "Entrega registrada com sucesso",
+    method: "POST",
+    schemas: CreateEntregaControllerSchemas as unknown as EndpointSchemas,
+  },
+  {
+    path: "/contratos/empenhos/entregas/status",
+    operationId: "postCoreContratosContratoIdEmpenhosEmpenhoIdEntregasEntregaIdStatus",
+    tag: "Empenhos",
+    summary: "Atualizar Status da Entrega",
+    description: "Avança a entrega no pipeline",
+    successDescription: "Status atualizado com sucesso",
+    method: "POST",
+    schemas: UpdateEntregaStatusControllerSchemas as unknown as EndpointSchemas,
   },
 ];

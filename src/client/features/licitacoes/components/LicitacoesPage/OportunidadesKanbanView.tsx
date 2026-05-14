@@ -1,33 +1,12 @@
 "use client"
 
 import { useMemo, useRef, useState } from "react"
-import { CalendarClock, Check, MoreHorizontal, UserRound } from "lucide-react"
-import { Badge } from "@/client/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/client/components/ui/card"
+import { useParams } from "next/navigation"
+import { Check, MoreHorizontal } from "lucide-react"
 import { cn } from "@/client/main/lib/utils"
+import { OportunidadePreviewCard } from "@/client/features/oportunidades"
 import type { OportunidadeBoardItem, WorkflowNode } from "../../services/use-licitacao.service"
 import { OportunidadeWorkflowActions } from "./OportunidadeWorkflowActions"
-
-function formatDate(date: string | null) {
-  if (!date) return "Sem data"
-
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(date))
-}
-
-function formatCurrency(value: string | null) {
-  if (!value) return null
-  const numericValue = Number(value)
-  if (Number.isNaN(numericValue)) return null
-
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    maximumFractionDigits: 2,
-  }).format(numericValue)
-}
 
 function formatCompactCurrency(value: string | null | undefined) {
   if (!value) return "R$ 0"
@@ -73,6 +52,7 @@ export function OportunidadesKanbanView({
   onMoveToPhase: (item: OportunidadeBoardItem, phaseId: string) => Promise<void>
   onOpenDetail: (item: OportunidadeBoardItem) => void
 }) {
+  const params = useParams() as { orgId: string; companyId: string }
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [hoveredPhaseId, setHoveredPhaseId] = useState<string | null>(null)
   const suppressCardClickUntilRef = useRef(0)
@@ -195,7 +175,7 @@ export function OportunidadesKanbanView({
                     const moveOptions = getMoveOptions(item)
 
                     return (
-                      <Card
+                      <div
                         key={item.oportunidadeId}
                         draggable={item.canMove && !isMoving}
                         role="button"
@@ -224,25 +204,21 @@ export function OportunidadesKanbanView({
                           onOpenDetail(item)
                         }}
                         className={cn(
-                          "cursor-pointer rounded-lg border border-slate-300/80 bg-white shadow-[0_1px_2px_rgba(9,30,66,0.18)] transition-shadow hover:shadow-[0_3px_8px_rgba(9,30,66,0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200",
+                          "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200",
                           draggingId === item.oportunidadeId && "opacity-60",
                         )}
                       >
-                        <CardHeader className="space-y-2 px-3 pt-3 pb-1.5">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                              {item.modalidade ? (
-                                <Badge className={cn("mb-1.5 rounded px-1.5 py-0 text-[0.65rem] font-bold uppercase leading-5 shadow-none", tone?.badge ?? "bg-slate-700 text-white")}>
-                                  {item.modalidade}
-                                </Badge>
-                              ) : null}
-                              <CardTitle className="line-clamp-3 text-[0.92rem] font-medium leading-5 text-[#172b4d]">
-                                {item.title}
-                              </CardTitle>
-                              <p className="mt-1 line-clamp-1 text-[0.74rem] leading-5 text-slate-500">
-                                {item.orgaoNome ?? "Órgão não identificado"}
-                              </p>
-                            </div>
+                        <OportunidadePreviewCard
+                          item={item}
+                          href={`/org/${params.orgId}/${params.companyId}/oportunidades/${item.oportunidadeId}`}
+                          onOpenDetail={() => onOpenDetail(item)}
+                          className={cn(
+                            "border-slate-300/80 shadow-[0_1px_2px_rgba(9,30,66,0.18)] transition-shadow hover:shadow-[0_3px_8px_rgba(9,30,66,0.2)]",
+                            tone?.accent === "text-blue-600" && "border-l-4 border-l-blue-600",
+                            tone?.accent === "text-amber-600" && "border-l-4 border-l-amber-500",
+                            tone?.accent === "text-emerald-600" && "border-l-4 border-l-emerald-600",
+                          )}
+                          action={
                             <OportunidadeWorkflowActions
                               item={item}
                               moveOptions={moveOptions}
@@ -253,52 +229,9 @@ export function OportunidadesKanbanView({
                                 targetNodeId,
                               })}
                             />
-                          </div>
-
-                          <div className="flex flex-wrap gap-1">
-                            {item.workflow.status ? (
-                              <Badge variant="secondary" className="rounded bg-slate-100 px-1.5 py-0 text-[0.65rem] font-semibold leading-5 text-slate-700 shadow-none">
-                                {item.workflow.status.label}
-                              </Badge>
-                            ) : null}
-                            {item.workflow.situation ? (
-                              <Badge variant="outline" className="rounded border-rose-100 bg-rose-50 px-1.5 py-0 text-[0.65rem] font-semibold leading-5 text-rose-700 shadow-none">
-                                {item.workflow.situation.label}
-                              </Badge>
-                            ) : null}
-                          </div>
-                        </CardHeader>
-
-                        <CardContent className="space-y-2 px-3 pb-3">
-                          <div className="flex items-end justify-between gap-3 pt-1">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <span className={cn("flex size-4 shrink-0 items-center justify-center rounded-[3px]", tone?.issue ?? "bg-emerald-600")}>
-                                  <span className="h-2 w-1.5 rounded-[1px] bg-white" />
-                                </span>
-                                <span className="truncate text-[0.72rem] font-bold uppercase tracking-[0.02em] text-slate-500">
-                                  {item.numero ?? item.oportunidadeId.slice(0, 8)}
-                                </span>
-                              </div>
-                              <p className="mt-1 truncate text-[0.78rem] font-semibold text-[#172b4d]">
-                                {formatCurrency(item.valorEstimado) ?? "Valor a definir"}
-                              </p>
-                              <div className="mt-1 flex min-w-0 items-center gap-2 text-[0.68rem] text-slate-500">
-                                <span className="flex min-w-0 items-center gap-1">
-                                  <UserRound className="size-3.5 shrink-0" />
-                                  <span className="truncate">{item.responsavel?.name ?? "Sem responsável"}</span>
-                                </span>
-                                <span className="shrink-0 text-slate-300">·</span>
-                                <span className="flex min-w-0 items-center gap-1">
-                                  <CalendarClock className="size-3.5 shrink-0" />
-                                  <span className="truncate">{formatDate(item.workflow.updatedAt ?? item.updatedAt)}</span>
-                                </span>
-                              </div>
-                            </div>
-
-                          </div>
-                        </CardContent>
-                      </Card>
+                          }
+                        />
+                      </div>
                     )
                   })
                 )}

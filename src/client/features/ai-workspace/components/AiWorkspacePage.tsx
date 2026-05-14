@@ -3,10 +3,10 @@
 import { useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { LoaderCircle } from "lucide-react"
+import { DocumentAiPanel } from "@/client/features/documents"
 import { useApp } from "@/client/hooks/app/useApp"
 import { useCoreApi } from "@/client/hooks/use-core-api"
 import { AiWorkspaceBody } from "@/client/features/licitacoes/components/NovaLicitacaoPage/AiWorkspaceModal"
-import { DocumentAssistantSidebar } from "@/client/features/licitacoes/components/NovaLicitacaoPage/DocumentAssistantSidebar"
 import { UploadEditalStep } from "@/client/features/licitacoes/components/NovaLicitacaoPage/UploadEditalStep"
 import { useNovaLicitacaoPage } from "@/client/features/licitacoes/components/NovaLicitacaoPage/hooks/useNovaLicitacaoPage"
 import { useDocumentChatService } from "@/client/features/licitacoes/services/use-document-chat.service"
@@ -51,6 +51,7 @@ export function AiWorkspacePage() {
         />
       ) : (
         <AiWorkspaceBody
+          api={api}
           className="h-[calc(100vh-10rem)] min-h-[680px] border border-slate-200 shadow-sm"
           initialView="document"
           isUploadPending={page.uploadDocument.isPending}
@@ -64,12 +65,13 @@ export function AiWorkspacePage() {
           extractionProgress={page.extraction.progress}
           extractionPreview={page.extraction.preview}
           documentAssistantSidebar={
-            <DocumentAssistantSidebar
+            <DocumentAiPanel
               open={isDocumentAssistantOpen}
               onOpenChange={setIsDocumentAssistantOpen}
               documentId={selectedDocument?.documentId ?? null}
               documentChatService={documentChatService}
               documentSummaryService={documentSummaryService}
+              processingState={selectedDocument?.status === "FAILED" ? "FAILED" : selectedDocument?.status === "READY" ? "READY" : "PROCESSING"}
             />
           }
           onUpload={page.handleUploadDocument}

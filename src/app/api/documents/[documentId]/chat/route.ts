@@ -1,6 +1,6 @@
 import { adaptNextDynamicRoute } from "@/server/modules/core-api/main/adapters/next-dynamic-http-adapter";
-import { makeClearDocumentChat } from "@/server/modules/core-api/domain/use-cases/licitacao/clear-document-chat/makeClearDocumentChat";
-import { makeGetDocumentChat } from "@/server/modules/core-api/domain/use-cases/licitacao/get-document-chat/makeGetDocumentChat";
+import { makeClearDocumentChat } from "@/server/modules/core-api/domain/use-cases/document/chat/clear-document-chat/makeClearDocumentChat";
+import { makeGetDocumentChat } from "@/server/modules/core-api/domain/use-cases/document/chat/get-document-chat/makeGetDocumentChat";
 
 type Params = { documentId: string };
 

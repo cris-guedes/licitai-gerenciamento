@@ -32,3 +32,11 @@ export type {
     GarantiaContratual,
 }                                   from "./ExecucaoContratual";
 export type { DocumentoHabilitacao } from "./DocumentoHabilitacao";
+
+// ─── Execução e Contratos ─────────────────────────────────────────────────────
+export type { Contrato, ContratoStatus } from "./Contrato";
+export type { ContratoItem } from "./ContratoItem";
+export type { ContratoEmpenho, ContratoEmpenhoStatus } from "./ContratoEmpenho";
+export type { EmpenhoItem } from "./EmpenhoItem";
+export type { EmpenhoLocalEntrega } from "./EmpenhoLocalEntrega";
+export type { EmpenhoEntrega, EmpenhoEntregaStatus } from "./EmpenhoEntrega";

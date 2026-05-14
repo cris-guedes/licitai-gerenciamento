@@ -4,13 +4,13 @@ import { useState } from "react"
 import type { LucideIcon } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/client/components/ui/button"
+import { DocumentAiPanel } from "@/client/features/documents"
 import { useCoreApi } from "@/client/hooks/use-core-api"
 import { DashboardHeaderActions } from "@/client/features/dashboard/components/DashboardShell"
 import { useApp } from "@/client/hooks/app/useApp"
 import { Gavel, LoaderCircle, ScanSearch, ShieldAlert, Sparkles, Wrench } from "lucide-react"
 import { cn } from "@/client/main/lib/utils"
 import { AiWorkspaceModal, type WorkspaceView } from "./AiWorkspaceModal"
-import { DocumentAssistantSidebar } from "./DocumentAssistantSidebar"
 import { NovaLicitacaoForm } from "./NovaLicitacaoForm"
 import { UploadEditalStep } from "./UploadEditalStep"
 import { useNovaLicitacaoPage } from "./hooks/useNovaLicitacaoPage"
@@ -50,6 +50,7 @@ export function NovaLicitacaoPage() {
 
   const workspaceModal = (
     <AiWorkspaceModal
+      api={api}
       open={page.isWorkspaceModalOpen}
       onOpenChange={setIsWorkspaceModalOpen}
       initialView={workspaceInitialView}
@@ -64,12 +65,13 @@ export function NovaLicitacaoPage() {
       extractionProgress={page.extraction.progress}
       extractionPreview={page.extraction.preview}
       documentAssistantSidebar={(
-        <DocumentAssistantSidebar
+        <DocumentAiPanel
           open={isDocumentAssistantOpen}
           onOpenChange={setIsDocumentAssistantOpen}
           documentId={page.selectedDocument?.documentId ?? null}
           documentChatService={documentChatService}
           documentSummaryService={documentSummaryService}
+          processingState={page.selectedDocument?.status === "FAILED" ? "FAILED" : page.selectedDocument?.status === "READY" ? "READY" : "PROCESSING"}
         />
       )}
       onUpload={page.handleUploadDocument}

@@ -7,6 +7,7 @@ import { onboardingRoutes }         from "../routes/onboarding";
 import { authRoutes }               from "../routes/auth";
 import { teamRoutes }               from "../routes/team";
 import { licitacaoRoutes }          from "../routes/licitacao";
+import { contratosRoutes }          from "../routes/contratos";
 
 export const allRoutes: Record<string, RouteConfig> = {
 
@@ -17,6 +18,7 @@ export const allRoutes: Record<string, RouteConfig> = {
     ...authRoutes,
     ...teamRoutes,
     ...licitacaoRoutes,
+    ...contratosRoutes,
 
 };
 

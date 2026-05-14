@@ -266,6 +266,7 @@ export type LicitacaoWorkspaceDocument = {
 }
 
 export type LicitacaoWorkspaceResponse = {
+  companyId: string
   oportunidade: {
     id: string
     status: "DRAFT" | "ACTIVE" | "CANCELLED"
@@ -276,6 +277,25 @@ export type LicitacaoWorkspaceResponse = {
   licitacao: {
     id: string | null
     status: "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | null
+    sourceSystem: "PNCP" | "COMPRAS_GOV" | "PORTAL_EXTERNO" | "MANUAL" | null
+    sourceReference: string | null
+    numeroControlePncp: string | null
+    anoCompra: number | null
+    sequencialCompra: number | null
+    numeroLicitacao: string | null
+    processoAdministrativo: string | null
+    modalidadeNome: string | null
+    tipoInstrumentoNome: string | null
+    objetoResumo: string | null
+    situacaoOficial: string | null
+    valorEstimadoTotal: string | null
+    valorHomologadoTotal: string | null
+    dataPublicacao: string | null
+    dataAberturaProposta: string | null
+    dataEncerramentoProposta: string | null
+    linkSistemaOrigem: string | null
+    linkProcessoEletronico: string | null
+    ultimaAtualizacaoOficial: string | null
     draftPreview: LicitacaoDraftPreview | null
     createdAt: string
     updatedAt: string
@@ -283,6 +303,111 @@ export type LicitacaoWorkspaceResponse = {
   edital: {
     id: string
     status: "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+    versao: number
+    isAtual: boolean
+    tipoVersao: "ORIGINAL" | "RETIFICACAO" | "ADENDO" | "CONSOLIDADO"
+    documentoPrincipalId: string | null
+    orgaoCnpj: string | null
+    orgaoRazaoSocial: string | null
+    orgaoEsfera: string | null
+    orgaoPoder: string | null
+    unidadeCodigo: string | null
+    unidadeNome: string | null
+    municipio: string | null
+    uf: string | null
+    numero: string | null
+    processo: string | null
+    modalidade: string | null
+    tipoInstrumento: string | null
+    modoDisputa: string | null
+    objeto: string | null
+    valorEstimado: string | null
+    dataAbertura: string | null
+    dataEncerramento: string | null
+    informacaoComplementar: string | null
+    amparoLegal: string | null
+    srp: boolean
+    cronograma: {
+      acolhimentoInicio: string | null
+      acolhimentoFim: string | null
+      horaLimite: string | null
+      sessaoPublicaEm: string | null
+      esclarecimentosAte: string | null
+      impugnacaoAte: string | null
+    } | null
+    certame: {
+      modoDisputa: string | null
+      criterioJulgamento: string | null
+      tipoLance: string | null
+      intervaloLances: string | null
+      duracaoSessaoMinutos: number | null
+      exclusivoMeEpp: boolean | null
+      permiteConsorcio: boolean | null
+      exigeVisitaTecnica: boolean | null
+      permiteAdesao: boolean | null
+      percentualAdesao: string | null
+      regionalidade: string | null
+      difal: boolean | null
+      vigenciaAtaMeses: number | null
+      vigenciaContratoDias: number | null
+    } | null
+    execucao: {
+      prazoEntregaDias: string | null
+      localEntrega: string | null
+      tipoEntrega: string | null
+      responsavelInstalacao: string | null
+      prazoPagamentoDias: string | null
+      prazoAceiteDias: string | null
+      validadePropostaDias: string | null
+      garantiaTipo: string | null
+      garantiaMeses: string | null
+      garantiaTempoAtendimentoHoras: string | null
+    } | null
+    itens: Array<{
+      id: string
+      numeroItem: number | null
+      descricao: string | null
+      tipoItem: string | null
+      lote: string | null
+      quantidadeTotal: string | null
+      unidadeMedida: string | null
+      valorUnitarioEstimado: string | null
+      valorTotalEstimado: string | null
+      codigoCatmatCatser: string | null
+      codigoNcmNbs: string | null
+      criterioJulgamentoItem: string | null
+      beneficioTributario: string | null
+      observacao: string | null
+    }>
+    orgaos: Array<{
+      id: string
+      papel: string
+      orgao: {
+        id: string
+        cnpj: string | null
+        razaoSocial: string | null
+        codigoUnidade: string | null
+        nomeUnidade: string | null
+        municipio: string | null
+        uf: string | null
+        esfera: string | null
+        poder: string | null
+      }
+      itens: Array<{
+        id: string
+        editalItemId: string
+        numeroItem: number | null
+        descricao: string | null
+        quantidadeSolicitada: string | null
+      }>
+    }>
+    habilitacoes: Array<{
+      id: string
+      tipo: string
+      categoria: string
+      obrigatorio: boolean
+      ordem: number | null
+    }>
     createdAt: string
     updatedAt: string
   } | null
@@ -427,6 +552,23 @@ export type MoveOportunidadeWorkflowResponse = {
 }
 
 export type UpdateOportunidadeBoardItemResponse = {
+  item: OportunidadeBoardItem
+}
+
+export type UpdateOportunidadeDetailsPayload = {
+  companyId: string
+  oportunidadeId: string
+  numero?: string | null
+  processo?: string | null
+  modalidade?: string | null
+  orgaoNome?: string | null
+  objetoResumo?: string | null
+  valorEstimado?: string | number | null
+  dataAbertura?: string | null
+  dataEncerramento?: string | null
+}
+
+export type UpdateOportunidadeDetailsResponse = {
   item: OportunidadeBoardItem
 }
 
@@ -691,7 +833,7 @@ export function useLicitacaoService(_api: CoreApiClient) {
       oportunidadeId,
     })
 
-    const res = await fetchWithTimeout(`/api/core/get-licitacao-workspace?${query.toString()}`, {
+    const res = await fetchWithTimeout(`/api/core/get-oportunidade-workspace?${query.toString()}`, {
       method: "GET",
     })
 
@@ -839,6 +981,21 @@ export function useLicitacaoService(_api: CoreApiClient) {
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       throw new Error(body.message ?? `Erro ${res.status} ao atualizar a oportunidade`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const updateOportunidadeDetails = useCallback(async (payload: UpdateOportunidadeDetailsPayload): Promise<UpdateOportunidadeDetailsResponse> => {
+    const res = await fetchWithTimeout("/api/core/update-oportunidade-details", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao atualizar os dados da oportunidade`)
     }
 
     return await res.json()
@@ -1359,6 +1516,7 @@ export function useLicitacaoService(_api: CoreApiClient) {
     listOportunidadesBoard,
     moveOportunidadeWorkflow,
     updateOportunidadeBoardItem,
+    updateOportunidadeDetails,
     updateCompanyWorkflowNode,
     deleteDraft,
     finalizeRegistration,

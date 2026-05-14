@@ -35,6 +35,7 @@ export interface RouteConfig {
     makeStream?:  () => StreamController;
     method?:      "GET" | "POST";
     preHandlers?: PreHandler[];
+    schema?:      any;
 }
 
 export const ok           = <T>(data: T): HttpResponse<T>  => ({ statusCode: 200, data });
