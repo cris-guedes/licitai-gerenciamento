@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import type { ReactNode } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   ListFilter,
   LoaderCircle,
@@ -26,6 +27,8 @@ import { WorkflowTreeFilter } from "./WorkflowTreeFilter"
 import { useLicitacoesPage } from "./hooks/useLicitacoesPage"
 
 export function LicitacoesPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const api = useCoreApi()
   const { empresaAtiva, orgAtiva } = useApp()
   const licitacaoService = useLicitacaoService(api)
@@ -33,10 +36,12 @@ export function LicitacoesPage() {
     licitacaoService,
     companyId: empresaAtiva?.id ?? null,
     organizationId: orgAtiva?.id ?? null,
+    initialDetailOportunidadeId: searchParams.get("oportunidadeId"),
   })
   const base = `/org/${orgAtiva?.id}/${empresaAtiva?.id}`
+  const licitacoesHref = `${base}/licitacoes`
   const detailWorkspaceHref = page.selectedDetailItem
-    ? `${base}/workspace-ia?oportunidadeId=${page.selectedDetailItem.oportunidadeId}`
+    ? `${base}/oportunidades/${page.selectedDetailItem.oportunidadeId}`
     : null
   const detailErrorMessage = page.detailError instanceof Error
     ? page.detailError.message
@@ -107,7 +112,7 @@ export function LicitacoesPage() {
                   </Select>
                 </FilterField>
 
-                <FilterField label="Workflow">
+                <FilterField label="Fluxo">
                   <WorkflowTreeFilter
                     nodes={page.workflowNodes}
                     selectedNodeIds={page.selectedWorkflowNodeIds}
@@ -160,7 +165,7 @@ export function LicitacoesPage() {
         <Card className="rounded-[1.35rem]">
           <CardContent className="flex min-h-[380px] flex-col items-center justify-center gap-3 text-center">
             <LoaderCircle className="size-8 animate-spin text-secondary" />
-            <p className="font-medium text-muted-foreground">Carregando workflow e oportunidades...</p>
+            <p className="font-medium text-muted-foreground">Carregando fluxo e oportunidades...</p>
           </CardContent>
         </Card>
       ) : page.items.length === 0 ? (
@@ -193,7 +198,15 @@ export function LicitacoesPage() {
           getMoveOptions={page.getMoveOptions}
           onMoveToNode={page.moveToNode}
           onMoveToPhase={page.moveToPhase}
-          onOpenDetail={page.openDetail}
+          onCreateComment={(item, content) => page.createBoardNote({
+            oportunidadeId: item.oportunidadeId,
+            content,
+          })}
+          creatingCommentOportunidadeId={page.creatingCommentOportunidadeId}
+          onOpenDetail={item => {
+            page.openDetail(item)
+            router.replace(`${licitacoesHref}?oportunidadeId=${item.oportunidadeId}`, { scroll: false })
+          }}
         />
       ) : (
         <OportunidadesListView
@@ -201,14 +214,20 @@ export function LicitacoesPage() {
           movingOportunidadeId={page.movingOportunidadeId}
           getMoveOptions={page.getMoveOptions}
           onMoveToNode={page.moveToNode}
-          onOpenDetail={page.openDetail}
+          onOpenDetail={item => {
+            page.openDetail(item)
+            router.replace(`${licitacoesHref}?oportunidadeId=${item.oportunidadeId}`, { scroll: false })
+          }}
         />
       )}
 
       <OportunidadeDetailDialog
         open={page.isDetailOpen}
         onOpenChange={open => {
-          if (!open) page.closeDetail()
+          if (!open) {
+            page.closeDetail()
+            router.replace(licitacoesHref, { scroll: false })
+          }
         }}
         item={page.selectedDetailItem}
         workspace={page.detailWorkspace}
@@ -217,10 +236,14 @@ export function LicitacoesPage() {
         moveOptions={page.selectedDetailItem ? page.getMoveOptions(page.selectedDetailItem) : []}
         isMoving={page.movingOportunidadeId === page.selectedDetailItem?.oportunidadeId}
         isUpdating={page.isUpdatingDetail}
+        isUpdatingItem={page.isUpdatingDetailItems}
         responsavelOptions={page.responsavelOptions}
         workflowNodes={page.workflowNodes}
         workflowMetadata={page.workflowMetadata}
         onQuickUpdate={page.updateDetailItem}
+        onUpdateItem={page.updateDetailWorkspaceItem}
+        onCreateItem={page.createDetailWorkspaceItem}
+        onDeleteItem={page.deleteDetailWorkspaceItem}
         onMove={targetNodeId => page.selectedDetailItem
           ? page.moveToNode({
             oportunidadeId: page.selectedDetailItem.oportunidadeId,

@@ -265,7 +265,92 @@ export type LicitacaoWorkspaceDocument = {
   analyses: LicitacaoWorkspaceDocumentAnalysis[]
 }
 
+export type OportunidadeWorkspaceActor = {
+  id: string
+  name: string
+  email: string
+}
+
+export type OportunidadeWorkspaceTask = {
+  id: string
+  title: string
+  status: "OPEN" | "DONE"
+  dueAt: string | null
+  completedAt: string | null
+  createdAt: string
+  updatedAt: string
+  createdBy: OportunidadeWorkspaceActor
+}
+
+export type OportunidadeWorkspaceNote = {
+  id: string
+  content: string
+  createdAt: string
+  updatedAt: string
+  createdBy: OportunidadeWorkspaceActor
+}
+
+export type OportunidadeItemStatus =
+  | "PENDING_PRICING"
+  | "READY_FOR_BID"
+  | "IN_BIDDING"
+  | "WON"
+  | "LOST"
+  | "DISCARDED"
+
+export type OportunidadeWorkspaceItem = {
+  id: string
+  oportunidadeItemId: string | null
+  numeroItem: number | null
+  descricao: string | null
+  tipoItem: string | null
+  lote: string | null
+  quantidadeTotal: string | null
+  unidadeMedida: string | null
+  valorUnitarioEstimado: string | null
+  valorTotalEstimado: string | null
+  codigoCatmatCatser: string | null
+  codigoNcmNbs: string | null
+  criterioJulgamentoItem: string | null
+  beneficioTributario: string | null
+  observacao: string | null
+  isSelected: boolean
+  status: OportunidadeItemStatus
+  observacaoInterna: string | null
+  companyItem: {
+    id: string
+    codigo: string
+    descricao: string
+    marca: string | null
+    unidadeMedida: string
+    imageUrl: string | null
+    precoReferencia: string | null
+    ativo: boolean
+    updatedAt: string
+  } | null
+  pricing: {
+    id: string
+    quantidadeCotada: string | null
+    quantidadeAdesao: string | null
+    precoOfertaUnitario: string | null
+    precoOfertaTotal: string | null
+    custoUnitarioSnapshot: string | null
+    valorMinimoLance: string | null
+    ofertaMarca: string | null
+    ofertaModelo: string | null
+    garantiaDescricao: string | null
+  } | null
+  disputa: {
+    id: string
+    ultimoLance: string | null
+    dataUltimoLance: string | null
+    situacaoDisputa: string | null
+    observacaoOperacional: string | null
+  } | null
+}
+
 export type LicitacaoWorkspaceResponse = {
+  companyId: string
   oportunidade: {
     id: string
     status: "DRAFT" | "ACTIVE" | "CANCELLED"
@@ -276,6 +361,25 @@ export type LicitacaoWorkspaceResponse = {
   licitacao: {
     id: string | null
     status: "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | null
+    sourceSystem: "PNCP" | "COMPRAS_GOV" | "PORTAL_EXTERNO" | "MANUAL" | null
+    sourceReference: string | null
+    numeroControlePncp: string | null
+    anoCompra: number | null
+    sequencialCompra: number | null
+    numeroLicitacao: string | null
+    processoAdministrativo: string | null
+    modalidadeNome: string | null
+    tipoInstrumentoNome: string | null
+    objetoResumo: string | null
+    situacaoOficial: string | null
+    valorEstimadoTotal: string | null
+    valorHomologadoTotal: string | null
+    dataPublicacao: string | null
+    dataAberturaProposta: string | null
+    dataEncerramentoProposta: string | null
+    linkSistemaOrigem: string | null
+    linkProcessoEletronico: string | null
+    ultimaAtualizacaoOficial: string | null
     draftPreview: LicitacaoDraftPreview | null
     createdAt: string
     updatedAt: string
@@ -283,10 +387,102 @@ export type LicitacaoWorkspaceResponse = {
   edital: {
     id: string
     status: "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+    versao: number
+    isAtual: boolean
+    tipoVersao: "ORIGINAL" | "RETIFICACAO" | "ADENDO" | "CONSOLIDADO"
+    documentoPrincipalId: string | null
+    orgaoCnpj: string | null
+    orgaoRazaoSocial: string | null
+    orgaoEsfera: string | null
+    orgaoPoder: string | null
+    unidadeCodigo: string | null
+    unidadeNome: string | null
+    municipio: string | null
+    uf: string | null
+    numero: string | null
+    processo: string | null
+    modalidade: string | null
+    tipoInstrumento: string | null
+    modoDisputa: string | null
+    objeto: string | null
+    valorEstimado: string | null
+    dataAbertura: string | null
+    dataEncerramento: string | null
+    informacaoComplementar: string | null
+    amparoLegal: string | null
+    srp: boolean
+    cronograma: {
+      acolhimentoInicio: string | null
+      acolhimentoFim: string | null
+      horaLimite: string | null
+      sessaoPublicaEm: string | null
+      esclarecimentosAte: string | null
+      impugnacaoAte: string | null
+    } | null
+    certame: {
+      modoDisputa: string | null
+      criterioJulgamento: string | null
+      tipoLance: string | null
+      intervaloLances: string | null
+      duracaoSessaoMinutos: number | null
+      exclusivoMeEpp: boolean | null
+      permiteConsorcio: boolean | null
+      exigeVisitaTecnica: boolean | null
+      permiteAdesao: boolean | null
+      percentualAdesao: string | null
+      regionalidade: string | null
+      difal: boolean | null
+      vigenciaAtaMeses: number | null
+      vigenciaContratoDias: number | null
+    } | null
+    execucao: {
+      prazoEntregaDias: string | null
+      localEntrega: string | null
+      tipoEntrega: string | null
+      responsavelInstalacao: string | null
+      prazoPagamentoDias: string | null
+      prazoAceiteDias: string | null
+      validadePropostaDias: string | null
+      garantiaTipo: string | null
+      garantiaMeses: string | null
+      garantiaTempoAtendimentoHoras: string | null
+    } | null
+    itens: OportunidadeWorkspaceItem[]
+    orgaos: Array<{
+      id: string
+      papel: string
+      orgao: {
+        id: string
+        cnpj: string | null
+        razaoSocial: string | null
+        codigoUnidade: string | null
+        nomeUnidade: string | null
+        municipio: string | null
+        uf: string | null
+        esfera: string | null
+        poder: string | null
+      }
+      itens: Array<{
+        id: string
+        editalItemId: string
+        numeroItem: number | null
+        descricao: string | null
+        quantidadeSolicitada: string | null
+      }>
+    }>
+    habilitacoes: Array<{
+      id: string
+      tipo: string
+      categoria: string
+      obrigatorio: boolean
+      ordem: number | null
+    }>
     createdAt: string
     updatedAt: string
   } | null
   documents: LicitacaoWorkspaceDocument[]
+  tasks: OportunidadeWorkspaceTask[]
+  notes: OportunidadeWorkspaceNote[]
 }
 
 export type WorkflowNodeKind = {
@@ -378,6 +574,7 @@ export type OportunidadeBoardItem = {
   modalidade: string | null
   objetoResumo: string | null
   valorEstimado: string | null
+  valorHomologado: string | null
   orgaoNome: string | null
   responsavel: {
     id: string
@@ -391,6 +588,17 @@ export type OportunidadeBoardItem = {
     situation: OportunidadeBoardNode | null
     updatedAt: string | null
   }
+  tasksSummary: {
+    total: number
+    open: number
+    done: number
+  }
+  latestNote: {
+    content: string
+    authorName: string
+    createdAt: string
+  } | null
+  notesCount: number
   itemCount: number
   createdAt: string
   updatedAt: string
@@ -428,6 +636,160 @@ export type MoveOportunidadeWorkflowResponse = {
 
 export type UpdateOportunidadeBoardItemResponse = {
   item: OportunidadeBoardItem
+}
+
+export type UpdateOportunidadeDetailsPayload = {
+  companyId: string
+  oportunidadeId: string
+  numero?: string | null
+  processo?: string | null
+  modalidade?: string | null
+  orgaoNome?: string | null
+  objetoResumo?: string | null
+  valorEstimado?: string | number | null
+  dataAbertura?: string | null
+  dataEncerramento?: string | null
+}
+
+export type UpdateOportunidadeDetailsResponse = {
+  item: OportunidadeBoardItem
+}
+
+export type UpdateOportunidadeItemPayload = {
+  companyId: string
+  oportunidadeId: string
+  oportunidadeItemId: string
+  data: {
+    editalItem?: {
+      numeroItem?: string | number | null
+      descricao?: string | null
+      tipoItem?: "MATERIAL" | "SERVICO" | null
+      lote?: string | null
+      quantidadeTotal?: string | number | null
+      unidadeMedida?: string | null
+      valorUnitarioEstimado?: string | number | null
+      valorTotalEstimado?: string | number | null
+    }
+    companyItemId?: string | null
+    isSelected?: boolean
+    status?: OportunidadeItemStatus
+    observacaoInterna?: string | null
+    pricing?: {
+      quantidadeCotada?: string | number | null
+      quantidadeAdesao?: string | number | null
+      precoOfertaUnitario?: string | number | null
+      custoUnitarioSnapshot?: string | number | null
+      valorMinimoLance?: string | number | null
+      ofertaMarca?: string | null
+      ofertaModelo?: string | null
+      garantiaDescricao?: string | null
+    }
+    disputa?: {
+      ultimoLance?: string | number | null
+      dataUltimoLance?: string | null
+      situacaoDisputa?: string | null
+      observacaoOperacional?: string | null
+    }
+  }
+}
+
+export type UpdateOportunidadeItemResponse = {
+  item: OportunidadeWorkspaceItem
+}
+
+export type CreateOportunidadeItemPayload = {
+  companyId: string
+  oportunidadeId: string
+  data: {
+    numeroItem?: string | number | null
+    descricao?: string | null
+    quantidadeTotal?: string | number | null
+    valorUnitarioEstimado?: string | number | null
+    valorTotalEstimado?: string | number | null
+    unidadeMedida?: string | null
+  }
+}
+
+export type CreateOportunidadeItemResponse = {
+  item: OportunidadeWorkspaceItem
+}
+
+export type DeleteOportunidadeItemPayload = {
+  companyId: string
+  oportunidadeId: string
+  oportunidadeItemId: string
+}
+
+export type DeleteOportunidadeItemResponse = {
+  oportunidadeItemId: string
+}
+
+export type CreateOportunidadeTaskPayload = {
+  companyId: string
+  oportunidadeId: string
+  title: string
+  dueAt?: string | null
+}
+
+export type CreateOportunidadeTaskResponse = {
+  task: OportunidadeWorkspaceTask
+}
+
+export type ToggleOportunidadeTaskPayload = {
+  companyId: string
+  oportunidadeId: string
+  taskId: string
+  status: "OPEN" | "DONE"
+}
+
+export type ToggleOportunidadeTaskResponse = {
+  task: OportunidadeWorkspaceTask
+}
+
+export type DeleteOportunidadeTaskPayload = {
+  companyId: string
+  oportunidadeId: string
+  taskId: string
+}
+
+export type DeleteOportunidadeTaskResponse = {
+  taskId: string
+}
+
+export type CreateOportunidadeNotePayload = {
+  companyId: string
+  oportunidadeId: string
+  content: string
+}
+
+export type CreateOportunidadeNoteResponse = {
+  note: OportunidadeWorkspaceNote
+}
+
+export type DeleteOportunidadeNotePayload = {
+  companyId: string
+  oportunidadeId: string
+  noteId: string
+}
+
+export type DeleteOportunidadeNoteResponse = {
+  noteId: string
+}
+
+export type KnownOrgaoOption = {
+  id: string
+  cnpj: string
+  nome: string
+  codigoUnidade: string
+  nomeUnidade: string
+  municipio: string
+  uf: string
+  esfera: string
+  poder: string
+}
+
+export type ListKnownOrgaosResponse = {
+  orgaos: KnownOrgaoOption[]
 }
 
 export type TeamMemberOption = {
@@ -691,7 +1053,7 @@ export function useLicitacaoService(_api: CoreApiClient) {
       oportunidadeId,
     })
 
-    const res = await fetchWithTimeout(`/api/core/get-licitacao-workspace?${query.toString()}`, {
+    const res = await fetchWithTimeout(`/api/core/get-oportunidade-workspace?${query.toString()}`, {
       method: "GET",
     })
 
@@ -715,6 +1077,23 @@ export function useLicitacaoService(_api: CoreApiClient) {
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       throw new Error(body.message ?? `Erro ${res.status} ao carregar o workflow da empresa`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const listKnownOrgaos = useCallback(async ({
+    companyId,
+  }: {
+    companyId: string
+  }): Promise<ListKnownOrgaosResponse> => {
+    const res = await fetch(`/api/core/list-known-orgaos?companyId=${encodeURIComponent(companyId)}`, {
+      method: "GET",
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao carregar órgãos cadastrados`)
     }
 
     return await res.json()
@@ -839,6 +1218,141 @@ export function useLicitacaoService(_api: CoreApiClient) {
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       throw new Error(body.message ?? `Erro ${res.status} ao atualizar a oportunidade`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const updateOportunidadeDetails = useCallback(async (payload: UpdateOportunidadeDetailsPayload): Promise<UpdateOportunidadeDetailsResponse> => {
+    const res = await fetchWithTimeout("/api/core/update-oportunidade-details", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao atualizar os dados da oportunidade`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const updateOportunidadeItem = useCallback(async (payload: UpdateOportunidadeItemPayload): Promise<UpdateOportunidadeItemResponse> => {
+    const res = await fetchWithTimeout("/api/core/update-oportunidade-item", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao atualizar o item da oportunidade`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const createOportunidadeItem = useCallback(async (payload: CreateOportunidadeItemPayload): Promise<CreateOportunidadeItemResponse> => {
+    const res = await fetchWithTimeout("/api/core/create-oportunidade-item", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao criar o item na oportunidade`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const deleteOportunidadeItem = useCallback(async (payload: DeleteOportunidadeItemPayload): Promise<DeleteOportunidadeItemResponse> => {
+    const res = await fetchWithTimeout("/api/core/delete-oportunidade-item", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao remover o item da oportunidade`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const createOportunidadeTask = useCallback(async (payload: CreateOportunidadeTaskPayload): Promise<CreateOportunidadeTaskResponse> => {
+    const res = await fetchWithTimeout("/api/core/create-oportunidade-task", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao criar a tarefa`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const toggleOportunidadeTask = useCallback(async (payload: ToggleOportunidadeTaskPayload): Promise<ToggleOportunidadeTaskResponse> => {
+    const res = await fetchWithTimeout("/api/core/toggle-oportunidade-task", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao atualizar a tarefa`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const deleteOportunidadeTask = useCallback(async (payload: DeleteOportunidadeTaskPayload): Promise<DeleteOportunidadeTaskResponse> => {
+    const res = await fetchWithTimeout("/api/core/delete-oportunidade-task", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao excluir a tarefa`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const createOportunidadeNote = useCallback(async (payload: CreateOportunidadeNotePayload): Promise<CreateOportunidadeNoteResponse> => {
+    const res = await fetchWithTimeout("/api/core/create-oportunidade-note", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao salvar a nota`)
+    }
+
+    return await res.json()
+  }, [])
+
+  const deleteOportunidadeNote = useCallback(async (payload: DeleteOportunidadeNotePayload): Promise<DeleteOportunidadeNoteResponse> => {
+    const res = await fetchWithTimeout("/api/core/delete-oportunidade-note", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.message ?? `Erro ${res.status} ao excluir a nota`)
     }
 
     return await res.json()
@@ -1355,10 +1869,20 @@ export function useLicitacaoService(_api: CoreApiClient) {
     listDrafts,
     getWorkspace,
     getCompanyWorkflow,
+    listKnownOrgaos,
     listTeamMembers,
     listOportunidadesBoard,
     moveOportunidadeWorkflow,
     updateOportunidadeBoardItem,
+    updateOportunidadeDetails,
+    updateOportunidadeItem,
+    createOportunidadeItem,
+    deleteOportunidadeItem,
+    createOportunidadeTask,
+    toggleOportunidadeTask,
+    deleteOportunidadeTask,
+    createOportunidadeNote,
+    deleteOportunidadeNote,
     updateCompanyWorkflowNode,
     deleteDraft,
     finalizeRegistration,

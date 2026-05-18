@@ -48,6 +48,10 @@ export type ListOportunidadesBoardResponse = {
      */
     valorEstimado: (string | null);
     /**
+     * Valor homologado principal quando já houver fechamento oficial disponível.
+     */
+    valorHomologado: (string | null);
+    /**
      * Órgão principal associado à oportunidade.
      */
     orgaoNome: (string | null);
@@ -209,6 +213,44 @@ export type ListOportunidadesBoardResponse = {
        */
       updatedAt: (string | null);
     };
+    /**
+     * Resumo operacional das tarefas vinculadas ao card.
+     */
+    tasksSummary: {
+      /**
+       * Quantidade total de tarefas vinculadas à oportunidade.
+       */
+      total: number;
+      /**
+       * Quantidade de tarefas ainda em aberto.
+       */
+      open: number;
+      /**
+       * Quantidade de tarefas já concluídas.
+       */
+      done: number;
+    };
+    /**
+     * Comentário interno mais recente vinculado à oportunidade.
+     */
+    latestNote: ({
+      /**
+       * Conteúdo do comentário interno mais recente.
+       */
+      content: string;
+      /**
+       * Nome do autor do comentário mais recente.
+       */
+      authorName: string;
+      /**
+       * Data ISO de criação do comentário mais recente.
+       */
+      createdAt: string;
+    } | null);
+    /**
+     * Quantidade total de comentários internos da oportunidade.
+     */
+    notesCount: number;
     /**
      * Quantidade de itens da licitação que estão vinculados à oportunidade.
      */

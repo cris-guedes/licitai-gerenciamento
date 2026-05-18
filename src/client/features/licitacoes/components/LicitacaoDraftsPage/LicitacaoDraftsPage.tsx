@@ -4,10 +4,10 @@ import Link from "next/link"
 import { Clock3, Eye, LoaderCircle, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/client/components/ui/button"
 import { Card, CardContent } from "@/client/components/ui/card"
+import { DocumentAiPanel } from "@/client/features/documents"
 import { DashboardHeaderActions } from "@/client/features/dashboard/components/DashboardShell"
 import { useApp } from "@/client/hooks/app/useApp"
 import { useCoreApi } from "@/client/hooks/use-core-api"
-import { DocumentAssistantSidebar } from "../NovaLicitacaoPage/DocumentAssistantSidebar"
 import { useDocumentChatService } from "../../services/use-document-chat.service"
 import { useDocumentSummaryService } from "../../services/use-document-summary.service"
 import { useLicitacaoService } from "../../services/use-licitacao.service"
@@ -149,12 +149,13 @@ export function LicitacaoDraftsPage() {
         isDeletePending={page.isDeletePending}
         onDeleteDraft={handleDeletePreviewDraft}
         assistantSidebar={(
-          <DocumentAssistantSidebar
+          <DocumentAiPanel
             open
             onOpenChange={() => undefined}
             documentId={page.selectedDocument?.documentId ?? null}
             documentChatService={documentChatService}
             documentSummaryService={documentSummaryService}
+            processingState={page.selectedDocument?.status === "FAILED" ? "FAILED" : page.selectedDocument?.status === "READY" ? "READY" : "PROCESSING"}
           />
         )}
       />

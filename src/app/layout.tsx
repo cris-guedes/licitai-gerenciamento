@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
+import "@xyflow/react/dist/style.css";
 import "./globals.css";
 import { QueryProvider } from "@/client/main/providers/QueryProvider";
 import { HotjarProvider } from "@/client/main/providers/HotjarProvider";

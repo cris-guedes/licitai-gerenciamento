@@ -23,6 +23,7 @@ export type OportunidadeBoardItemView = {
     modalidade: string | null;
     objetoResumo: string | null;
     valorEstimado: string | null;
+    valorHomologado: string | null;
     orgaoNome: string | null;
     responsavel: {
         id: string;
@@ -36,6 +37,17 @@ export type OportunidadeBoardItemView = {
         situation: OportunidadeBoardNodeView | null;
         updatedAt: string | null;
     };
+    tasksSummary: {
+        total: number;
+        open: number;
+        done: number;
+    };
+    latestNote: {
+        content: string;
+        authorName: string;
+        createdAt: string;
+    } | null;
+    notesCount: number;
     itemCount: number;
     createdAt: string;
     updatedAt: string;
@@ -55,6 +67,9 @@ export class OportunidadeBoardViewMapper {
             ?? oportunidade.edital?.numero
             ?? oportunidade.licitacao?.numeroLicitacao
             ?? "Oportunidade sem título";
+        const openTasks = oportunidade.tasks.filter(task => task.status === "OPEN").length;
+        const doneTasks = oportunidade.tasks.filter(task => task.status === "DONE").length;
+        const latestNote = oportunidade.notes[0] ?? null;
 
         return {
             oportunidadeId: oportunidade.id,
@@ -69,6 +84,7 @@ export class OportunidadeBoardViewMapper {
             valorEstimado: oportunidade.edital?.valorEstimado?.toString?.()
                 ?? oportunidade.licitacao?.valorEstimadoTotal?.toString?.()
                 ?? null,
+            valorHomologado: oportunidade.licitacao?.valorHomologadoTotal?.toString?.() ?? null,
             orgaoNome: oportunidade.edital?.orgaoRazaoSocial ?? oportunidade.licitacao?.orgaoGerenciador?.razaoSocial ?? null,
             responsavel: oportunidade.responsavel
                 ? {
@@ -84,6 +100,19 @@ export class OportunidadeBoardViewMapper {
                 situation: this.toNodeView(oportunidade.currentSituationNode),
                 updatedAt: oportunidade.workflowUpdatedAt?.toISOString() ?? null,
             },
+            tasksSummary: {
+                total: oportunidade.tasks.length,
+                open: openTasks,
+                done: doneTasks,
+            },
+            latestNote: latestNote
+                ? {
+                    content: latestNote.content,
+                    authorName: latestNote.createdBy.name,
+                    createdAt: latestNote.createdAt.toISOString(),
+                }
+                : null,
+            notesCount: oportunidade._count.notes,
             itemCount: oportunidade._count.itens,
             createdAt: oportunidade.createdAt.toISOString(),
             updatedAt: oportunidade.updatedAt.toISOString(),

@@ -26,6 +26,18 @@ function stopPropagation(event: SyntheticEvent) {
   event.stopPropagation()
 }
 
+function getOptionSubtitle(option: MoveOption) {
+  const parts = option.phaseLabel && option.phaseLabel !== option.label
+    ? [option.phaseLabel]
+    : ["Mudança de fase"]
+
+  if (option.transitionType) {
+    parts.push(option.transitionType)
+  }
+
+  return parts.join(" · ")
+}
+
 export function OportunidadeWorkflowActions({
   item,
   moveOptions,
@@ -119,10 +131,7 @@ export function OportunidadeWorkflowActions({
               <ArrowRight className="mt-0.5 size-4" />
               <div className="flex min-w-0 flex-col">
                 <span className="font-medium">{option.label}</span>
-                <span className="text-xs text-muted-foreground">
-                  {option.phaseLabel ?? "Fase não identificada"}
-                  {option.transitionType ? ` · ${option.transitionType}` : ""}
-                </span>
+                <span className="text-xs text-muted-foreground">{getOptionSubtitle(option)}</span>
               </div>
             </DropdownMenuItem>
           ))}

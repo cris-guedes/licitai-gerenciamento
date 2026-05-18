@@ -20,6 +20,12 @@ import { CreateCompanyControllerSchemas } from "../../domain/use-cases/company/c
 import { UpdateCompanyControllerSchemas } from "../../domain/use-cases/company/update-company/UpdateCompanyControllerSchemas";
 import { DeleteCompanyControllerSchemas } from "../../domain/use-cases/company/delete-company/DeleteCompanyControllerSchemas";
 import { CompanyProfileSchema, CompanySecondaryCnaeSchema } from "../../domain/use-cases/company/_shared/companySchemas";
+import { FetchCompanyItemByIdControllerSchemas } from "../../domain/use-cases/company-item/fetch-company-item-by-id/FetchCompanyItemByIdControllerSchemas";
+import { ListCompanyItemsControllerSchemas, ListCompanyItemsResponseSchema } from "../../domain/use-cases/company-item/list-company-items/ListCompanyItemsControllerSchemas";
+import { CreateCompanyItemControllerSchemas } from "../../domain/use-cases/company-item/create-company-item/CreateCompanyItemControllerSchemas";
+import { UpdateCompanyItemControllerSchemas } from "../../domain/use-cases/company-item/update-company-item/UpdateCompanyItemControllerSchemas";
+import { DeleteCompanyItemControllerSchemas } from "../../domain/use-cases/company-item/delete-company-item/DeleteCompanyItemControllerSchemas";
+import { CompanyItemSchema } from "../../domain/use-cases/company-item/_shared/companyItemSchemas";
 import { FetchUserControllerSchemas, UserSchema } from "../../domain/use-cases/auth/fetch-user/FetchUserControllerSchemas";
 import { RegisterUserControllerSchemas, RegisterUserResponseSchema } from "../../domain/use-cases/auth/register-user/RegisterUserControllerSchemas";
 import { UpdateUserControllerSchemas, UpdateUserResponseSchema } from "../../domain/use-cases/auth/update-user/UpdateUserControllerSchemas";
@@ -41,19 +47,38 @@ import { DeleteCompanyWorkflowTransitionControllerSchemas } from "../../domain/u
 import { UploadEditalDocumentControllerSchemas } from "../../domain/use-cases/licitacao/upload-edital-document/UploadEditalDocumentControllerSchemas";
 import { UploadLicitacaoDocumentStreamControllerSchemas } from "../../domain/use-cases/licitacao/upload-licitacao-document-stream/UploadLicitacaoDocumentStreamControllerSchemas";
 import { ListLicitacaoDraftsControllerSchemas } from "../../domain/use-cases/licitacao/list-licitacao-drafts/ListLicitacaoDraftsControllerSchemas";
+import { ListKnownOrgaosControllerSchemas } from "../../domain/use-cases/licitacao/list-known-orgaos/ListKnownOrgaosControllerSchemas";
 import { GetCompanyWorkflowControllerSchemas } from "../../domain/use-cases/licitacao/get-company-workflow/GetCompanyWorkflowControllerSchemas";
 import { GetLicitacaoWorkspaceControllerSchemas } from "../../domain/use-cases/licitacao/get-licitacao-workspace/GetLicitacaoWorkspaceControllerSchemas";
 import { ListOportunidadesBoardControllerSchemas } from "../../domain/use-cases/licitacao/list-oportunidades-board/ListOportunidadesBoardControllerSchemas";
 import { MoveOportunidadeWorkflowControllerSchemas } from "../../domain/use-cases/licitacao/move-oportunidade-workflow/MoveOportunidadeWorkflowControllerSchemas";
+import { CreateOportunidadeTaskControllerSchemas } from "../../domain/use-cases/oportunidade/details/create-oportunidade-task/CreateOportunidadeTaskControllerSchemas";
+import { ToggleOportunidadeTaskControllerSchemas } from "../../domain/use-cases/oportunidade/details/toggle-oportunidade-task/ToggleOportunidadeTaskControllerSchemas";
+import { DeleteOportunidadeTaskControllerSchemas } from "../../domain/use-cases/oportunidade/details/delete-oportunidade-task/DeleteOportunidadeTaskControllerSchemas";
+import { CreateOportunidadeNoteControllerSchemas } from "../../domain/use-cases/oportunidade/details/create-oportunidade-note/CreateOportunidadeNoteControllerSchemas";
+import { DeleteOportunidadeNoteControllerSchemas } from "../../domain/use-cases/oportunidade/details/delete-oportunidade-note/DeleteOportunidadeNoteControllerSchemas";
+import { UpdateOportunidadeItemControllerSchemas } from "../../domain/use-cases/oportunidade/items/update-oportunidade-item/UpdateOportunidadeItemControllerSchemas";
+import { CreateOportunidadeItemControllerSchemas } from "../../domain/use-cases/oportunidade/items/create-oportunidade-item/CreateOportunidadeItemControllerSchemas";
+import { DeleteOportunidadeItemControllerSchemas } from "../../domain/use-cases/oportunidade/items/delete-oportunidade-item/DeleteOportunidadeItemControllerSchemas";
 import { UpdateCompanyWorkflowNodeControllerSchemas } from "../../domain/use-cases/licitacao/update-company-workflow-node/UpdateCompanyWorkflowNodeControllerSchemas";
 import { UpdateCompanyWorkflowTransitionControllerSchemas } from "../../domain/use-cases/licitacao/update-company-workflow-transition/UpdateCompanyWorkflowTransitionControllerSchemas";
 import { FinalizeOportunidadeRegistrationControllerSchemas } from "../../domain/use-cases/licitacao/finalize-oportunidade-registration/FinalizeOportunidadeRegistrationControllerSchemas";
 import { WorkflowDefinitionSchema, WorkflowNodeKindSchema, WorkflowNodeSchema, WorkflowTransitionSchema } from "../../domain/use-cases/licitacao/_shared/workflowSchemas";
 import { OportunidadeBoardItemSchema, OportunidadeBoardNodeSchema, OportunidadeBoardResponsavelSchema, OportunidadeBoardResponseSchema } from "../../domain/use-cases/licitacao/_shared/oportunidadeBoardSchemas";
+import { LicitacaoWorkspaceItemSchema } from "../../domain/use-cases/licitacao/_shared/licitacaoWorkspaceSchemas";
 import { GetInviteControllerSchemas, GetInviteResponseSchema } from "../../domain/use-cases/team/get-invite/GetInviteControllerSchemas";
 import { AcceptInviteControllerSchemas, AcceptInviteResponseSchema } from "../../domain/use-cases/team/accept-invite/AcceptInviteControllerSchemas";
 import { UpdateMemberRoleControllerSchemas, UpdateMemberRoleResponseSchema } from "../../domain/use-cases/team/update-member-role/UpdateMemberRoleControllerSchemas";
 import { RemoveMemberControllerSchemas, RemoveMemberResponseSchema } from "../../domain/use-cases/team/remove-member/RemoveMemberControllerSchemas";
+import { CreateContratoControllerSchemas } from "../../domain/use-cases/contrato/root/create-contrato/CreateContratoControllerSchemas";
+import { ListContratosControllerSchemas } from "../../domain/use-cases/contrato/root/list-contratos/ListContratosControllerSchemas";
+import { GetContratoWorkspaceControllerSchemas } from "../../domain/use-cases/contrato/root/get-contrato-workspace/GetContratoWorkspaceControllerSchemas";
+import { UpdateContratoControllerSchemas } from "../../domain/use-cases/contrato/root/update-contrato/UpdateContratoControllerSchemas";
+import { CreateEmpenhoControllerSchemas } from "../../domain/use-cases/contrato/empenho/create-empenho/CreateEmpenhoControllerSchemas";
+import { ListEmpenhosControllerSchemas } from "../../domain/use-cases/contrato/empenho/list-empenhos/ListEmpenhosControllerSchemas";
+import { CreateLocalEntregaControllerSchemas } from "../../domain/use-cases/contrato/empenho/create-local-entrega/CreateLocalEntregaControllerSchemas";
+import { CreateEntregaControllerSchemas } from "../../domain/use-cases/contrato/empenho/create-entrega/CreateEntregaControllerSchemas";
+import { UpdateEntregaStatusControllerSchemas } from "../../domain/use-cases/contrato/empenho/update-entrega-status/UpdateEntregaStatusControllerSchemas";
 import { ZodType } from "zod";
 import type { ZodOpenApiRequestBodyObject, ZodOpenApiResponsesObject } from "zod-openapi";
 
@@ -373,6 +398,72 @@ export const apiEndpoints: EndpointConfig[] = [
     },
   },
   {
+    path: "/company-item/fetch-company-item-by-id",
+    operationId: "fetchCompanyItemById",
+    tag: "CompanyItem",
+    summary: "Busca um item da empresa por ID",
+    description: "Retorna um item do catálogo interno da empresa a partir do seu identificador.",
+    successDescription: "Item da empresa encontrado",
+    method: "GET",
+    schemas: FetchCompanyItemByIdControllerSchemas,
+    extraSchemas: {
+      CompanyItem: CompanyItemSchema,
+    },
+  },
+  {
+    path: "/company-item/list-company-items",
+    operationId: "listCompanyItems",
+    tag: "CompanyItem",
+    summary: "Lista itens da empresa",
+    description: "Retorna os itens cadastrados para a empresa informada.",
+    successDescription: "Lista de itens retornada",
+    method: "GET",
+    schemas: ListCompanyItemsControllerSchemas,
+    extraSchemas: {
+      CompanyItem: CompanyItemSchema,
+      ListCompanyItemsResponse: ListCompanyItemsResponseSchema,
+    },
+  },
+  {
+    path: "/company-item/create-company-item",
+    operationId: "createCompanyItem",
+    tag: "CompanyItem",
+    summary: "Cria um item da empresa",
+    description: "Cadastra um novo item no catálogo interno da empresa.",
+    successDescription: "Item da empresa criado com sucesso",
+    method: "POST",
+    schemas: CreateCompanyItemControllerSchemas,
+    extraSchemas: {
+      CompanyItem: CompanyItemSchema,
+    },
+  },
+  {
+    path: "/company-item/update-company-item",
+    operationId: "updateCompanyItem",
+    tag: "CompanyItem",
+    summary: "Atualiza um item da empresa",
+    description: "Atualiza os campos editáveis de um item do catálogo interno da empresa.",
+    successDescription: "Item da empresa atualizado com sucesso",
+    method: "POST",
+    schemas: UpdateCompanyItemControllerSchemas,
+    extraSchemas: {
+      CompanyItem: CompanyItemSchema,
+    },
+  },
+  {
+    path: "/company-item/delete-company-item",
+    operationId: "deleteCompanyItem",
+    tag: "CompanyItem",
+    summary: "Remove um item da empresa",
+    description: "Exclui um item do catálogo interno da empresa.",
+    successDescription: "Item da empresa removido com sucesso",
+    method: "POST",
+    schemas: DeleteCompanyItemControllerSchemas,
+    extraSchemas: {
+      CompanyItem: CompanyItemSchema,
+    },
+  },
+  {
     path: "/fetch-user",
     operationId: "fetchUser",
     tag: "Auth",
@@ -531,6 +622,16 @@ export const apiEndpoints: EndpointConfig[] = [
     },
   },
   {
+    path: "/list-known-orgaos",
+    operationId: "listKnownOrgaos",
+    tag: "Licitacao",
+    summary: "Lista órgãos públicos já utilizados pela empresa",
+    description: "Retorna órgãos gerenciadores e participantes já cadastrados em licitações anteriores da empresa para reaproveitamento no formulário.",
+    successDescription: "Órgãos reutilizáveis carregados com sucesso",
+    method: "GET",
+    schemas: ListKnownOrgaosControllerSchemas,
+  },
+  {
     path: "/list-licitacao-drafts",
     operationId: "listLicitacaoDrafts",
     tag: "Licitacao",
@@ -570,6 +671,89 @@ export const apiEndpoints: EndpointConfig[] = [
       OportunidadeBoardResponsavel: OportunidadeBoardResponsavelSchema,
       OportunidadeBoardItem: OportunidadeBoardItemSchema,
     },
+  },
+  {
+    path: "/create-oportunidade-task",
+    operationId: "createOportunidadeTask",
+    tag: "Oportunidade",
+    summary: "Cria uma tarefa operacional da oportunidade",
+    description: "Adiciona uma tarefa simples vinculada à oportunidade para acompanhamento interno do time.",
+    successDescription: "Tarefa criada com sucesso",
+    method: "POST",
+    schemas: CreateOportunidadeTaskControllerSchemas,
+  },
+  {
+    path: "/update-oportunidade-item",
+    operationId: "updateOportunidadeItem",
+    tag: "Oportunidade",
+    summary: "Atualiza os dados operacionais de um item da oportunidade",
+    description: "Persiste seleção, mapeamento para item interno, precificação e dados correntes de disputa de um item da oportunidade.",
+    successDescription: "Item da oportunidade atualizado com sucesso",
+    method: "POST",
+    schemas: UpdateOportunidadeItemControllerSchemas,
+    extraSchemas: {
+      LicitacaoWorkspaceItem: LicitacaoWorkspaceItemSchema,
+    },
+  },
+  {
+    path: "/create-oportunidade-item",
+    operationId: "createOportunidadeItem",
+    tag: "Oportunidade",
+    summary: "Cria um item na oportunidade",
+    description: "Cria um novo item no edital e vincula à oportunidade.",
+    successDescription: "Item criado com sucesso",
+    method: "POST",
+    schemas: CreateOportunidadeItemControllerSchemas,
+  },
+  {
+    path: "/delete-oportunidade-item",
+    operationId: "deleteOportunidadeItem",
+    tag: "Oportunidade",
+    summary: "Deleta um item da oportunidade",
+    description: "Remove um item associado a uma oportunidade.",
+    successDescription: "Item removido com sucesso",
+    method: "POST",
+    schemas: DeleteOportunidadeItemControllerSchemas,
+  },
+  {
+    path: "/toggle-oportunidade-task",
+    operationId: "toggleOportunidadeTask",
+    tag: "Oportunidade",
+    summary: "Atualiza o status de uma tarefa da oportunidade",
+    description: "Marca uma tarefa da oportunidade como aberta ou concluída.",
+    successDescription: "Tarefa atualizada com sucesso",
+    method: "POST",
+    schemas: ToggleOportunidadeTaskControllerSchemas,
+  },
+  {
+    path: "/delete-oportunidade-task",
+    operationId: "deleteOportunidadeTask",
+    tag: "Oportunidade",
+    summary: "Remove uma tarefa da oportunidade",
+    description: "Exclui uma tarefa operacional vinculada à oportunidade.",
+    successDescription: "Tarefa removida com sucesso",
+    method: "POST",
+    schemas: DeleteOportunidadeTaskControllerSchemas,
+  },
+  {
+    path: "/create-oportunidade-note",
+    operationId: "createOportunidadeNote",
+    tag: "Oportunidade",
+    summary: "Cria uma nota interna da oportunidade",
+    description: "Adiciona uma nota ou comentário interno vinculado à oportunidade.",
+    successDescription: "Nota criada com sucesso",
+    method: "POST",
+    schemas: CreateOportunidadeNoteControllerSchemas,
+  },
+  {
+    path: "/delete-oportunidade-note",
+    operationId: "deleteOportunidadeNote",
+    tag: "Oportunidade",
+    summary: "Remove uma nota da oportunidade",
+    description: "Exclui uma nota interna previamente registrada para a oportunidade.",
+    successDescription: "Nota removida com sucesso",
+    method: "POST",
+    schemas: DeleteOportunidadeNoteControllerSchemas,
   },
   {
     path: "/create-company-workflow-node",
@@ -881,5 +1065,95 @@ export const apiEndpoints: EndpointConfig[] = [
         },
       },
     },
+  },
+  {
+    path: "/contratos",
+    operationId: "postCoreContratos",
+    tag: "Contratos",
+    summary: "Criar novo contrato",
+    description: "Cria um contrato a partir de uma oportunidade ganha",
+    successDescription: "Contrato criado com sucesso",
+    method: "POST",
+    schemas: CreateContratoControllerSchemas,
+  },
+  {
+    path: "/contratos/list",
+    operationId: "getCoreContratosList",
+    tag: "Contratos",
+    summary: "Listar contratos",
+    description: "Lista os contratos da empresa",
+    successDescription: "Lista de contratos retornada",
+    method: "GET",
+    schemas: ListContratosControllerSchemas,
+  },
+  {
+    path: "/contratos/workspace",
+    operationId: "getCoreContratosContratoIdWorkspace",
+    tag: "Contratos",
+    summary: "Obter Workspace do Contrato",
+    description: "Obtém todos os detalhes do contrato, itens, empenhos e pipeline",
+    successDescription: "Workspace carregado com sucesso",
+    method: "GET",
+    schemas: GetContratoWorkspaceControllerSchemas as unknown as EndpointSchemas,
+  },
+  {
+    path: "/contratos/update",
+    operationId: "postCoreContratosUpdate",
+    tag: "Contratos",
+    summary: "Atualizar contrato",
+    description: "Atualiza dados cadastrais e status de um contrato",
+    successDescription: "Contrato atualizado com sucesso",
+    method: "POST",
+    schemas: UpdateContratoControllerSchemas as unknown as EndpointSchemas,
+  },
+  {
+    path: "/contratos/empenhos",
+    operationId: "postCoreContratosContratoIdEmpenhos",
+    tag: "Empenhos",
+    summary: "Criar novo empenho",
+    description: "Cria uma nota de empenho vinculada a um contrato, deduzindo do saldo",
+    successDescription: "Empenho criado com sucesso",
+    method: "POST",
+    schemas: CreateEmpenhoControllerSchemas as unknown as EndpointSchemas,
+  },
+  {
+    path: "/contratos/empenhos/list",
+    operationId: "getCoreContratosContratoIdEmpenhosList",
+    tag: "Empenhos",
+    summary: "Listar empenhos do contrato",
+    description: "Lista todas as notas de empenho registradas em um contrato",
+    successDescription: "Empenhos encontrados",
+    method: "GET",
+    schemas: ListEmpenhosControllerSchemas as unknown as EndpointSchemas,
+  },
+  {
+    path: "/contratos/empenhos/locais",
+    operationId: "postCoreContratosContratoIdEmpenhosEmpenhoIdLocais",
+    tag: "Empenhos",
+    summary: "Adicionar Local de Entrega",
+    description: "Adiciona um local de entrega à nota de empenho",
+    successDescription: "Local adicionado com sucesso",
+    method: "POST",
+    schemas: CreateLocalEntregaControllerSchemas as unknown as EndpointSchemas,
+  },
+  {
+    path: "/contratos/empenhos/entregas",
+    operationId: "postCoreContratosContratoIdEmpenhosEmpenhoIdEntregas",
+    tag: "Empenhos",
+    summary: "Criar Entrega (Pipeline Logístico)",
+    description: "Adiciona uma nova entrega pendente para um item de empenho",
+    successDescription: "Entrega registrada com sucesso",
+    method: "POST",
+    schemas: CreateEntregaControllerSchemas as unknown as EndpointSchemas,
+  },
+  {
+    path: "/contratos/empenhos/entregas/status",
+    operationId: "postCoreContratosContratoIdEmpenhosEmpenhoIdEntregasEntregaIdStatus",
+    tag: "Empenhos",
+    summary: "Atualizar Status da Entrega",
+    description: "Avança a entrega no pipeline",
+    successDescription: "Status atualizado com sucesso",
+    method: "POST",
+    schemas: UpdateEntregaStatusControllerSchemas as unknown as EndpointSchemas,
   },
 ];

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useQuery } from "@tanstack/react-query"
 import type { LucideIcon } from "lucide-react"
 import {
   AlertCircle,
@@ -34,6 +35,9 @@ import {
   SelectValue,
 } from "@/client/components/ui/select"
 import { cn } from "@/client/main/lib/utils"
+import { DocumentSurface } from "@/client/components/document"
+import { DocumentWorkspaceWidget, type DocumentWorkspace, useDocumentWorkspaceService } from "@/client/features/documents"
+import type { CoreApiClient } from "@/client/main/infra/apis/api-core/CoreApiClient"
 import type { ExtractEditalDataResponse } from "@/client/main/infra/apis/api-core/models/ExtractEditalDataResponse"
 import type { LicitacaoDocumentItem } from "../../types/licitacao-document"
 import type {
@@ -52,6 +56,7 @@ const DOCUMENT_TYPE_OPTIONS: Array<{ value: LicitacaoDocumentType; label: string
 ]
 
 type AiWorkspaceBaseProps = {
+  api: CoreApiClient
   initialView?: WorkspaceView
   isUploadPending: boolean
   isExtractPending: boolean
@@ -96,6 +101,7 @@ type UploadDialogState = {
 export type WorkspaceView = "document" | "assistant-cadastro"
 
 export function AiWorkspaceBody({
+  api,
   className,
   initialView = "document",
   isUploadPending,
@@ -117,6 +123,7 @@ export function AiWorkspaceBody({
   onApplyExtractionSuccess,
   showApplyExtractionFooter = Boolean(onApplyExtraction),
 }: AiWorkspaceBodyProps) {
+  const documentWorkspaceService = useDocumentWorkspaceService(api)
   const [dialogState, setDialogState] = useState<UploadDialogState>({ open: false, mode: "add" })
   const [dialogDocumentType, setDialogDocumentType] = useState<LicitacaoDocumentType>("ANEXO")
   const [dialogFile, setDialogFile] = useState<File | null>(null)
@@ -414,22 +421,11 @@ export function AiWorkspaceBody({
                     onRunExtraction={handleRunExtractionClick}
                   />
                 ) : selectedDocument?.status === "READY" && (selectedDocument.previewUrl || selectedDocument.file) ? (
-                  <div className="flex h-full min-h-0 overflow-hidden bg-white">
-                    <div className="min-h-0 flex-1 overflow-hidden bg-white">
-                      {selectedDocument.previewUrl ? (
-                        <DocumentPreviewFrame
-                          title={selectedDocument.displayName ?? selectedDocument.originalName}
-                          src={selectedDocument.previewUrl}
-                        />
-                      ) : selectedDocument.file ? (
-                        <LocalDocumentPreviewFrame
-                          title={selectedDocument.displayName ?? selectedDocument.originalName}
-                          file={selectedDocument.file}
-                        />
-                      ) : null}
-                    </div>
-                    {documentAssistantSidebar ?? null}
-                  </div>
+                  <DocumentWorkspaceReadyView
+                    documentWorkspaceService={documentWorkspaceService}
+                    document={selectedDocument}
+                    assistantPanel={documentAssistantSidebar ?? null}
+                  />
                 ) : (
                   <div className="flex h-full min-h-0 items-center justify-center bg-slate-50/70 px-6">
                     <div className="mx-auto flex w-full max-w-2xl flex-col items-center border border-dashed border-slate-300 bg-white px-8 py-12 text-center">
@@ -554,6 +550,120 @@ export function AiWorkspaceBody({
   )
 }
 
+function DocumentWorkspaceReadyView({
+  documentWorkspaceService,
+  document,
+  assistantPanel,
+}: {
+  documentWorkspaceService: ReturnType<typeof useDocumentWorkspaceService>
+  document: LicitacaoDocumentItem
+  assistantPanel: ReactNode
+}) {
+  const documentWorkspaceQuery = useQuery({
+    queryKey: ["document-workspace", document.documentId],
+    queryFn: async () => documentWorkspaceService.getWorkspace(document.documentId!),
+    enabled: Boolean(document.documentId),
+  })
+
+  const workspace = documentWorkspaceQuery.data ?? toDocumentWorkspace(document)
+
+  if (document.documentId && documentWorkspaceQuery.isLoading && !documentWorkspaceQuery.data) {
+    return (
+      <div className="flex h-full min-h-0 items-center justify-center bg-slate-50/70 px-6">
+        <div className="mx-auto flex w-full max-w-2xl flex-col items-center border border-dashed border-slate-300 bg-white px-8 py-12 text-center">
+          <LoaderCircle className="size-8 animate-spin text-primary" />
+          <p className="mt-5 text-lg font-semibold text-primary">Carregando workspace do documento</p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Recuperando preview, analises e configuracoes da sessao do documento.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (document.documentId && documentWorkspaceQuery.error && !documentWorkspaceQuery.data) {
+    return (
+      <div className="flex h-full min-h-0 items-center justify-center bg-slate-50/70 px-6">
+        <div className="mx-auto flex w-full max-w-2xl flex-col items-center border border-dashed border-rose-300 bg-white px-8 py-12 text-center">
+          <AlertCircle className="size-8 text-destructive" />
+          <p className="mt-5 text-lg font-semibold text-primary">Nao foi possivel abrir este documento</p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {documentWorkspaceQuery.error instanceof Error
+              ? documentWorkspaceQuery.error.message
+              : "Tivemos um problema ao recuperar o workspace do documento."}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <DocumentWorkspaceWidget
+      workspace={workspace}
+      className="h-full rounded-none border-0"
+      layout={assistantPanel ? "preview-with-ai" : "preview"}
+      aiPanel={assistantPanel}
+      surface={
+        workspace.preview.url ? (
+          <DocumentSurface
+            url={workspace.preview.url}
+            title={workspace.document.title || workspace.document.originalName}
+            className="min-h-[520px]"
+          />
+        ) : document.file ? (
+          <LocalDocumentSurface
+            title={document.displayName ?? document.originalName}
+            file={document.file}
+          />
+        ) : undefined
+      }
+    />
+  )
+}
+
+function toDocumentWorkspace(document: LicitacaoDocumentItem): DocumentWorkspace {
+  return {
+    document: {
+      id: document.documentId ?? document.localId,
+      companyId: "",
+      type: document.type,
+      title: document.displayName ?? document.originalName,
+      originalName: document.originalName,
+      mimeType: document.mimeType,
+      sizeBytes: document.sizeBytes,
+      uploadedAt: document.uploadedAt ?? new Date().toISOString(),
+    },
+    preview: {
+      url: document.previewUrl ?? document.documentUrl ?? "",
+      expiresAt: document.previewUrlExpiresAt ?? null,
+      downloadUrl: document.documentUrl ?? document.previewUrl ?? null,
+      filename: document.originalName,
+      mimeType: document.mimeType,
+    },
+    processing: {
+      state: document.status === "READY" ? "READY" : document.status === "FAILED" ? "FAILED" : "PROCESSING",
+      canProcess: false,
+      canRetry: false,
+      errorMessage: document.status === "FAILED" ? document.message : null,
+      progress: null,
+    },
+    ai: {
+      chat: {
+        enabled: Boolean(document.documentId),
+        blockedReason: null,
+        messageCount: null,
+      },
+      summary: {
+        enabled: Boolean(document.documentId),
+        blockedReason: null,
+        latest: null,
+      },
+      analyses: [],
+    },
+    links: [],
+  }
+}
+
 export function AiWorkspaceModal({
   open,
   onOpenChange,
@@ -591,18 +701,7 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function DocumentPreviewFrame({ title, src }: { title: string; src: string }) {
-  return (
-    <iframe
-      title={title}
-      src={src}
-      className="h-full w-full border-0"
-      allow="fullscreen"
-    />
-  )
-}
-
-function LocalDocumentPreviewFrame({ title, file }: { title: string; file: File }) {
+function LocalDocumentSurface({ title, file }: { title: string; file: File }) {
   const src = useMemo(() => URL.createObjectURL(file), [file])
 
   useEffect(() => {
@@ -611,7 +710,7 @@ function LocalDocumentPreviewFrame({ title, file }: { title: string; file: File 
     }
   }, [src])
 
-  return <DocumentPreviewFrame title={title} src={src} />
+  return <DocumentSurface title={title} url={src} className="min-h-[520px]" />
 }
 
 function formatDocumentType(type: LicitacaoDocumentType) {

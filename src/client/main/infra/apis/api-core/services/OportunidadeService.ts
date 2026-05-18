@@ -4,13 +4,19 @@
 /* eslint-disable */
 import type { CreateCompanyWorkflowNodeResponse } from '../models/CreateCompanyWorkflowNodeResponse';
 import type { CreateCompanyWorkflowTransitionResponse } from '../models/CreateCompanyWorkflowTransitionResponse';
+import type { CreateOportunidadeNoteResponse } from '../models/CreateOportunidadeNoteResponse';
+import type { CreateOportunidadeTaskResponse } from '../models/CreateOportunidadeTaskResponse';
 import type { DeleteCompanyWorkflowNodeResponse } from '../models/DeleteCompanyWorkflowNodeResponse';
 import type { DeleteCompanyWorkflowTransitionResponse } from '../models/DeleteCompanyWorkflowTransitionResponse';
+import type { DeleteOportunidadeNoteResponse } from '../models/DeleteOportunidadeNoteResponse';
+import type { DeleteOportunidadeTaskResponse } from '../models/DeleteOportunidadeTaskResponse';
 import type { GetCompanyWorkflowResponse } from '../models/GetCompanyWorkflowResponse';
 import type { ListOportunidadesBoardResponse } from '../models/ListOportunidadesBoardResponse';
 import type { MoveOportunidadeWorkflowResponse } from '../models/MoveOportunidadeWorkflowResponse';
+import type { ToggleOportunidadeTaskResponse } from '../models/ToggleOportunidadeTaskResponse';
 import type { UpdateCompanyWorkflowNodeResponse } from '../models/UpdateCompanyWorkflowNodeResponse';
 import type { UpdateCompanyWorkflowTransitionResponse } from '../models/UpdateCompanyWorkflowTransitionResponse';
+import type { UpdateOportunidadeItemResponse } from '../models/UpdateOportunidadeItemResponse';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import type { BaseHttpRequest } from '../core/BaseHttpRequest';
 export class OportunidadeService {
@@ -104,6 +110,316 @@ export class OportunidadeService {
     return this.httpRequest.request({
       method: 'POST',
       url: '/move-oportunidade-workflow',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * Cria uma tarefa operacional da oportunidade
+   * Adiciona uma tarefa simples vinculada à oportunidade para acompanhamento interno do time.
+   * @returns CreateOportunidadeTaskResponse Tarefa criada com sucesso
+   * @throws ApiError
+   */
+  public createOportunidadeTask({
+    requestBody,
+  }: {
+    requestBody: {
+      /**
+       * ID da empresa dona da oportunidade.
+       */
+      companyId: string;
+      /**
+       * ID da oportunidade que receberá a tarefa.
+       */
+      oportunidadeId: string;
+      /**
+       * Título objetivo da tarefa.
+       */
+      title: string;
+      /**
+       * Prazo opcional em ISO ou YYYY-MM-DD.
+       */
+      dueAt?: (string | null);
+    },
+  }): CancelablePromise<CreateOportunidadeTaskResponse> {
+    return this.httpRequest.request({
+      method: 'POST',
+      url: '/create-oportunidade-task',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * Atualiza os dados operacionais de um item da oportunidade
+   * Persiste seleção, mapeamento para item interno, precificação e dados correntes de disputa de um item da oportunidade.
+   * @returns UpdateOportunidadeItemResponse Item da oportunidade atualizado com sucesso
+   * @throws ApiError
+   */
+  public updateOportunidadeItem({
+    requestBody,
+  }: {
+    requestBody: {
+      /**
+       * ID da empresa dona da oportunidade.
+       */
+      companyId: string;
+      /**
+       * ID da oportunidade que contem o item.
+       */
+      oportunidadeId: string;
+      /**
+       * ID do item operacional da oportunidade.
+       */
+      oportunidadeItemId: string;
+      /**
+       * Patch parcial com os dados operacionais do item da oportunidade.
+       */
+      data: {
+        /**
+         * Dados editáveis do item oficial do edital.
+         */
+        editalItem?: {
+          /**
+           * Numero sequencial do item no edital.
+           */
+          numeroItem?: ((string | number) | null);
+          /**
+           * Descricao oficial do item no edital.
+           */
+          descricao?: (string | null);
+          /**
+           * Tipo oficial do item no edital.
+           */
+          tipoItem?: ('MATERIAL' | 'SERVICO' | null);
+          /**
+           * Identificacao do lote do item.
+           */
+          lote?: (string | null);
+          /**
+           * Quantidade total solicitada no edital.
+           */
+          quantidadeTotal?: ((string | number) | null);
+          /**
+           * Unidade de medida oficial do edital.
+           */
+          unidadeMedida?: (string | null);
+          /**
+           * Valor unitario estimado pelo edital.
+           */
+          valorUnitarioEstimado?: ((string | number) | null);
+          /**
+           * Valor total estimado pelo edital.
+           */
+          valorTotalEstimado?: ((string | number) | null);
+        };
+        /**
+         * ID do item interno da empresa vinculado ao item do edital.
+         */
+        companyItemId?: (string | null);
+        /**
+         * Indica se o item continua ativo na proposta.
+         */
+        isSelected?: boolean;
+        /**
+         * Status operacional do item dentro da oportunidade.
+         */
+        status?: 'PENDING_PRICING' | 'READY_FOR_BID' | 'IN_BIDDING' | 'WON' | 'LOST' | 'DISCARDED';
+        /**
+         * Observacoes internas do time comercial para o item.
+         */
+        observacaoInterna?: (string | null);
+        /**
+         * Dados de precificacao do item.
+         */
+        pricing?: {
+          /**
+           * Quantidade efetivamente considerada para a proposta.
+           */
+          quantidadeCotada?: ((string | number) | null);
+          /**
+           * Quantidade adicional prevista para adesao, quando houver.
+           */
+          quantidadeAdesao?: ((string | number) | null);
+          /**
+           * Preco unitario ofertado pela empresa.
+           */
+          precoOfertaUnitario?: ((string | number) | null);
+          /**
+           * Custo unitario congelado para esta oportunidade.
+           */
+          custoUnitarioSnapshot?: ((string | number) | null);
+          /**
+           * Valor minimo definido internamente para a fase de lances.
+           */
+          valorMinimoLance?: ((string | number) | null);
+          /**
+           * Marca efetivamente ofertada para o item.
+           */
+          ofertaMarca?: (string | null);
+          /**
+           * Modelo efetivamente ofertado para o item.
+           */
+          ofertaModelo?: (string | null);
+          /**
+           * Descricao da garantia comercial prometida para o item.
+           */
+          garantiaDescricao?: (string | null);
+        };
+        /**
+         * Dados correntes da disputa do item.
+         */
+        disputa?: {
+          /**
+           * Ultimo lance registrado para o item.
+           */
+          ultimoLance?: ((string | number) | null);
+          /**
+           * Data ISO ou YYYY-MM-DD do ultimo lance informado.
+           */
+          dataUltimoLance?: (string | null);
+          /**
+           * Situacao operacional resumida da disputa.
+           */
+          situacaoDisputa?: (string | null);
+          /**
+           * Observacoes internas sobre a disputa do item.
+           */
+          observacaoOperacional?: (string | null);
+        };
+      };
+    },
+  }): CancelablePromise<UpdateOportunidadeItemResponse> {
+    return this.httpRequest.request({
+      method: 'POST',
+      url: '/update-oportunidade-item',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * Atualiza o status de uma tarefa da oportunidade
+   * Marca uma tarefa da oportunidade como aberta ou concluída.
+   * @returns ToggleOportunidadeTaskResponse Tarefa atualizada com sucesso
+   * @throws ApiError
+   */
+  public toggleOportunidadeTask({
+    requestBody,
+  }: {
+    requestBody: {
+      /**
+       * ID da empresa dona da oportunidade.
+       */
+      companyId: string;
+      /**
+       * ID da oportunidade dona da tarefa.
+       */
+      oportunidadeId: string;
+      /**
+       * ID da tarefa.
+       */
+      taskId: string;
+      /**
+       * Novo status da tarefa.
+       */
+      status: 'OPEN' | 'DONE';
+    },
+  }): CancelablePromise<ToggleOportunidadeTaskResponse> {
+    return this.httpRequest.request({
+      method: 'POST',
+      url: '/toggle-oportunidade-task',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * Remove uma tarefa da oportunidade
+   * Exclui uma tarefa operacional vinculada à oportunidade.
+   * @returns DeleteOportunidadeTaskResponse Tarefa removida com sucesso
+   * @throws ApiError
+   */
+  public deleteOportunidadeTask({
+    requestBody,
+  }: {
+    requestBody: {
+      /**
+       * ID da empresa dona da oportunidade.
+       */
+      companyId: string;
+      /**
+       * ID da oportunidade dona da tarefa.
+       */
+      oportunidadeId: string;
+      /**
+       * ID da tarefa.
+       */
+      taskId: string;
+    },
+  }): CancelablePromise<DeleteOportunidadeTaskResponse> {
+    return this.httpRequest.request({
+      method: 'POST',
+      url: '/delete-oportunidade-task',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * Cria uma nota interna da oportunidade
+   * Adiciona uma nota ou comentário interno vinculado à oportunidade.
+   * @returns CreateOportunidadeNoteResponse Nota criada com sucesso
+   * @throws ApiError
+   */
+  public createOportunidadeNote({
+    requestBody,
+  }: {
+    requestBody: {
+      /**
+       * ID da empresa dona da oportunidade.
+       */
+      companyId: string;
+      /**
+       * ID da oportunidade que receberá a nota.
+       */
+      oportunidadeId: string;
+      /**
+       * Conteúdo textual da nota.
+       */
+      content: string;
+    },
+  }): CancelablePromise<CreateOportunidadeNoteResponse> {
+    return this.httpRequest.request({
+      method: 'POST',
+      url: '/create-oportunidade-note',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * Remove uma nota da oportunidade
+   * Exclui uma nota interna previamente registrada para a oportunidade.
+   * @returns DeleteOportunidadeNoteResponse Nota removida com sucesso
+   * @throws ApiError
+   */
+  public deleteOportunidadeNote({
+    requestBody,
+  }: {
+    requestBody: {
+      /**
+       * ID da empresa dona da oportunidade.
+       */
+      companyId: string;
+      /**
+       * ID da oportunidade dona da nota.
+       */
+      oportunidadeId: string;
+      /**
+       * ID da nota.
+       */
+      noteId: string;
+    },
+  }): CancelablePromise<DeleteOportunidadeNoteResponse> {
+    return this.httpRequest.request({
+      method: 'POST',
+      url: '/delete-oportunidade-note',
       body: requestBody,
       mediaType: 'application/json',
     });

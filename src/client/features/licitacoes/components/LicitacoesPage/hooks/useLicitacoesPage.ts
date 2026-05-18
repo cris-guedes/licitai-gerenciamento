@@ -3,29 +3,23 @@
 import { useDeferredValue, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
+import {
+  buildWorkflowMoveOptions,
+  readWorkflowMetadata,
+  type WorkflowMoveOption,
+} from "@/client/features/oportunidades/lib/workflow-move-options"
 import type {
   CompanyWorkflowResponse,
+  CreateOportunidadeItemPayload,
+  DeleteOportunidadeItemPayload,
   OportunidadeBoardItem,
+  UpdateOportunidadeItemPayload,
   WorkflowNode,
 } from "../../../services/use-licitacao.service"
 import { useLicitacaoService } from "../../../services/use-licitacao.service"
 
 type LicitacaoService = ReturnType<typeof useLicitacaoService>
 type ViewMode = "kanban" | "lista"
-
-type WorkflowMetadata = {
-  boardColumnKindKey: string
-  primaryBadgeKindKey: string
-  secondaryBadgeKindKey: string
-}
-
-type WorkflowMoveOption = {
-  nodeId: string
-  label: string
-  transitionType: string | null
-  phaseId: string | null
-  phaseLabel: string | null
-}
 
 type ResponsavelOption = {
   id: string
@@ -61,25 +55,13 @@ function sortNodes(a: { order: number; createdAt: string; id: string }, b: { ord
   return a.id.localeCompare(b.id)
 }
 
-function readWorkflowMetadata(definition: CompanyWorkflowResponse["workflow"] | undefined): WorkflowMetadata {
-  const raw = definition?.metadata
-  const object = raw && typeof raw === "object" && !Array.isArray(raw)
-    ? raw as Record<string, unknown>
-    : {}
-
-  return {
-    boardColumnKindKey: typeof object.boardColumnKindKey === "string" ? object.boardColumnKindKey : "phase",
-    primaryBadgeKindKey: typeof object.primaryBadgeKindKey === "string" ? object.primaryBadgeKindKey : "status",
-    secondaryBadgeKindKey: typeof object.secondaryBadgeKindKey === "string" ? object.secondaryBadgeKindKey : "situation",
-  }
-}
-
 export function useLicitacoesPage(params: {
   licitacaoService: LicitacaoService
   companyId: string | null
   organizationId: string | null
+  initialDetailOportunidadeId?: string | null
 }) {
-  const { licitacaoService, companyId, organizationId } = params
+  const { licitacaoService, companyId, organizationId, initialDetailOportunidadeId = null } = params
   const queryClient = useQueryClient()
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window === "undefined") return "kanban"
@@ -94,6 +76,7 @@ export function useLicitacoesPage(params: {
   const [valorEstimadoMax, setValorEstimadoMax] = useState("")
   const [detailOportunidadeId, setDetailOportunidadeId] = useState<string | null>(null)
   const [detailItemSnapshot, setDetailItemSnapshot] = useState<OportunidadeBoardItem | null>(null)
+  const requestedDetailOportunidadeId = detailOportunidadeId ?? initialDetailOportunidadeId ?? null
   const deferredSearch = useDeferredValue(search)
   const deferredValorEstimadoMin = useDeferredValue(valorEstimadoMin)
   const deferredValorEstimadoMax = useDeferredValue(valorEstimadoMax)
@@ -186,7 +169,7 @@ export function useLicitacoesPage(params: {
       ...patch,
     }),
     onSuccess: (response, variables) => {
-      if (detailOportunidadeId === variables.oportunidadeId) {
+      if (requestedDetailOportunidadeId === variables.oportunidadeId) {
         setDetailItemSnapshot(response.item)
       }
 
@@ -196,6 +179,99 @@ export function useLicitacoesPage(params: {
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, "Não foi possível atualizar a oportunidade."))
+    },
+  })
+
+  const createBoardNoteMutation = useMutation({
+    mutationFn: ({
+      oportunidadeId,
+      content,
+    }: {
+      oportunidadeId: string
+      content: string
+    }) => licitacaoService.createOportunidadeNote({
+      companyId: companyId!,
+      oportunidadeId,
+      content,
+    }),
+    onSuccess: (_response, variables) => {
+      toast.success("Comentário salvo.")
+      if (requestedDetailOportunidadeId === variables.oportunidadeId) {
+        void queryClient.invalidateQueries({ queryKey: ["licitacoes", "workspace", companyId, variables.oportunidadeId] })
+      }
+      void queryClient.invalidateQueries({ queryKey: ["licitacoes", "board", companyId] })
+    },
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "Não foi possível salvar o comentário."))
+    },
+  })
+
+  const updateDetailItemMutation = useMutation({
+    mutationFn: ({
+      oportunidadeId,
+      ...payload
+    }: Omit<UpdateOportunidadeItemPayload, "companyId" | "oportunidadeId"> & {
+      oportunidadeId: string
+    }) => licitacaoService.updateOportunidadeItem({
+      companyId: companyId!,
+      oportunidadeId,
+      ...payload,
+    }),
+    onSuccess: (_response, variables) => {
+      toast.success("Item da oportunidade atualizado.")
+      if (requestedDetailOportunidadeId === variables.oportunidadeId) {
+        void queryClient.invalidateQueries({ queryKey: ["licitacoes", "workspace", companyId, variables.oportunidadeId] })
+      }
+      void queryClient.invalidateQueries({ queryKey: ["licitacoes", "board", companyId] })
+    },
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "Não foi possível atualizar o item da oportunidade."))
+    },
+  })
+
+  const createDetailItemMutation = useMutation({
+    mutationFn: ({
+      oportunidadeId,
+      ...payload
+    }: Omit<CreateOportunidadeItemPayload, "companyId" | "oportunidadeId"> & {
+      oportunidadeId: string
+    }) => licitacaoService.createOportunidadeItem({
+      companyId: companyId!,
+      oportunidadeId,
+      ...payload,
+    }),
+    onSuccess: (_response, variables) => {
+      toast.success("Item adicionado à oportunidade.")
+      if (requestedDetailOportunidadeId === variables.oportunidadeId) {
+        void queryClient.invalidateQueries({ queryKey: ["licitacoes", "workspace", companyId, variables.oportunidadeId] })
+      }
+      void queryClient.invalidateQueries({ queryKey: ["licitacoes", "board", companyId] })
+    },
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "Não foi possível adicionar o item."))
+    },
+  })
+
+  const deleteDetailItemMutation = useMutation({
+    mutationFn: ({
+      oportunidadeId,
+      ...payload
+    }: Omit<DeleteOportunidadeItemPayload, "companyId" | "oportunidadeId"> & {
+      oportunidadeId: string
+    }) => licitacaoService.deleteOportunidadeItem({
+      companyId: companyId!,
+      oportunidadeId,
+      ...payload,
+    }),
+    onSuccess: (_response, variables) => {
+      toast.success("Item removido da oportunidade.")
+      if (requestedDetailOportunidadeId === variables.oportunidadeId) {
+        void queryClient.invalidateQueries({ queryKey: ["licitacoes", "workspace", companyId, variables.oportunidadeId] })
+      }
+      void queryClient.invalidateQueries({ queryKey: ["licitacoes", "board", companyId] })
+    },
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "Não foi possível remover o item."))
     },
   })
 
@@ -224,12 +300,12 @@ export function useLicitacoesPage(params: {
   const boardItems = useMemo(() => boardQuery.data?.items ?? [], [boardQuery.data?.items])
 
   const selectedDetailItem = useMemo(() => {
-    if (!detailOportunidadeId) return null
+    if (!requestedDetailOportunidadeId) return null
 
-    return (detailItemSnapshot?.oportunidadeId === detailOportunidadeId ? detailItemSnapshot : null)
-      ?? boardItems.find(item => item.oportunidadeId === detailOportunidadeId)
+    return (detailItemSnapshot?.oportunidadeId === requestedDetailOportunidadeId ? detailItemSnapshot : null)
+      ?? boardItems.find(item => item.oportunidadeId === requestedDetailOportunidadeId)
       ?? null
-  }, [boardItems, detailItemSnapshot, detailOportunidadeId])
+  }, [boardItems, detailItemSnapshot, requestedDetailOportunidadeId])
 
   const responsaveis = useMemo(() => boardQuery.data?.filterOptions.responsaveis ?? [], [boardQuery.data?.filterOptions.responsaveis])
   const responsavelOptions = useMemo(() => {
@@ -254,67 +330,13 @@ export function useLicitacoesPage(params: {
     return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name))
   }, [responsaveis, selectedDetailItem, teamMembersQuery.data?.members])
 
-  const getNodeAncestors = (nodeId: string | null) => {
-    const ancestors: WorkflowNode[] = []
-    let cursor = nodeId ? nodeById.get(nodeId) ?? null : null
-
-    while (cursor) {
-      ancestors.push(cursor)
-      cursor = cursor.parentId ? nodeById.get(cursor.parentId) ?? null : null
-    }
-
-    return ancestors
-  }
-
   const getMoveOptions = (item: OportunidadeBoardItem): WorkflowMoveOption[] => {
-    const currentNodeId = item.workflow.currentNode?.id
-    if (!currentNodeId) return []
-    const currentNodeIds = getNodeAncestors(currentNodeId).map(node => node.id)
-    const currentPhaseNode = item.workflow.phase?.id
-      ? nodeById.get(item.workflow.phase.id) ?? null
-      : getNodeAncestors(currentNodeId).find(node => node.kind.key === workflowMetadata.boardColumnKindKey) ?? null
-    const transitions = Array.from(new Map(
-      currentNodeIds
-        .flatMap(nodeId => transitionsByFromNodeId.get(nodeId) ?? [])
-        .map(transition => [transition.id, transition]),
-    ).values())
-
-    const transitionOptions = transitions
-      .map(transition => {
-        const targetNode = nodeById.get(transition.toNodeId)
-        if (!targetNode) return null
-
-        const phaseNode = getNodeAncestors(targetNode.id)
-          .find(node => node.kind.key === workflowMetadata.boardColumnKindKey) ?? null
-
-        return {
-          nodeId: targetNode.id,
-          label: targetNode.label,
-          transitionType: transition.transitionType,
-          phaseId: phaseNode?.id ?? null,
-          phaseLabel: phaseNode?.label ?? null,
-        } satisfies WorkflowMoveOption
-      })
-      .filter((option): option is WorkflowMoveOption => Boolean(option))
-
-    const optionsByNodeId = new Map(transitionOptions.map(option => [option.nodeId, option]))
-
-    if (currentPhaseNode) {
-      for (const phase of phases) {
-        if (phase.id === currentPhaseNode.id || sortNodes(phase, currentPhaseNode) >= 0) continue
-        if (optionsByNodeId.has(phase.id)) continue
-
-        optionsByNodeId.set(phase.id, {
-          nodeId: phase.id,
-          label: `Voltar para ${phase.label}`,
-          transitionType: "retorno",
-          phaseId: phase.id,
-          phaseLabel: phase.label,
-        })
-      }
-    }
-
-    return Array.from(optionsByNodeId.values())
+    return buildWorkflowMoveOptions({
+      item,
+      workflowMetadata,
+      nodeById,
+      transitionsByFromNodeId,
+    })
   }
 
   const getReachableNodeForPhase = (item: OportunidadeBoardItem, phaseId: string) => {
@@ -325,7 +347,7 @@ export function useLicitacoesPage(params: {
   const moveToNode = async (params: { oportunidadeId: string; targetNodeId: string }) => {
     const response = await moveMutation.mutateAsync(params)
 
-    if (detailOportunidadeId === params.oportunidadeId) {
+    if (requestedDetailOportunidadeId === params.oportunidadeId) {
       setDetailItemSnapshot(response.item)
     }
   }
@@ -369,12 +391,12 @@ export function useLicitacoesPage(params: {
   )
 
   const detailWorkspaceQuery = useQuery({
-    queryKey: ["licitacoes", "workspace", companyId, detailOportunidadeId],
+    queryKey: ["licitacoes", "workspace", companyId, requestedDetailOportunidadeId],
     queryFn: () => licitacaoService.getWorkspace({
       companyId: companyId!,
-      oportunidadeId: detailOportunidadeId!,
+      oportunidadeId: requestedDetailOportunidadeId!,
     }),
-    enabled: Boolean(companyId && detailOportunidadeId),
+    enabled: Boolean(companyId && requestedDetailOportunidadeId),
   })
 
   const openDetail = (item: OportunidadeBoardItem) => {
@@ -385,6 +407,37 @@ export function useLicitacoesPage(params: {
   const closeDetail = () => {
     setDetailOportunidadeId(null)
     setDetailItemSnapshot(null)
+  }
+
+  const createBoardNote = async (params: { oportunidadeId: string; content: string }) => {
+    await createBoardNoteMutation.mutateAsync(params)
+  }
+
+  const updateDetailWorkspaceItem = async (payload: Omit<UpdateOportunidadeItemPayload, "companyId" | "oportunidadeId">) => {
+    if (!selectedDetailItem) return
+
+    await updateDetailItemMutation.mutateAsync({
+      oportunidadeId: selectedDetailItem.oportunidadeId,
+      ...payload,
+    })
+  }
+
+  const createDetailWorkspaceItem = async (payload: Omit<CreateOportunidadeItemPayload, "companyId" | "oportunidadeId">) => {
+    if (!selectedDetailItem) return
+
+    await createDetailItemMutation.mutateAsync({
+      oportunidadeId: selectedDetailItem.oportunidadeId,
+      ...payload,
+    })
+  }
+
+  const deleteDetailWorkspaceItem = async (payload: Omit<DeleteOportunidadeItemPayload, "companyId" | "oportunidadeId">) => {
+    if (!selectedDetailItem) return
+
+    await deleteDetailItemMutation.mutateAsync({
+      oportunidadeId: selectedDetailItem.oportunidadeId,
+      ...payload,
+    })
   }
 
   return {
@@ -413,10 +466,18 @@ export function useLicitacoesPage(params: {
     isLoading: workflowQuery.isLoading || boardQuery.isLoading,
     isMoving: moveMutation.isPending,
     isUpdatingDetail: updateDetailMutation.isPending,
+    isUpdatingDetailItems: updateDetailItemMutation.isPending || createDetailItemMutation.isPending || deleteDetailItemMutation.isPending,
     movingOportunidadeId: moveMutation.isPending ? moveMutation.variables?.oportunidadeId ?? null : null,
+    creatingCommentOportunidadeId: createBoardNoteMutation.isPending
+      ? createBoardNoteMutation.variables?.oportunidadeId ?? null
+      : null,
     moveToNode,
     moveToPhase,
     updateDetailItem,
+    updateDetailWorkspaceItem,
+    createDetailWorkspaceItem,
+    deleteDetailWorkspaceItem,
+    createBoardNote,
     getMoveOptions,
     getReachableNodeForPhase,
     clearFilters,
@@ -425,7 +486,7 @@ export function useLicitacoesPage(params: {
     detailWorkspace: detailWorkspaceQuery.data ?? null,
     isDetailLoading: detailWorkspaceQuery.isLoading,
     detailError: detailWorkspaceQuery.error,
-    isDetailOpen: detailOportunidadeId !== null,
+    isDetailOpen: requestedDetailOportunidadeId !== null && selectedDetailItem !== null,
     openDetail,
     closeDetail,
     emptyState: hasActiveFilters

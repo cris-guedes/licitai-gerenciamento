@@ -97,18 +97,16 @@ export function ExtractEditalReviewWorkspace({ result }: Props) {
                 <ReviewHeader
                   eyebrow="Etapa 1"
                   title="Visão geral e cronograma"
-                  description="Revise primeiro os dados centrais do processo e o calendário do certame na mesma ordem do cadastro."
+                  description="Revise primeiro os dados centrais da licitação e o calendário do certame na mesma ordem do cadastro."
                 />
 
                 <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(190px,1fr))]">
                   <DetailCard label="Número da licitação" value={licitacao.numeroLicitacao} />
                   <DetailCard label="Ano" value={formatOptionalNumber(licitacao.ano)} />
-                  <DetailCard label="Processo" value={licitacao.processo} />
                   <DetailCard label="Modalidade" value={formatOptionalLabel(licitacao.modalidade)} />
                   <DetailCard label="Situação" value={licitacao.situacao} />
                   <DetailCard label="Registro de preço" value={formatOptionalBoolean(licitacao.srp)} />
                   <DetailCard label="Valor estimado" value={formatOptionalCurrency(licitacao.valorTotalEstimado)} />
-                  <DetailCard label="Valor homologado" value={formatOptionalCurrency(licitacao.valorTotalHomologado)} />
                 </div>
 
                 <Card className="rounded-[1.35rem] border-slate-200/70 shadow-none">
@@ -139,8 +137,6 @@ export function ExtractEditalReviewWorkspace({ result }: Props) {
 
                 <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(190px,1fr))]">
                   <DetailCard label="Data de publicação" value={licitacao.dataPublicacao} />
-                  <DetailCard label="Última atualização" value={licitacao.dataUltimaAtualizacao} />
-                  <DetailCard label="Identificador externo" value={licitacao.identificadorExterno} />
                   <LinkCard label="Link do processo" value={licitacao.linkProcesso} />
                 </div>
               </TabsContent>
@@ -665,10 +661,6 @@ function formatOptionalLabel(value: string | null | undefined) {
   return value
     .replace(/_/g, " ")
     .replace(/\b\w/g, character => character.toUpperCase())
-}
-
-function formatDuration(milliseconds: number) {
-  return `${(milliseconds / 1000).toFixed(1)}s`
 }
 
 function formatMinutes(value: number | null | undefined) {

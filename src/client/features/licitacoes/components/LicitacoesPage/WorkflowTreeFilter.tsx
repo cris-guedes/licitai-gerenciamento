@@ -91,7 +91,7 @@ export function WorkflowTreeFilter({
             <Input
               value={search}
               onChange={event => setSearch(event.target.value)}
-              placeholder="Buscar no workflow..."
+              placeholder="Buscar no fluxo..."
               className="h-9 rounded-lg border-slate-200 pl-9 shadow-none"
             />
           </div>
@@ -121,7 +121,7 @@ export function WorkflowTreeFilter({
 
         <div className="flex items-center justify-between border-t border-slate-100 p-2">
           <span className="px-2 text-xs font-medium text-slate-500">
-            {summaryNodes.length === 0 ? "Todo o workflow" : `${summaryNodes.length} selecionado${summaryNodes.length === 1 ? "" : "s"}`}
+            {summaryNodes.length === 0 ? "Todo o fluxo" : `${summaryNodes.length} selecionado${summaryNodes.length === 1 ? "" : "s"}`}
           </span>
           <Button
             type="button"
@@ -354,7 +354,7 @@ function collectSummaryNodes(nodes: WorkflowTreeNode[], selectedNodeSet: Set<str
 }
 
 function getTriggerLabel(summaryNodes: WorkflowTreeNode[]) {
-  if (summaryNodes.length === 0) return "Todo o workflow"
+  if (summaryNodes.length === 0) return "Todo o fluxo"
   if (summaryNodes.length === 1) return summaryNodes[0].label
   if (summaryNodes.length === 2) return `${summaryNodes[0].label}, ${summaryNodes[1].label}`
   return `${summaryNodes.length} grupos selecionados`

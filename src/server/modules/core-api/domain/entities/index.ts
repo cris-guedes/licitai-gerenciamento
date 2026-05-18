@@ -10,7 +10,10 @@
 // ─── Aggregate root ───────────────────────────────────────────────────────────
 export type { Licitacao, SituacaoLicitacao } from "./Licitacao";
 export type { Oportunidade, OportunidadeStatus } from "./Oportunidade";
-export type { OportunidadeItem } from "./OportunidadeItem";
+export type { OportunidadeItem, OportunidadeItemStatus } from "./OportunidadeItem";
+export type { OportunidadeItemPricing } from "./OportunidadeItemPricing";
+export type { OportunidadeItemDisputa } from "./OportunidadeItemDisputa";
+export type { CompanyItem } from "./CompanyItem";
 
 // ─── Documento do processo ────────────────────────────────────────────────────
 export type { Edital }              from "./Edital";
@@ -32,3 +35,11 @@ export type {
     GarantiaContratual,
 }                                   from "./ExecucaoContratual";
 export type { DocumentoHabilitacao } from "./DocumentoHabilitacao";
+
+// ─── Execução e Contratos ─────────────────────────────────────────────────────
+export type { Contrato, ContratoStatus } from "./Contrato";
+export type { ContratoItem } from "./ContratoItem";
+export type { ContratoEmpenho, ContratoEmpenhoStatus } from "./ContratoEmpenho";
+export type { EmpenhoItem } from "./EmpenhoItem";
+export type { EmpenhoLocalEntrega } from "./EmpenhoLocalEntrega";
+export type { EmpenhoEntrega, EmpenhoEntregaStatus } from "./EmpenhoEntrega";

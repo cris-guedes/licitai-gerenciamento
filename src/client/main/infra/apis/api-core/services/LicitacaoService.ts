@@ -10,6 +10,7 @@ import type { ExtractEditalDataResponse } from '../models/ExtractEditalDataRespo
 import type { ExtractEditalDataStreamResponse } from '../models/ExtractEditalDataStreamResponse';
 import type { FinalizeOportunidadeRegistrationResponse } from '../models/FinalizeOportunidadeRegistrationResponse';
 import type { GetLicitacaoWorkspaceResponse } from '../models/GetLicitacaoWorkspaceResponse';
+import type { ListKnownOrgaosResponse } from '../models/ListKnownOrgaosResponse';
 import type { ListLicitacaoDraftsResponse } from '../models/ListLicitacaoDraftsResponse';
 import type { UploadEditalDocumentResponse } from '../models/UploadEditalDocumentResponse';
 import type { UploadLicitacaoDocumentStreamResponse } from '../models/UploadLicitacaoDocumentStreamResponse';
@@ -17,6 +18,25 @@ import type { CancelablePromise } from '../core/CancelablePromise';
 import type { BaseHttpRequest } from '../core/BaseHttpRequest';
 export class LicitacaoService {
   constructor(public readonly httpRequest: BaseHttpRequest) {}
+  /**
+   * Lista órgãos públicos já utilizados pela empresa
+   * Retorna órgãos gerenciadores e participantes já cadastrados em licitações anteriores da empresa para reaproveitamento no formulário.
+   * @returns ListKnownOrgaosResponse Órgãos reutilizáveis carregados com sucesso
+   * @throws ApiError
+   */
+  public listKnownOrgaos({
+    companyId,
+  }: {
+    companyId: string,
+  }): CancelablePromise<ListKnownOrgaosResponse> {
+    return this.httpRequest.request({
+      method: 'GET',
+      url: '/list-known-orgaos',
+      query: {
+        'companyId': companyId,
+      },
+    });
+  }
   /**
    * Lista licitações em andamento
    * Retorna os rascunhos de licitação ainda não concluídos para a empresa selecionada.
