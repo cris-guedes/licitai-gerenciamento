@@ -16,6 +16,18 @@ export const OportunidadeBoardResponsavelSchema = z.object({
     email: z.string().describe("E-mail do responsável."),
 });
 
+export const OportunidadeBoardTaskSummarySchema = z.object({
+    total: z.number().describe("Quantidade total de tarefas vinculadas à oportunidade."),
+    open: z.number().describe("Quantidade de tarefas ainda em aberto."),
+    done: z.number().describe("Quantidade de tarefas já concluídas."),
+});
+
+export const OportunidadeBoardLatestNoteSchema = z.object({
+    content: z.string().describe("Conteúdo do comentário interno mais recente."),
+    authorName: z.string().describe("Nome do autor do comentário mais recente."),
+    createdAt: z.string().describe("Data ISO de criação do comentário mais recente."),
+});
+
 export const OportunidadeBoardItemSchema = z.object({
     oportunidadeId: z.string().describe("ID da oportunidade listada no board."),
     oportunidadeStatus: z.enum(["DRAFT", "ACTIVE", "CANCELLED"]).describe("Status técnico atual da oportunidade."),
@@ -27,6 +39,7 @@ export const OportunidadeBoardItemSchema = z.object({
     modalidade: z.string().nullable().describe("Modalidade principal da oportunidade."),
     objetoResumo: z.string().nullable().describe("Resumo do objeto da contratação."),
     valorEstimado: z.string().nullable().describe("Valor estimado principal da oportunidade já formatável pela UI."),
+    valorHomologado: z.string().nullable().describe("Valor homologado principal quando já houver fechamento oficial disponível."),
     orgaoNome: z.string().nullable().describe("Órgão principal associado à oportunidade."),
     responsavel: OportunidadeBoardResponsavelSchema.nullable().describe("Usuário responsável pela movimentação da oportunidade."),
     workflow: z.object({
@@ -36,6 +49,9 @@ export const OportunidadeBoardItemSchema = z.object({
         situation: OportunidadeBoardNodeSchema.nullable().describe("Nó usado como contexto secundário do card."),
         updatedAt: z.string().nullable().describe("Data ISO da última alteração manual do workflow."),
     }).describe("Recorte atual do workflow aplicado à oportunidade."),
+    tasksSummary: OportunidadeBoardTaskSummarySchema.describe("Resumo operacional das tarefas vinculadas ao card."),
+    latestNote: OportunidadeBoardLatestNoteSchema.nullable().describe("Comentário interno mais recente vinculado à oportunidade."),
+    notesCount: z.number().describe("Quantidade total de comentários internos da oportunidade."),
     itemCount: z.number().describe("Quantidade de itens da licitação que estão vinculados à oportunidade."),
     createdAt: z.string().describe("Data ISO de criação da oportunidade."),
     updatedAt: z.string().describe("Data ISO da última atualização da oportunidade."),

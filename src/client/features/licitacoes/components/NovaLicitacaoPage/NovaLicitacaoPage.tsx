@@ -42,7 +42,7 @@ export function NovaLicitacaoPage() {
     const result = await page.handleSubmitRegistration(values)
 
     if (base) {
-      router.replace(`${base}/licitacoes/nova`)
+      router.replace(`${base}/licitacoes?oportunidadeId=${result.oportunidadeId}`)
     }
 
     return result
@@ -236,6 +236,8 @@ export function NovaLicitacaoPage() {
           <NovaLicitacaoForm
             form={page.form}
             onSubmit={handleSubmitRegistration}
+            knownOrgaos={page.knownOrgaos}
+            isLoadingKnownOrgaos={page.isLoadingKnownOrgaos}
             isSubmitting={page.isSubmittingRegistration}
             submitError={page.submitRegistrationError}
             isCompleted={page.draftContext?.oportunidadeStatus === "ACTIVE"}

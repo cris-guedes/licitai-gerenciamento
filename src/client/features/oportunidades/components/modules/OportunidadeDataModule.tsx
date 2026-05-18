@@ -13,9 +13,11 @@ import {
 } from "@/client/components/ui/dialog"
 import { Input } from "@/client/components/ui/input"
 import { Label } from "@/client/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/client/components/ui/tabs"
 import { Textarea } from "@/client/components/ui/textarea"
 import { WorkspacePanel } from "@/client/components/workspace"
 import type { UpdateOportunidadeDetailsPayload } from "@/client/features/licitacoes/services/use-licitacao.service"
+import { cn } from "@/client/main/lib/utils"
 import { formatCurrency, formatDate, formatStatusLabel } from "../../lib/oportunidade-workspace"
 import type { OportunidadeWorkspaceModel } from "../../types/oportunidade-workspace"
 
@@ -32,6 +34,10 @@ export function OportunidadeDataModule({
   const draftPreview = licitacaoWorkspace?.oportunidade.draftPreview ?? licitacaoWorkspace?.licitacao.draftPreview ?? null
   const licitacao = licitacaoWorkspace?.licitacao ?? null
   const edital = licitacaoWorkspace?.edital ?? null
+  const itemCount = edital?.itens.length ?? oportunidade.itemCount
+  const valorEstimadoDisplay = formatCurrency(edital?.valorEstimado ?? licitacao?.valorEstimadoTotal ?? oportunidade.valorEstimado) ?? "Não informado"
+  const valorHomologadoDisplay = formatCurrency(licitacao?.valorHomologadoTotal ?? null) ?? "Não informado"
+  const localizacao = formatLocation(edital?.municipio, edital?.uf)
   const [dialogOpen, setDialogOpen] = useState(false)
   const initialForm = useMemo(() => {
     return {
@@ -72,7 +78,7 @@ export function OportunidadeDataModule({
   return (
     <>
       <WorkspacePanel
-        title="Dados da Oportunidade"
+        title="Dados"
         description="Ficha cadastral completa da licitação e do edital vinculados à oportunidade."
         actions={
           <Button
@@ -88,84 +94,234 @@ export function OportunidadeDataModule({
           </Button>
         }
       >
-        <div className="space-y-6">
-          <DataSection title="Identificação">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <InfoCell label="Título" value={oportunidade.title} />
-              <InfoCell label="Número do edital" value={edital?.numero ?? oportunidade.numero ?? draftPreview?.numero} />
-              <InfoCell label="Número da licitação" value={licitacao?.numeroLicitacao} />
-              <InfoCell label="Processo" value={edital?.processo ?? licitacao?.processoAdministrativo ?? "Não informado"} />
-              <InfoCell label="Modalidade" value={edital?.modalidade ?? licitacao?.modalidadeNome ?? oportunidade.modalidade ?? draftPreview?.modalidade} />
-              <InfoCell label="Tipo de instrumento" value={edital?.tipoInstrumento ?? licitacao?.tipoInstrumentoNome} />
-              <InfoCell label="Modo de disputa" value={edital?.modoDisputa ?? edital?.certame?.modoDisputa} />
-              <InfoCell label="Situação oficial" value={licitacao?.situacaoOficial} />
-              <InfoCell label="SRP" value={formatBoolean(edital?.srp)} />
-            </div>
-          </DataSection>
+        <Tabs defaultValue="summary" className="gap-5">
+          <TabsList
+            variant="line"
+            className="w-fit gap-6 rounded-none border-b border-slate-200 bg-transparent p-0 text-slate-500"
+          >
+            <TabsTrigger value="summary" className="h-auto flex-none rounded-none border-0 px-0 pb-2 pt-0 text-sm font-medium text-slate-500 shadow-none data-[state=active]:bg-transparent data-[state=active]:text-slate-900">
+              Resumo
+            </TabsTrigger>
+            <TabsTrigger value="orgao" className="h-auto flex-none rounded-none border-0 px-0 pb-2 pt-0 text-sm font-medium text-slate-500 shadow-none data-[state=active]:bg-transparent data-[state=active]:text-slate-900">
+              Órgão
+            </TabsTrigger>
+            <TabsTrigger value="complementary" className="h-auto flex-none rounded-none border-0 px-0 pb-2 pt-0 text-sm font-medium text-slate-500 shadow-none data-[state=active]:bg-transparent data-[state=active]:text-slate-900">
+              Complementares
+            </TabsTrigger>
+            <TabsTrigger value="schedule" className="h-auto flex-none rounded-none border-0 px-0 pb-2 pt-0 text-sm font-medium text-slate-500 shadow-none data-[state=active]:bg-transparent data-[state=active]:text-slate-900">
+              Cronograma
+            </TabsTrigger>
+          </TabsList>
 
-          <DataSection title="Origem e rastreabilidade">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <InfoCell label="Sistema de origem" value={formatLabel(licitacao?.sourceSystem)} />
-              <InfoCell label="Referência externa" value={licitacao?.sourceReference} />
-              <InfoCell label="Controle PNCP" value={licitacao?.numeroControlePncp} />
-              <InfoCell label="Ano da compra" value={formatNumber(licitacao?.anoCompra)} />
-              <InfoCell label="Sequencial da compra" value={formatNumber(licitacao?.sequencialCompra)} />
-              <InfoCell label="Documento principal" value={edital?.documentoPrincipalId} />
-              <LinkCell label="Sistema de origem" href={licitacao?.linkSistemaOrigem} />
-              <LinkCell label="Processo eletrônico" href={licitacao?.linkProcessoEletronico} />
+          <TabsContent value="summary" className="mt-0 space-y-6">
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <div className="grid border-b border-slate-200 sm:grid-cols-2 xl:grid-cols-4">
+                <DataOverviewField label="Modalidade" value={edital?.modalidade ?? licitacao?.modalidadeNome ?? oportunidade.modalidade ?? draftPreview?.modalidade} bordered />
+                <DataOverviewField label="Valor estimado" value={valorEstimadoDisplay} emphasized bordered />
+                <DataOverviewField label="Data de abertura" value={formatDate(edital?.dataAbertura ?? licitacao?.dataAberturaProposta ?? draftPreview?.dataAbertura ?? null)} bordered />
+                <DataOverviewField label="Localização" value={localizacao} />
+              </div>
+              <div className="grid sm:grid-cols-2 xl:grid-cols-3">
+                <DataOverviewField label="Encerramento de propostas" value={formatDate(edital?.dataEncerramento ?? licitacao?.dataEncerramentoProposta ?? null)} bordered />
+                <DataOverviewField label="Publicado no PNCP" value={formatDateOnly(licitacao?.dataPublicacao ?? null)} bordered />
+                <DataOverviewField label="Nº do processo" value={edital?.processo ?? licitacao?.processoAdministrativo ?? oportunidade.numero ?? draftPreview?.numero} />
+              </div>
             </div>
-          </DataSection>
 
-          <DataSection title="Órgão e unidade">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <InfoCell label="CNPJ do órgão" value={edital?.orgaoCnpj} />
-              <InfoCell label="Razão social" value={edital?.orgaoRazaoSocial ?? oportunidade.orgaoNome ?? draftPreview?.orgaoNome} />
-              <InfoCell label="Esfera" value={formatLabel(edital?.orgaoEsfera)} />
-              <InfoCell label="Poder" value={formatLabel(edital?.orgaoPoder)} />
-              <InfoCell label="Código da unidade" value={edital?.unidadeCodigo} />
-              <InfoCell label="Nome da unidade" value={edital?.unidadeNome} />
-              <InfoCell label="Município" value={edital?.municipio} />
-              <InfoCell label="UF" value={edital?.uf} />
+            <div className="flex flex-wrap gap-3">
+              <DataMetricCard label="Valor total estimado" value={valorEstimadoDisplay} tone="estimate" />
+              {valorHomologadoDisplay !== "Não informado" ? (
+                <DataMetricCard label="Valor homologado" value={valorHomologadoDisplay} tone="success" />
+              ) : null}
+              <DataMetricCard label="Itens" value={String(itemCount)} tone="plain" />
             </div>
-          </DataSection>
 
-          <DataSection title="Objeto, valores e fundamento">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <InfoCell label="Valor estimado" value={formatCurrency(edital?.valorEstimado ?? licitacao?.valorEstimadoTotal ?? oportunidade.valorEstimado) ?? "A definir"} />
-              <InfoCell label="Valor homologado" value={formatCurrency(licitacao?.valorHomologadoTotal ?? null) ?? "Não informado"} />
-              <InfoCell label="Amparo legal" value={edital?.amparoLegal} />
-              <InfoCell label="Informação complementar" value={edital?.informacaoComplementar} />
-              <InfoCell className="sm:col-span-2" label="Objeto do edital" value={edital?.objeto ?? licitacao?.objetoResumo ?? oportunidade.objetoResumo ?? draftPreview?.objetoResumo} />
-            </div>
-          </DataSection>
+            <DataInfoSection title="Resumo & descrição completa">
+              <div className="space-y-4 border-l border-slate-200 pl-3">
+                <p className="text-[13px] leading-6 text-slate-700">
+                  {edital?.objeto ?? licitacao?.objetoResumo ?? oportunidade.objetoResumo ?? draftPreview?.objetoResumo ?? "Não informado"}
+                </p>
+                {edital?.informacaoComplementar ? (
+                  <p className="text-[13px] leading-6 text-slate-600">
+                    {edital.informacaoComplementar}
+                  </p>
+                ) : null}
+              </div>
+            </DataInfoSection>
 
-          <DataSection title="Datas, versão e status">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <InfoCell label="Oportunidade" value={formatStatusLabel(oportunidade.oportunidadeStatus)} />
-              <InfoCell label="Licitação" value={formatStatusLabel(licitacao?.status)} />
-              <InfoCell label="Edital" value={formatStatusLabel(edital?.status)} />
-              <InfoCell label="Versão do edital" value={edital ? `${edital.versao} · ${formatLabel(edital.tipoVersao)}` : null} />
-              <InfoCell label="Versão atual" value={formatBoolean(edital?.isAtual)} />
-              <InfoCell label="Publicação" value={formatDate(licitacao?.dataPublicacao ?? null)} />
-              <InfoCell label="Abertura" value={formatDate(edital?.dataAbertura ?? licitacao?.dataAberturaProposta ?? draftPreview?.dataAbertura ?? null)} />
-              <InfoCell label="Encerramento" value={formatDate(edital?.dataEncerramento ?? licitacao?.dataEncerramentoProposta ?? null)} />
-              <InfoCell label="Última atualização oficial" value={formatDate(licitacao?.ultimaAtualizacaoOficial ?? null)} />
-              <InfoCell label="Última atualização" value={formatDate(oportunidade.workflow.updatedAt ?? oportunidade.updatedAt)} />
-              <InfoCell label="Sincronização do workspace" value={workspace.latestSyncAt ? formatDate(workspace.latestSyncAt) : "Sem sincronização adicional"} />
-            </div>
-          </DataSection>
+            <DataInfoSection title="Contexto do processo">
+              <div className="grid gap-4 md:grid-cols-2">
+                <DataDetailColumn
+                  rows={[
+                    ["Título", oportunidade.title],
+                    ["Número do edital", edital?.numero ?? oportunidade.numero ?? draftPreview?.numero],
+                    ["Número da licitação", licitacao?.numeroLicitacao],
+                    ["Situação oficial", licitacao?.situacaoOficial],
+                  ]}
+                />
+                <DataDetailColumn
+                  rows={[
+                    ["Tipo de instrumento", edital?.tipoInstrumento ?? licitacao?.tipoInstrumentoNome],
+                    ["Modo de disputa", edital?.modoDisputa ?? edital?.certame?.modoDisputa],
+                    ["Registro de preço", formatBoolean(edital?.srp)],
+                    ["Valor homologado", valorHomologadoDisplay],
+                  ]}
+                />
+              </div>
+            </DataInfoSection>
+          </TabsContent>
 
-          <DataSection title="Cronograma do edital">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <InfoCell label="Acolhimento início" value={formatDate(edital?.cronograma?.acolhimentoInicio ?? null)} />
-              <InfoCell label="Acolhimento fim" value={formatDate(edital?.cronograma?.acolhimentoFim ?? null)} />
-              <InfoCell label="Hora limite" value={edital?.cronograma?.horaLimite} />
-              <InfoCell label="Sessão pública" value={formatDate(edital?.cronograma?.sessaoPublicaEm ?? null)} />
-              <InfoCell label="Esclarecimentos até" value={formatDate(edital?.cronograma?.esclarecimentosAte ?? null)} />
-              <InfoCell label="Impugnação até" value={formatDate(edital?.cronograma?.impugnacaoAte ?? null)} />
+          <TabsContent value="orgao" className="mt-0 space-y-6">
+            <DataInfoSection title="Contatos">
+              <div className="grid gap-4 md:grid-cols-2">
+                <DataDetailColumn
+                  rows={[
+                    ["Órgão", edital?.orgaoRazaoSocial ?? oportunidade.orgaoNome ?? draftPreview?.orgaoNome],
+                    ["Unidade compradora", edital?.unidadeNome],
+                    ["Esfera", formatLabel(edital?.orgaoEsfera)],
+                  ]}
+                />
+                <DataDetailColumn
+                  rows={[
+                    ["CNPJ", edital?.orgaoCnpj],
+                    ["Município / UF", localizacao],
+                    ["Poder", formatLabel(edital?.orgaoPoder)],
+                  ]}
+                />
+              </div>
+            </DataInfoSection>
+
+            <DataInfoSection title="Unidade e organização">
+              <div className="grid gap-4 md:grid-cols-2">
+                <DataDetailColumn
+                  rows={[
+                    ["Código da unidade", edital?.unidadeCodigo],
+                    ["Nome da unidade", edital?.unidadeNome],
+                  ]}
+                />
+                <DataDetailColumn
+                  rows={[
+                    ["Município", edital?.municipio],
+                    ["UF", edital?.uf],
+                  ]}
+                />
+              </div>
+            </DataInfoSection>
+          </TabsContent>
+
+          <TabsContent value="complementary" className="mt-0 space-y-6">
+            <DataInfoSection title="Fundamento e contratação">
+              <div className="grid gap-4 md:grid-cols-2">
+                <DataDetailColumn
+                  rows={[
+                    ["Amparo legal", edital?.amparoLegal],
+                    ["Tipo de instrumento", edital?.tipoInstrumento ?? licitacao?.tipoInstrumentoNome],
+                    ["Modo de disputa", edital?.modoDisputa ?? edital?.certame?.modoDisputa],
+                  ]}
+                />
+                <DataDetailColumn
+                  rows={[
+                    ["Registro de preço", formatBoolean(edital?.srp)],
+                    ["Valor estimado", valorEstimadoDisplay],
+                    ["Valor homologado", valorHomologadoDisplay],
+                  ]}
+                />
+              </div>
+            </DataInfoSection>
+
+            <DataInfoSection title="Status e versão">
+              <div className="grid gap-4 md:grid-cols-2">
+                <DataDetailColumn
+                  rows={[
+                    ["Oportunidade", formatStatusLabel(oportunidade.oportunidadeStatus)],
+                    ["Licitação", formatStatusLabel(licitacao?.status)],
+                    ["Edital", formatStatusLabel(edital?.status)],
+                  ]}
+                />
+                <DataDetailColumn
+                  rows={[
+                    ["Versão do edital", edital ? `${edital.versao} · ${formatLabel(edital.tipoVersao)}` : null],
+                    ["Versão atual", formatBoolean(edital?.isAtual)],
+                    ["Documento principal", edital?.documentoPrincipalId],
+                  ]}
+                />
+              </div>
+            </DataInfoSection>
+
+            <DataInfoSection title="Origem e rastreabilidade">
+              <div className="grid gap-4 md:grid-cols-2">
+                <DataDetailColumn
+                  rows={[
+                    ["Sistema de origem", formatLabel(licitacao?.sourceSystem)],
+                    ["Referência externa", licitacao?.sourceReference],
+                    ["Controle PNCP", licitacao?.numeroControlePncp],
+                  ]}
+                />
+                <DataDetailColumn
+                  rows={[
+                    ["Ano da compra", formatNumber(licitacao?.anoCompra)],
+                    ["Sequencial da compra", formatNumber(licitacao?.sequencialCompra)],
+                    ["Número da licitação", licitacao?.numeroLicitacao],
+                  ]}
+                />
+              </div>
+            </DataInfoSection>
+
+            <DataInfoSection title="Links e sincronização">
+              <div className="grid gap-4 md:grid-cols-2">
+                <DataLinkColumn
+                  rows={[
+                    ["Sistema de origem", licitacao?.linkSistemaOrigem],
+                    ["Processo eletrônico", licitacao?.linkProcessoEletronico],
+                  ]}
+                />
+                <DataDetailColumn
+                  rows={[
+                    ["Publicação", formatDate(licitacao?.dataPublicacao ?? null)],
+                    ["Última atualização oficial", formatDate(licitacao?.ultimaAtualizacaoOficial ?? null)],
+                    ["Sincronização do workspace", workspace.latestSyncAt ? formatDate(workspace.latestSyncAt) : "Sem sincronização adicional"],
+                  ]}
+                />
+              </div>
+            </DataInfoSection>
+          </TabsContent>
+
+          <TabsContent value="schedule" className="mt-0 space-y-6">
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <div className="grid border-b border-slate-200 sm:grid-cols-2 xl:grid-cols-4">
+                <DataOverviewField label="Publicação" value={formatDate(licitacao?.dataPublicacao ?? null)} bordered />
+                <DataOverviewField label="Abertura" value={formatDate(edital?.dataAbertura ?? licitacao?.dataAberturaProposta ?? draftPreview?.dataAbertura ?? null)} bordered />
+                <DataOverviewField label="Encerramento" value={formatDate(edital?.dataEncerramento ?? licitacao?.dataEncerramentoProposta ?? null)} bordered />
+                <DataOverviewField label="Hora limite" value={edital?.cronograma?.horaLimite} />
+              </div>
+              <div className="grid sm:grid-cols-2 xl:grid-cols-4">
+                <DataOverviewField label="Acolhimento início" value={formatDate(edital?.cronograma?.acolhimentoInicio ?? null)} bordered />
+                <DataOverviewField label="Acolhimento fim" value={formatDate(edital?.cronograma?.acolhimentoFim ?? null)} bordered />
+                <DataOverviewField label="Esclarecimentos até" value={formatDate(edital?.cronograma?.esclarecimentosAte ?? null)} bordered />
+                <DataOverviewField label="Impugnação até" value={formatDate(edital?.cronograma?.impugnacaoAte ?? null)} />
+              </div>
             </div>
-          </DataSection>
-        </div>
+
+            <DataInfoSection title="Agenda operacional">
+              <div className="grid gap-4 md:grid-cols-2">
+                <DataDetailColumn
+                  rows={[
+                    ["Acolhimento início", formatDate(edital?.cronograma?.acolhimentoInicio ?? null)],
+                    ["Acolhimento fim", formatDate(edital?.cronograma?.acolhimentoFim ?? null)],
+                    ["Sessão pública", formatDate(edital?.cronograma?.sessaoPublicaEm ?? null)],
+                  ]}
+                />
+                <DataDetailColumn
+                  rows={[
+                    ["Hora limite", edital?.cronograma?.horaLimite],
+                    ["Esclarecimentos até", formatDate(edital?.cronograma?.esclarecimentosAte ?? null)],
+                    ["Impugnação até", formatDate(edital?.cronograma?.impugnacaoAte ?? null)],
+                  ]}
+                />
+              </div>
+            </DataInfoSection>
+          </TabsContent>
+        </Tabs>
       </WorkspacePanel>
 
       <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
@@ -236,7 +392,71 @@ export function OportunidadeDataModule({
   )
 }
 
-function DataSection({
+function DataOverviewField({
+  label,
+  value,
+  emphasized = false,
+  bordered = false,
+}: {
+  label: string
+  value: string | number | null | undefined
+  emphasized?: boolean
+  bordered?: boolean
+}) {
+  return (
+    <div className={cn("px-4 py-3", bordered && "border-r border-slate-200")}>
+      <p className="text-[10px] font-semibold uppercase leading-4 tracking-[0.14em] text-slate-400">
+        {label}
+      </p>
+      <p className={cn(
+        "mt-1 break-words text-[13px] leading-5",
+        emphasized ? "font-semibold tracking-[-0.02em] text-slate-950 sm:text-[15px]" : "font-medium text-slate-900",
+      )}>
+        {formatEmpty(value)}
+      </p>
+    </div>
+  )
+}
+
+function DataMetricCard({
+  label,
+  value,
+  tone = "estimate",
+}: {
+  label: string
+  value: string
+  tone?: "estimate" | "success" | "plain"
+}) {
+  return (
+    <div
+      className={cn(
+        "min-w-[172px] rounded-[1.1rem] border px-4 py-3.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.25)]",
+        tone === "estimate" && "border-slate-200 bg-slate-100/90",
+        tone === "success" && "border-emerald-100 bg-emerald-50/90",
+        tone === "plain" && "border-slate-200 bg-white shadow-none",
+      )}
+    >
+      <p className={cn(
+        "text-[10px] font-semibold uppercase tracking-[0.16em]",
+        tone === "estimate" && "text-slate-700",
+        tone === "success" && "text-emerald-600",
+        tone === "plain" && "text-slate-500",
+      )}>
+        {label}
+      </p>
+      <p className={cn(
+        "mt-2 text-[1.05rem] font-semibold tracking-[-0.02em]",
+        tone === "estimate" && "text-slate-950",
+        tone === "success" && "text-emerald-700",
+        tone === "plain" && "text-slate-900",
+      )}>
+        {value}
+      </p>
+    </div>
+  )
+}
+
+function DataInfoSection({
   title,
   children,
 }: {
@@ -244,46 +464,62 @@ function DataSection({
   children: ReactNode
 }) {
   return (
-    <section>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+    <section className="border-t border-slate-200 pt-5">
+      <h3 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-900">
         {title}
       </h3>
-      {children}
+      <div className="mt-4">{children}</div>
     </section>
   )
 }
 
-function InfoCell({
-  label,
-  value,
-  className,
+function DataDetailColumn({
+  rows,
 }: {
-  label: string
-  value: string | number | null | undefined
-  className?: string
+  rows: Array<[string, string | number | null | undefined]>
 }) {
   return (
-    <div className={`${className ?? ""} rounded-lg border border-slate-200 bg-slate-50 px-4 py-3`}>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</p>
-      <p className="mt-2 break-words text-sm font-medium leading-6 text-slate-900">{formatEmpty(value)}</p>
+    <div className="space-y-3.5">
+      {rows.map(([label, value]) => (
+        <div key={label}>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+            {label}
+          </p>
+          <p className="mt-1 break-words text-[13px] font-medium leading-6 text-slate-900">
+            {formatEmpty(value)}
+          </p>
+        </div>
+      ))}
     </div>
   )
 }
 
-function LinkCell({ label, href }: { label: string; href: string | null | undefined }) {
+function DataLinkColumn({
+  rows,
+}: {
+  rows: Array<[string, string | null | undefined]>
+}) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</p>
-      {href ? (
-        <Button asChild variant="link" className="mt-1 h-auto justify-start p-0 text-sm font-medium">
-          <a href={href} target="_blank" rel="noopener noreferrer">
-            Abrir link
-            <ExternalLink className="ml-2 size-3.5" />
-          </a>
-        </Button>
-      ) : (
-        <p className="mt-2 break-words text-sm font-medium leading-6 text-slate-900">Não informado</p>
-      )}
+    <div className="space-y-3.5">
+      {rows.map(([label, href]) => (
+        <div key={label}>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+            {label}
+          </p>
+          {href ? (
+            <Button asChild variant="link" className="mt-0.5 h-auto justify-start p-0 text-[13px] font-medium">
+              <a href={href} target="_blank" rel="noopener noreferrer">
+                Abrir link
+                <ExternalLink className="ml-2 size-3.5" />
+              </a>
+            </Button>
+          ) : (
+            <p className="mt-1 break-words text-[13px] font-medium leading-6 text-slate-900">
+              Não informado
+            </p>
+          )}
+        </div>
+      ))}
     </div>
   )
 }
@@ -341,4 +577,17 @@ function formatLabel(value: string | null | undefined) {
     .split("_")
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ")
+}
+
+function formatLocation(municipio: string | null | undefined, uf: string | null | undefined) {
+  if (municipio && uf) return `${municipio} - ${uf}`
+  return municipio || uf || "Não informado"
+}
+
+function formatDateOnly(value: string | null) {
+  if (!value) return "Não informado"
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+  }).format(new Date(value))
 }

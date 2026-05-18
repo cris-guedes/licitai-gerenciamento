@@ -30,6 +30,8 @@ export function OportunidadesKanbanView({
   getMoveOptions,
   onMoveToNode,
   onMoveToPhase,
+  onCreateComment,
+  creatingCommentOportunidadeId,
   onOpenDetail,
 }: {
   phases: WorkflowNode[]
@@ -50,6 +52,8 @@ export function OportunidadesKanbanView({
   }>
   onMoveToNode: (params: { oportunidadeId: string; targetNodeId: string }) => Promise<void>
   onMoveToPhase: (item: OportunidadeBoardItem, phaseId: string) => Promise<void>
+  onCreateComment: (item: OportunidadeBoardItem, content: string) => Promise<void>
+  creatingCommentOportunidadeId: string | null
   onOpenDetail: (item: OportunidadeBoardItem) => void
 }) {
   const params = useParams() as { orgId: string; companyId: string }
@@ -106,7 +110,7 @@ export function OportunidadesKanbanView({
   return (
     <div className="min-w-0 w-full max-w-full overflow-hidden border border-slate-200 bg-white">
       <div className="min-w-0 w-full max-w-full overflow-x-auto overflow-y-hidden">
-        <div className="flex w-max min-w-full min-h-[68vh] gap-3 bg-white p-3">
+        <div className="flex w-max min-w-full min-h-[68vh] gap-4 bg-white p-4">
         {phases.map(phase => {
           const phaseItems = itemsByPhase.get(phase.id) ?? []
           const tone = phaseToneById.get(phase.id)
@@ -116,7 +120,7 @@ export function OportunidadesKanbanView({
             <div
               key={phase.id}
               className={cn(
-                "flex w-[320px] shrink-0 flex-col rounded-lg bg-[#f4f5f7] transition-colors",
+                "flex w-[352px] shrink-0 flex-col rounded-xl border border-slate-200 bg-[#f6f7f9] transition-colors",
                 hoveredPhaseId === phase.id && "ring-2 ring-blue-200",
               )}
               onDragOver={(event) => {
@@ -141,32 +145,39 @@ export function OportunidadesKanbanView({
                 void onMoveToPhase(item, phase.id)
               }}
             >
-              <div className="px-3 py-3">
-                <div className="space-y-1.5">
+              <div className="px-4 py-3.5">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2">
-                      <p className="truncate text-[0.78rem] font-bold uppercase tracking-[0.06em] text-slate-600">
+                      <p className="truncate text-[0.82rem] font-bold uppercase tracking-[0.08em] text-slate-700">
                         {phase.label}
                       </p>
                       {phase.label.toLowerCase().includes("concl") || phase.label.toLowerCase().includes("ganh") ? (
                         <Check className="size-4 shrink-0 text-emerald-600" />
                       ) : null}
-                      <span className="text-[0.8rem] font-semibold text-slate-500">{phaseItems.length}</span>
+                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-slate-200 bg-white px-1.5 text-[11px] font-semibold text-slate-600">
+                        {phaseItems.length}
+                      </span>
                     </div>
                     <button type="button" className="rounded p-1 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700">
                       <MoreHorizontal className="size-4" />
                     </button>
                   </div>
-                  <p className="truncate text-[0.75rem] font-semibold text-[#172b4d]">
-                    {formatCompactCurrency(summary?.valorEstimadoTotal)}
-                  </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                      Total estimado
+                    </span>
+                    <p className="truncate text-[0.82rem] font-semibold text-slate-700">
+                      {formatCompactCurrency(summary?.valorEstimadoTotal)}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex flex-1 flex-col gap-2 px-2 pb-2">
+              <div className="flex flex-1 flex-col gap-2.5 px-2.5 pb-2.5">
                 {phaseItems.length === 0 ? (
-                  <div className="flex min-h-24 items-center justify-center rounded-md border border-dashed border-slate-300 bg-white/60 px-4 text-center text-sm leading-6 text-muted-foreground">
-                    <span className="max-w-[250px] whitespace-normal">
+                  <div className="flex min-h-28 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white/70 px-4 text-center text-xs leading-6 text-muted-foreground">
+                    <span className="max-w-[270px] whitespace-normal">
                       Solte uma oportunidade aqui ou mova a partir de outro status válido.
                     </span>
                   </div>
@@ -212,6 +223,8 @@ export function OportunidadesKanbanView({
                           item={item}
                           href={`/org/${params.orgId}/${params.companyId}/oportunidades/${item.oportunidadeId}`}
                           onOpenDetail={() => onOpenDetail(item)}
+                          onCreateComment={(content) => onCreateComment(item, content)}
+                          isCreatingComment={creatingCommentOportunidadeId === item.oportunidadeId}
                           className={cn(
                             "border-slate-300/80 shadow-[0_1px_2px_rgba(9,30,66,0.18)] transition-shadow hover:shadow-[0_3px_8px_rgba(9,30,66,0.2)]",
                             tone?.accent === "text-blue-600" && "border-l-4 border-l-blue-600",

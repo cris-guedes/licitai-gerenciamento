@@ -3,6 +3,7 @@ import type { RouteConfig } from "../adapters/http-adapter";
 import { publicProcurementsRoutes } from "../routes/public-procurements";
 import { companyDetailsRoutes }     from "../routes/company-details";
 import { companyRoutes }            from "../routes/company";
+import { companyItemRoutes }        from "../routes/company-item";
 import { onboardingRoutes }         from "../routes/onboarding";
 import { authRoutes }               from "../routes/auth";
 import { teamRoutes }               from "../routes/team";
@@ -14,6 +15,7 @@ export const allRoutes: Record<string, RouteConfig> = {
     ...publicProcurementsRoutes,
     ...companyDetailsRoutes,
     ...companyRoutes,
+    ...companyItemRoutes,
     ...onboardingRoutes,
     ...authRoutes,
     ...teamRoutes,

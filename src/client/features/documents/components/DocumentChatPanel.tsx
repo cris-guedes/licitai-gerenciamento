@@ -53,7 +53,7 @@ export function DocumentChatPanel({
 
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden bg-white">
-      <div className="shrink-0 border-b border-slate-200/80 px-5 py-4">
+      <div className="shrink-0 px-4 pb-3 pt-2">
         <div className="min-w-0">
           <p className="text-base font-semibold text-primary">Chat do documento</p>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -71,8 +71,8 @@ export function DocumentChatPanel({
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4">
-        <div className="min-h-0 space-y-4 overflow-x-hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-3">
+        <div className="min-h-0 space-y-3 overflow-x-hidden">
           {chat.isLoading ? (
             <div className="flex min-h-[220px] items-center justify-center text-sm text-muted-foreground">
               <Loader2 className="mr-2 size-4 animate-spin" />
@@ -143,7 +143,7 @@ export function DocumentChatPanel({
         </div>
       </div>
 
-      <div className="shrink-0 border-t border-slate-200/80 bg-white px-4 py-4">
+      <div className="shrink-0 border-t border-slate-100 bg-white px-4 py-3">
         <div className="space-y-3">
           <Textarea
             value={chat.draft}

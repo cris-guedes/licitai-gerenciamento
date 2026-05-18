@@ -13,6 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/client/components/ui/select"
+import { Switch } from "@/client/components/ui/switch"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/client/components/ui/table"
 import { Textarea } from "@/client/components/ui/textarea"
 import {
   Tooltip,
@@ -36,6 +38,7 @@ import {
   Trash2,
 } from "lucide-react"
 import { Controller, useFieldArray, useWatch, type FieldPath, type UseFormReturn } from "react-hook-form"
+import type { KnownOrgaoOption } from "../../services/use-licitacao.service"
 import {
   BOOLEAN_OPTIONS,
   ESFERA_OPTIONS,
@@ -56,6 +59,8 @@ import {
 type Props = {
   form: UseFormReturn<NovaLicitacaoFormValues>
   onSubmit: (values: NovaLicitacaoFormValues) => void | Promise<unknown>
+  knownOrgaos: KnownOrgaoOption[]
+  isLoadingKnownOrgaos?: boolean
   isSubmitting?: boolean
   submitError?: string | null
   isCompleted?: boolean
@@ -71,7 +76,7 @@ const FORM_STEPS = [
   {
     id: "identificacao",
     title: "Visão geral e cronograma",
-    description: "Abra o cadastro pelo bloco que costuma aparecer primeiro no edital: identificação do processo e cronograma da disputa.",
+    description: "Abra o cadastro pelo bloco que costuma aparecer primeiro no edital: identificação da licitação, valores centrais e cronograma da disputa.",
     eyebrow: "Etapa 1",
     icon: ClipboardList,
   },
@@ -85,7 +90,7 @@ const FORM_STEPS = [
   {
     id: "itens",
     title: "Itens licitados",
-    description: "Antes de distribuir demandas entre órgãos, defina os itens do edital com quantidades, valores, classificações e observações da contratação.",
+    description: "Defina os itens do edital com quantidades, valores, classificações e observações centrais da contratação.",
     eyebrow: "Etapa 3",
     icon: Package2,
   },
@@ -97,17 +102,10 @@ const FORM_STEPS = [
     icon: Building2,
   },
   {
-    id: "matriz-distribuicao",
-    title: "Matriz de distribuição",
-    description: "Distribua os itens já cadastrados entre o órgão gerenciador e os órgãos participantes, sem duplicar o cadastro dos itens.",
-    eyebrow: "Etapa 5",
-    icon: ClipboardList,
-  },
-  {
     id: "informacoes-complementares",
     title: "Informações complementares",
     description: "Use a etapa final para registrar fundamentos legais e observações adicionais que complementam a leitura do edital, sem misturar esses dados ao núcleo operacional.",
-    eyebrow: "Etapa 6",
+    eyebrow: "Etapa 5",
     icon: FileText,
   },
 ] as const
@@ -457,76 +455,71 @@ function getFieldGuide(stepId: FieldGuideScope, key: string): FieldGuide | undef
   return STEP_FIELD_GUIDES[stepId][key]
 }
 
-type ItemDistributionSummary = {
-  itemId: string
-  numero: string
-  descricao: string
-  unidadeMedida: string
-  quantidadeTotal: number
-  quantidadeDistribuida: number
-  saldo: number
-}
-
-type DistributionEntry = {
-  itemId: string
-  quantidade: string
-}
-
-type DistributionPath =
-  | "orgaoGerenciador.itensSolicitados"
-  | `edital.orgaosParticipantes.${number}.itensSolicitados`
-
-type DistributionColumn = {
-  id: string
-  label: string
-  path: DistributionPath
-  values: DistributionEntry[]
-}
-
 function toNumber(value: string | number | null | undefined) {
   if (value == null || value === "") return 0
   const numeric = Number(value)
   return Number.isFinite(numeric) ? numeric : 0
 }
 
-function buildItemDistributionSummary(
-  items: NovaLicitacaoFormValues["edital"]["itens"],
-  orgaoGerenciadorItens: NovaLicitacaoFormValues["orgaoGerenciador"]["itensSolicitados"],
-  orgaosParticipantes: NovaLicitacaoFormValues["edital"]["orgaosParticipantes"],
-): ItemDistributionSummary[] {
-  const distributedByItemId = new Map<string, number>()
+function formatNumberToCurrency(value: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value)
+}
 
-  for (const item of orgaoGerenciadorItens ?? []) {
-    if (!item.itemId) continue
-    distributedByItemId.set(item.itemId, (distributedByItemId.get(item.itemId) ?? 0) + toNumber(item.quantidade))
+function formatKnownOrgaoOptionLabel(orgao: KnownOrgaoOption) {
+  const primary = orgao.nome || orgao.nomeUnidade || orgao.cnpj || "Órgão cadastrado"
+  const secondary = [
+    orgao.nomeUnidade && orgao.nomeUnidade !== orgao.nome ? orgao.nomeUnidade : "",
+    orgao.municipio,
+    orgao.uf,
+  ]
+    .filter(Boolean)
+    .join(" / ")
+
+  if (secondary && orgao.cnpj) return `${primary} — ${secondary} · ${orgao.cnpj}`
+  if (secondary) return `${primary} — ${secondary}`
+  if (orgao.cnpj) return `${primary} · ${orgao.cnpj}`
+  return primary
+}
+
+function applyKnownOrgaoSelection({
+  form,
+  prefix,
+  orgao,
+}: {
+  form: UseFormReturn<NovaLicitacaoFormValues>
+  prefix: FormPath
+  orgao: KnownOrgaoOption
+}) {
+  const fieldUpdates = [
+    ["nome", orgao.nome],
+    ["cnpj", orgao.cnpj],
+    ["codigoUnidade", orgao.codigoUnidade],
+    ["nomeUnidade", orgao.nomeUnidade],
+    ["municipio", orgao.municipio],
+    ["uf", orgao.uf],
+    ["esfera", orgao.esfera],
+    ["poder", orgao.poder],
+  ] as const
+
+  for (const [fieldName, value] of fieldUpdates) {
+    form.setValue(`${prefix}.${fieldName}` as FormPath, value, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    })
   }
-
-  for (const orgao of orgaosParticipantes ?? []) {
-    for (const item of orgao.itensSolicitados ?? []) {
-      if (!item.itemId) continue
-      distributedByItemId.set(item.itemId, (distributedByItemId.get(item.itemId) ?? 0) + toNumber(item.quantidade))
-    }
-  }
-
-  return items.map((item, index) => {
-    const quantidadeTotal = toNumber(item.quantidade)
-    const quantidadeDistribuida = distributedByItemId.get(item.itemId) ?? 0
-
-    return {
-      itemId: item.itemId,
-      numero: item.numero || String(index + 1),
-      descricao: item.descricao || "Sem descrição",
-      unidadeMedida: item.unidadeMedida || "-",
-      quantidadeTotal,
-      quantidadeDistribuida,
-      saldo: quantidadeTotal - quantidadeDistribuida,
-    }
-  })
 }
 
 export function NovaLicitacaoForm({
   form,
   onSubmit,
+  knownOrgaos,
+  isLoadingKnownOrgaos = false,
   isSubmitting = false,
   submitError = null,
   isCompleted = false,
@@ -548,101 +541,40 @@ export function NovaLicitacaoForm({
     control: form.control,
     name: "edital.itens",
   })
-  const watchedOrgaoGerenciador = useWatch({
-    control: form.control,
-    name: "orgaoGerenciador",
-  })
-  const watchedItensOrgaoGerenciador = useWatch({
-    control: form.control,
-    name: "orgaoGerenciador.itensSolicitados",
-  })
-  const watchedOrgaosParticipantes = useWatch({
-    control: form.control,
-    name: "edital.orgaosParticipantes",
-  })
+  const [itemActiveState, setItemActiveState] = React.useState<Record<string, boolean>>({})
 
   const currentStep = FORM_STEPS[currentStepIndex]
   const isFirstStep = currentStepIndex === 0
   const isLastStep = currentStepIndex === FORM_STEPS.length - 1
-  const itemDistributionSummary = React.useMemo(
-    () =>
-      buildItemDistributionSummary(
-        watchedItens ?? [],
-        watchedItensOrgaoGerenciador ?? [],
-        watchedOrgaosParticipantes ?? [],
-      ),
-    [watchedItens, watchedItensOrgaoGerenciador, watchedOrgaosParticipantes],
+  const resolvedItens = React.useMemo(
+    () => (watchedItens ?? []).map(item => ({
+      ...item,
+      ativo: item.itemId ? (itemActiveState[item.itemId] ?? true) : true,
+    })),
+    [itemActiveState, watchedItens],
   )
-  const distributionColumns = React.useMemo<DistributionColumn[]>(
-    () => [
-      {
-        id: "orgao-gerenciador",
-        label: watchedOrgaoGerenciador?.nome?.trim() || "Órgão gerenciador",
-        path: "orgaoGerenciador.itensSolicitados",
-        values: watchedItensOrgaoGerenciador ?? [],
-      },
-      ...(watchedOrgaosParticipantes ?? []).map((orgao, index) => ({
-        id: `orgao-participante-${index}`,
-        label: orgao.nome?.trim() || `Órgão participante ${index + 1}`,
-        path: `edital.orgaosParticipantes.${index}.itensSolicitados` as DistributionPath,
-        values: orgao.itensSolicitados ?? [],
-      })),
-    ],
-    [watchedOrgaoGerenciador, watchedItensOrgaoGerenciador, watchedOrgaosParticipantes],
+  const activeItemsCount = React.useMemo(
+    () => resolvedItens.filter(item => item.ativo).length,
+    [resolvedItens],
   )
-
-  React.useEffect(() => {
-    const validItemIds = new Set((watchedItens ?? []).map(item => item.itemId).filter(Boolean))
-    const sanitizeEntries = (entries: DistributionEntry[] | undefined) =>
-      (entries ?? []).filter(entry => validItemIds.has(entry.itemId))
-
-    const currentGerenciadorEntries = watchedItensOrgaoGerenciador ?? []
-    const sanitizedGerenciadorEntries = sanitizeEntries(currentGerenciadorEntries)
-
-    if (sanitizedGerenciadorEntries.length !== currentGerenciadorEntries.length) {
-      form.setValue("orgaoGerenciador.itensSolicitados", sanitizedGerenciadorEntries, {
-        shouldDirty: true,
-      })
-    }
-
-    ;(watchedOrgaosParticipantes ?? []).forEach((orgao, index) => {
-      const currentEntries = orgao.itensSolicitados ?? []
-      const sanitizedEntries = sanitizeEntries(currentEntries)
-
-      if (sanitizedEntries.length !== currentEntries.length) {
-        form.setValue(`edital.orgaosParticipantes.${index}.itensSolicitados`, sanitizedEntries, {
-          shouldDirty: true,
-        })
-      }
-    })
-  }, [form, watchedItens, watchedItensOrgaoGerenciador, watchedOrgaosParticipantes])
+  const activeItemsTotal = React.useMemo(
+    () => resolvedItens.reduce((sum, item) => {
+      if (!item.ativo) return sum
+      return sum + toNumber(item.valorTotal)
+    }, 0),
+    [resolvedItens],
+  )
 
   function goToStep(index: number) {
     if (index < 0 || index >= FORM_STEPS.length) return
     setCurrentStepIndex(index)
   }
 
-  function setDistributionValue(path: DistributionPath, itemId: string, rawValue: string) {
-    const nextValue = rawValue.trim()
-    const currentEntries = (form.getValues(path) ?? []).filter(Boolean)
-    const existingIndex = currentEntries.findIndex(entry => entry.itemId === itemId)
-
-    let nextEntries = currentEntries
-
-    if (!nextValue) {
-      nextEntries = currentEntries.filter(entry => entry.itemId !== itemId)
-    } else if (existingIndex >= 0) {
-      nextEntries = currentEntries.map((entry, index) =>
-        index === existingIndex ? { ...entry, quantidade: nextValue } : entry,
-      )
-    } else {
-      nextEntries = [...currentEntries, { itemId, quantidade: nextValue }]
-    }
-
-    form.setValue(path as never, nextEntries as never, {
-      shouldDirty: true,
-      shouldTouch: true,
-    })
+  function setItemActive(itemId: string, checked: boolean) {
+    setItemActiveState(current => ({
+      ...current,
+      [itemId]: checked,
+    }))
   }
 
   return (
@@ -663,21 +595,17 @@ export function NovaLicitacaoForm({
                 <>
                   <StepSection
                     title="Visão geral da licitação"
-                    description="Comece pelos dados centrais do processo, como normalmente aparecem no edital: identificação da licitação, objeto, valores e rastreabilidade da contratação."
+                    description="Comece pelos dados centrais da licitação, como normalmente aparecem no edital: identificação, valores essenciais, fonte oficial e objeto da contratação."
                   >
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                       <InputField form={form} name="numeroLicitacao" label="Número da licitação" description={getFieldGuide("identificacao", "numeroLicitacao")?.description} placeholder={getFieldGuide("identificacao", "numeroLicitacao")?.placeholder} />
                       <InputField form={form} name="ano" label="Ano" description={getFieldGuide("identificacao", "ano")?.description} placeholder={getFieldGuide("identificacao", "ano")?.placeholder} type="number" />
-                      <InputField form={form} name="processo" label="Número do processo" description={getFieldGuide("identificacao", "processo")?.description} placeholder={getFieldGuide("identificacao", "processo")?.placeholder} />
                       <InputField form={form} name="modalidade" label="Modalidade" description={getFieldGuide("identificacao", "modalidade")?.description} placeholder={getFieldGuide("identificacao", "modalidade")?.placeholder} />
                       <SelectField form={form} name="situacao" label="Situação" description={getFieldGuide("identificacao", "situacao")?.description} options={SITUACAO_OPTIONS} />
                       <SelectField form={form} name="srp" label="SRP" description={getFieldGuide("identificacao", "srp")?.description} options={BOOLEAN_OPTIONS} />
                       <InputField form={form} name="valorTotalEstimado" label="Valor total estimado" description={getFieldGuide("identificacao", "valorTotalEstimado")?.description} placeholder={getFieldGuide("identificacao", "valorTotalEstimado")?.placeholder} type="number" step="0.01" />
-                      <InputField form={form} name="valorTotalHomologado" label="Valor total homologado" description={getFieldGuide("identificacao", "valorTotalHomologado")?.description} placeholder={getFieldGuide("identificacao", "valorTotalHomologado")?.placeholder} type="number" step="0.01" />
                       <InputField form={form} name="dataPublicacao" label="Data de publicação" description={getFieldGuide("identificacao", "dataPublicacao")?.description} type="date" />
-                      <InputField form={form} name="dataUltimaAtualizacao" label="Última atualização" description={getFieldGuide("identificacao", "dataUltimaAtualizacao")?.description} type="date" />
-                      <InputField form={form} name="linkProcesso" label="Link do processo" description={getFieldGuide("identificacao", "linkProcesso")?.description} placeholder={getFieldGuide("identificacao", "linkProcesso")?.placeholder} className="md:col-span-2" />
-                      <InputField form={form} name="identificadorExterno" label="Identificador externo" description={getFieldGuide("identificacao", "identificadorExterno")?.description} placeholder={getFieldGuide("identificacao", "identificadorExterno")?.placeholder} className="md:col-span-2" />
+                      <InputField form={form} name="linkProcesso" label="Link do processo" description={getFieldGuide("identificacao", "linkProcesso")?.description} placeholder={getFieldGuide("identificacao", "linkProcesso")?.placeholder} />
                       <TextareaField form={form} name="objeto" label="Objeto" description={getFieldGuide("identificacao", "objeto")?.description} placeholder={getFieldGuide("identificacao", "objeto")?.placeholder} className="md:col-span-2 xl:col-span-4" rows={5} />
                     </div>
 
@@ -768,6 +696,7 @@ export function NovaLicitacaoForm({
                       <div className="flex justify-end">
                         <Button
                           type="button"
+                          size="sm"
                           variant="outline"
                           onClick={() => habilitacao.append(createEmptyDocumentoHabilitacaoFormValues())}
                         >
@@ -779,27 +708,108 @@ export function NovaLicitacaoForm({
                       {habilitacao.fields.length === 0 ? (
                         <EmptyState message="Nenhum documento de habilitação cadastrado." />
                       ) : (
-                        <div className="space-y-3">
+                        <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white">
+                          <div className="hidden grid-cols-[56px_minmax(0,1.7fr)_minmax(0,1fr)_180px_44px] items-center gap-3 border-b border-slate-200/80 bg-slate-50/80 px-4 py-3 lg:grid">
+                            <CompactColumnHeader
+                              label="Doc"
+                              description="Número sequencial apenas para organização visual da lista."
+                            />
+                            <CompactColumnHeader
+                              label="Tipo"
+                              description={getFieldGuide("participantes-habilitacao", "habilitacao.tipo")?.description}
+                            />
+                            <CompactColumnHeader
+                              label="Categoria"
+                              description={getFieldGuide("participantes-habilitacao", "habilitacao.categoria")?.description}
+                            />
+                            <CompactColumnHeader
+                              label="Obrigatório"
+                              description={getFieldGuide("participantes-habilitacao", "habilitacao.obrigatorio")?.description}
+                            />
+                            <span className="sr-only">Ações</span>
+                          </div>
+
                           {habilitacao.fields.map((field, index) => (
-                            <div key={field.id} className="rounded-lg bg-surface-container-lowest p-4">
-                              <div className="mb-4 flex items-center justify-between gap-3">
-                                <h3 className="font-medium">Documento {index + 1}</h3>
-                                <Button type="button" variant="ghost" size="sm" onClick={() => habilitacao.remove(index)}>
-                                  <Trash2 className="mr-2 size-4" />
+                            <div
+                              key={field.id}
+                              className="grid gap-3 border-t border-slate-200/80 px-4 py-3 first:border-t-0 lg:grid-cols-[56px_minmax(0,1.7fr)_minmax(0,1fr)_180px_44px] lg:items-center"
+                            >
+                              <div className="flex items-center justify-between gap-3 lg:block">
+                                <div className="inline-flex size-8 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
+                                  {index + 1}
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => habilitacao.remove(index)}
+                                  className="h-8 px-2 text-slate-600 lg:hidden"
+                                >
+                                  <Trash2 className="mr-1.5 size-4" />
                                   Remover
                                 </Button>
                               </div>
 
-                              <div className="grid gap-4 md:grid-cols-3">
-                                <InputField form={form} name={`edital.habilitacao.${index}.tipo` as FormPath} label="Tipo" description={getFieldGuide("participantes-habilitacao", "habilitacao.tipo")?.description} placeholder={getFieldGuide("participantes-habilitacao", "habilitacao.tipo")?.placeholder} />
-                                <InputField form={form} name={`edital.habilitacao.${index}.categoria` as FormPath} label="Categoria" description={getFieldGuide("participantes-habilitacao", "habilitacao.categoria")?.description} placeholder={getFieldGuide("participantes-habilitacao", "habilitacao.categoria")?.placeholder} />
-                                <SelectField
-                                  form={form}
-                                  name={`edital.habilitacao.${index}.obrigatorio` as FormPath}
-                                  label="Obrigatório"
-                                  description={getFieldGuide("participantes-habilitacao", "habilitacao.obrigatorio")?.description}
-                                  options={BOOLEAN_OPTIONS}
+                              <div className="space-y-1 lg:space-y-0">
+                                <Label className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground lg:sr-only">
+                                  Tipo
+                                </Label>
+                                <Input
+                                  {...form.register(`edital.habilitacao.${index}.tipo` as FormPath)}
+                                  placeholder={getFieldGuide("participantes-habilitacao", "habilitacao.tipo")?.placeholder}
+                                  className="h-10"
                                 />
+                              </div>
+
+                              <div className="space-y-1 lg:space-y-0">
+                                <Label className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground lg:sr-only">
+                                  Categoria
+                                </Label>
+                                <Input
+                                  {...form.register(`edital.habilitacao.${index}.categoria` as FormPath)}
+                                  placeholder={getFieldGuide("participantes-habilitacao", "habilitacao.categoria")?.placeholder}
+                                  className="h-10"
+                                />
+                              </div>
+
+                              <div className="space-y-1 lg:space-y-0">
+                                <Label className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground lg:sr-only">
+                                  Obrigatório
+                                </Label>
+                                <Controller
+                                  control={form.control}
+                                  name={`edital.habilitacao.${index}.obrigatorio` as FormPath}
+                                  render={({ field }) => (
+                                    <Select
+                                      value={(field.value as string) || "__empty__"}
+                                      onValueChange={val => field.onChange(val === "__empty__" ? "" : val)}
+                                    >
+                                      <SelectTrigger className="h-10 w-full">
+                                        <SelectValue placeholder="Selecione" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {BOOLEAN_OPTIONS.map(option => (
+                                          <SelectItem key={option.value || "__empty__"} value={option.value || "__empty__"}>
+                                            {option.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                />
+                              </div>
+
+                              <div className="hidden justify-end lg:flex">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => habilitacao.remove(index)}
+                                  className="size-9 text-slate-500 hover:text-destructive"
+                                  aria-label={`Remover documento ${index + 1}`}
+                                >
+                                  <Trash2 className="size-4" />
+                                </Button>
                               </div>
                             </div>
                           ))}
@@ -814,14 +824,20 @@ export function NovaLicitacaoForm({
                 <>
                   <StepSection
                     title="Órgão gerenciador"
-                    description="Comece a organização institucional pelo órgão que conduz o processo. Nesta etapa você cadastra só os dados do órgão; a distribuição dos itens será feita na matriz da próxima etapa."
+                    description="Comece a organização institucional pelo órgão que conduz o processo e registre seus dados principais nesta etapa."
                   >
-                    <OrgaoPublicoFields form={form} prefix="orgaoGerenciador" metaStepId="orgao-gerenciador" />
+                    <OrgaoPublicoFields
+                      form={form}
+                      prefix="orgaoGerenciador"
+                      metaStepId="orgao-gerenciador"
+                      knownOrgaos={knownOrgaos}
+                      isLoadingKnownOrgaos={isLoadingKnownOrgaos}
+                    />
                   </StepSection>
 
                   <StepSection
                     title="Órgãos participantes"
-                    description="Depois do órgão gerenciador, registre os órgãos participantes da contratação. Os quantitativos por item serão distribuídos na matriz da etapa seguinte."
+                    description="Depois do órgão gerenciador, registre os órgãos participantes da contratação compartilhada."
                   >
                     <div className="space-y-4">
                       <div className="flex justify-end">
@@ -844,33 +860,13 @@ export function NovaLicitacaoForm({
                             form={form}
                             index={index}
                             metaStepId="participantes-habilitacao"
+                            knownOrgaos={knownOrgaos}
+                            isLoadingKnownOrgaos={isLoadingKnownOrgaos}
                             onRemove={() => orgaosParticipantes.remove(index)}
                           />
                         ))
                       )}
                     </div>
-                  </StepSection>
-                </>
-              )}
-
-              {currentStep.id === "matriz-distribuicao" && (
-                <>
-                  <StepSection
-                    title="Matriz de distribuição"
-                    description="Cruze os itens do edital com o órgão gerenciador e os órgãos participantes. Cada célula representa a quantidade daquele item atribuída ao respectivo órgão, sem duplicar o cadastro dos itens."
-                  >
-                    <DistributionMatrix
-                      items={itemDistributionSummary}
-                      columns={distributionColumns}
-                      onValueChange={setDistributionValue}
-                    />
-                  </StepSection>
-
-                  <StepSection
-                    title="Resumo da distribuição"
-                    description="Acompanhe quanto de cada item já foi distribuído e quanto ainda resta em saldo antes de concluir a montagem da contratação."
-                  >
-                    <ItemDistributionTable items={itemDistributionSummary} />
                   </StepSection>
                 </>
               )}
@@ -904,15 +900,28 @@ export function NovaLicitacaoForm({
               {currentStep.id === "itens" && (
                 <StepSection
                   title="Itens do edital"
-                  description="Revise a composição detalhada dos bens e serviços a contratar, com quantidades, valores, códigos e observações relevantes."
+                  description="Cadastre só o essencial de cada item do edital para seguir com a oportunidade: identificação, tipo, quantidades, valores e descrição."
                 >
                   <div className="space-y-4">
                     <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm text-muted-foreground">
-                        Total atual de itens: <span className="font-semibold text-foreground">{itens.fields.length}</span>
+                      <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                        <span>
+                          Total atual de itens: <span className="font-semibold text-foreground">{itens.fields.length}</span>
+                        </span>
+                        {itens.fields.length > 0 ? (
+                          <>
+                            <span>
+                              Ativos: <span className="font-semibold text-foreground">{activeItemsCount}</span>
+                            </span>
+                            <span>
+                              Total ativo: <span className="font-semibold text-foreground">{formatNumberToCurrency(activeItemsTotal)}</span>
+                            </span>
+                          </>
+                        ) : null}
                       </div>
                       <Button
                         type="button"
+                        size="sm"
                         variant="outline"
                         onClick={() => itens.append(createEmptyItemLicitadoFormValues())}
                       >
@@ -924,41 +933,132 @@ export function NovaLicitacaoForm({
                     {itens.fields.length === 0 ? (
                       <EmptyState message="Nenhum item licitado cadastrado." />
                     ) : (
-                      <div className="space-y-3">
-                        {itens.fields.map((field, index) => (
-                          <div key={field.id} className="rounded-lg bg-surface-container-lowest p-4">
-                            <div className="mb-4 flex items-center justify-between gap-3">
-                              <h3 className="font-medium">Item {index + 1}</h3>
-                              <Button type="button" variant="ghost" size="sm" onClick={() => itens.remove(index)}>
-                                <Trash2 className="mr-2 size-4" />
-                                Remover
-                              </Button>
-                            </div>
+                      <div className="overflow-x-auto rounded-xl border border-slate-200/80 bg-white">
+                        <Table className="min-w-[1180px]">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[88px]">Ativo</TableHead>
+                              <TableHead className="w-[88px]">Nº</TableHead>
+                              <TableHead className="w-[120px]">Tipo</TableHead>
+                              <TableHead className="w-[110px]">Lote</TableHead>
+                              <TableHead className="w-[140px]">Unidade</TableHead>
+                              <TableHead className="w-[120px]">Qtd.</TableHead>
+                              <TableHead className="w-[150px]">Vlr. unit.</TableHead>
+                              <TableHead className="w-[150px]">Vlr. total</TableHead>
+                              <TableHead className="min-w-[340px]">Descrição</TableHead>
+                              <TableHead className="w-[72px] text-right">Ação</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {itens.fields.map((field, index) => {
+                              const item = resolvedItens[index]
+                              const isActive = item?.ativo ?? true
 
-                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                              <InputField form={form} name={`edital.itens.${index}.numero` as FormPath} label="Número" description={getFieldGuide("itens", "item.numero")?.description} placeholder={getFieldGuide("itens", "item.numero")?.placeholder} type="number" />
-                              <SelectField
-                                form={form}
-                                name={`edital.itens.${index}.tipo` as FormPath}
-                                label="Tipo"
-                                description={getFieldGuide("itens", "item.tipo")?.description}
-                                options={TIPO_ITEM_OPTIONS}
-                              />
-                              <InputField form={form} name={`edital.itens.${index}.lote` as FormPath} label="Lote" description={getFieldGuide("itens", "item.lote")?.description} placeholder={getFieldGuide("itens", "item.lote")?.placeholder} />
-                              <InputField form={form} name={`edital.itens.${index}.unidadeMedida` as FormPath} label="Unidade de medida" description={getFieldGuide("itens", "item.unidadeMedida")?.description} placeholder={getFieldGuide("itens", "item.unidadeMedida")?.placeholder} />
-                              <InputField form={form} name={`edital.itens.${index}.quantidade` as FormPath} label="Quantidade" description={getFieldGuide("itens", "item.quantidade")?.description} placeholder={getFieldGuide("itens", "item.quantidade")?.placeholder} type="number" step="0.01" />
-                              <InputField form={form} name={`edital.itens.${index}.valorUnitarioEstimado` as FormPath} label="Valor unitário estimado" description={getFieldGuide("itens", "item.valorUnitarioEstimado")?.description} placeholder={getFieldGuide("itens", "item.valorUnitarioEstimado")?.placeholder} type="number" step="0.01" />
-                              <InputField form={form} name={`edital.itens.${index}.valorTotal` as FormPath} label="Valor total" description={getFieldGuide("itens", "item.valorTotal")?.description} placeholder={getFieldGuide("itens", "item.valorTotal")?.placeholder} type="number" step="0.01" />
-                              <InputField form={form} name={`edital.itens.${index}.criterioJulgamento` as FormPath} label="Critério de julgamento" description={getFieldGuide("itens", "item.criterioJulgamento")?.description} placeholder={getFieldGuide("itens", "item.criterioJulgamento")?.placeholder} />
-                              <InputField form={form} name={`edital.itens.${index}.codigoNcmNbs` as FormPath} label="Código NCM/NBS" description={getFieldGuide("itens", "item.codigoNcmNbs")?.description} placeholder={getFieldGuide("itens", "item.codigoNcmNbs")?.placeholder} />
-                              <InputField form={form} name={`edital.itens.${index}.descricaoNcmNbs` as FormPath} label="Descrição NCM/NBS" description={getFieldGuide("itens", "item.descricaoNcmNbs")?.description} placeholder={getFieldGuide("itens", "item.descricaoNcmNbs")?.placeholder} className="md:col-span-2" />
-                              <InputField form={form} name={`edital.itens.${index}.codigoCatmatCatser` as FormPath} label="Código CATMAT/CATSER" description={getFieldGuide("itens", "item.codigoCatmatCatser")?.description} placeholder={getFieldGuide("itens", "item.codigoCatmatCatser")?.placeholder} />
-                              <InputField form={form} name={`edital.itens.${index}.beneficioTributario` as FormPath} label="Benefício tributário" description={getFieldGuide("itens", "item.beneficioTributario")?.description} placeholder={getFieldGuide("itens", "item.beneficioTributario")?.placeholder} />
-                              <TextareaField form={form} name={`edital.itens.${index}.descricao` as FormPath} label="Descrição" description={getFieldGuide("itens", "item.descricao")?.description} placeholder={getFieldGuide("itens", "item.descricao")?.placeholder} className="md:col-span-2 xl:col-span-4" rows={4} />
-                              <TextareaField form={form} name={`edital.itens.${index}.observacao` as FormPath} label="Observação" description={getFieldGuide("itens", "item.observacao")?.description} placeholder={getFieldGuide("itens", "item.observacao")?.placeholder} className="md:col-span-2 xl:col-span-4" rows={3} />
-                            </div>
-                          </div>
-                        ))}
+                              return (
+                                <TableRow key={field.id} className={cn(!isActive && "bg-slate-50/80 opacity-75")}>
+                                  <TableCell>
+                                    <Switch
+                                      checked={isActive}
+                                      onCheckedChange={checked => setItemActive(field.itemId, checked)}
+                                      aria-label={`Marcar item ${index + 1} como ativo`}
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      {...form.register(`edital.itens.${index}.numero` as FormPath)}
+                                      type="number"
+                                      placeholder={getFieldGuide("itens", "item.numero")?.placeholder}
+                                      className="h-9"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Controller
+                                      control={form.control}
+                                      name={`edital.itens.${index}.tipo` as FormPath}
+                                      render={({ field: selectField }) => (
+                                        <Select
+                                          value={(selectField.value as string) || "__empty__"}
+                                          onValueChange={value => selectField.onChange(value === "__empty__" ? "" : value)}
+                                        >
+                                          <SelectTrigger className="h-9 w-full">
+                                            <SelectValue placeholder="Tipo" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {TIPO_ITEM_OPTIONS.map(option => (
+                                              <SelectItem key={option.value || "__empty__"} value={option.value || "__empty__"}>
+                                                {option.label}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      )}
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      {...form.register(`edital.itens.${index}.lote` as FormPath)}
+                                      placeholder={getFieldGuide("itens", "item.lote")?.placeholder}
+                                      className="h-9"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      {...form.register(`edital.itens.${index}.unidadeMedida` as FormPath)}
+                                      placeholder={getFieldGuide("itens", "item.unidadeMedida")?.placeholder}
+                                      className="h-9"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      {...form.register(`edital.itens.${index}.quantidade` as FormPath)}
+                                      type="number"
+                                      step="0.01"
+                                      placeholder={getFieldGuide("itens", "item.quantidade")?.placeholder}
+                                      className="h-9"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      {...form.register(`edital.itens.${index}.valorUnitarioEstimado` as FormPath)}
+                                      type="number"
+                                      step="0.01"
+                                      placeholder={getFieldGuide("itens", "item.valorUnitarioEstimado")?.placeholder}
+                                      className="h-9"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      {...form.register(`edital.itens.${index}.valorTotal` as FormPath)}
+                                      type="number"
+                                      step="0.01"
+                                      placeholder={getFieldGuide("itens", "item.valorTotal")?.placeholder}
+                                      className="h-9"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      {...form.register(`edital.itens.${index}.descricao` as FormPath)}
+                                      placeholder={getFieldGuide("itens", "item.descricao")?.placeholder}
+                                      className="h-9"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => itens.remove(index)}
+                                      className="size-8 text-slate-500 hover:text-destructive"
+                                      aria-label={`Remover item ${index + 1}`}
+                                    >
+                                      <Trash2 className="size-4" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            })}
+                          </TableBody>
+                        </Table>
                       </div>
                     )}
                   </div>
@@ -1021,11 +1121,15 @@ function OrgaoParticipanteCard({
   form,
   index,
   metaStepId,
+  knownOrgaos,
+  isLoadingKnownOrgaos = false,
   onRemove,
 }: {
   form: UseFormReturn<NovaLicitacaoFormValues>
   index: number
   metaStepId: "participantes-habilitacao"
+  knownOrgaos: KnownOrgaoOption[]
+  isLoadingKnownOrgaos?: boolean
   onRemove: () => void
 }) {
   return (
@@ -1038,7 +1142,13 @@ function OrgaoParticipanteCard({
         </Button>
       </div>
 
-      <OrgaoPublicoFields form={form} prefix={`edital.orgaosParticipantes.${index}` as FormPath} metaStepId={metaStepId} />
+      <OrgaoPublicoFields
+        form={form}
+        prefix={`edital.orgaosParticipantes.${index}` as FormPath}
+        metaStepId={metaStepId}
+        knownOrgaos={knownOrgaos}
+        isLoadingKnownOrgaos={isLoadingKnownOrgaos}
+      />
     </div>
   )
 }
@@ -1047,13 +1157,63 @@ function OrgaoPublicoFields({
   form,
   prefix,
   metaStepId,
+  knownOrgaos,
+  isLoadingKnownOrgaos = false,
 }: {
   form: UseFormReturn<NovaLicitacaoFormValues>
   prefix: FormPath
   metaStepId: "orgao-gerenciador" | "participantes-habilitacao"
+  knownOrgaos: KnownOrgaoOption[]
+  isLoadingKnownOrgaos?: boolean
 }) {
+  const [selectedKnownOrgaoId, setSelectedKnownOrgaoId] = React.useState("__manual__")
+
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <FieldShell
+        label="Usar órgão já cadastrado"
+        description="Selecione um órgão já utilizado em outra licitação para preencher rapidamente os campos abaixo."
+        className="md:col-span-2 xl:col-span-4"
+      >
+        <Select
+          value={selectedKnownOrgaoId}
+          onValueChange={value => {
+            setSelectedKnownOrgaoId(value)
+
+            if (value === "__manual__") return
+
+            const selectedOrgao = knownOrgaos.find(orgao => orgao.id === value)
+            if (!selectedOrgao) return
+
+            applyKnownOrgaoSelection({
+              form,
+              prefix,
+              orgao: selectedOrgao,
+            })
+          }}
+          disabled={isLoadingKnownOrgaos || knownOrgaos.length === 0}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue
+              placeholder={
+                isLoadingKnownOrgaos
+                  ? "Carregando órgãos cadastrados..."
+                  : knownOrgaos.length === 0
+                    ? "Nenhum órgão cadastrado disponível"
+                    : "Selecione um órgão para preencher os dados"
+              }
+            />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__manual__">Preencher manualmente</SelectItem>
+            {knownOrgaos.map(orgao => (
+              <SelectItem key={orgao.id} value={orgao.id}>
+                {formatKnownOrgaoOptionLabel(orgao)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FieldShell>
       <InputField form={form} name={`${prefix}.nome` as FormPath} label="Nome" description={getFieldGuide(metaStepId, "orgao.nome")?.description} placeholder={getFieldGuide(metaStepId, "orgao.nome")?.placeholder} className="md:col-span-2" />
       <InputField form={form} name={`${prefix}.cnpj` as FormPath} label="CNPJ" description={getFieldGuide(metaStepId, "orgao.cnpj")?.description} placeholder={getFieldGuide(metaStepId, "orgao.cnpj")?.placeholder} />
       <InputField form={form} name={`${prefix}.codigoUnidade` as FormPath} label="Código da unidade" description={getFieldGuide(metaStepId, "orgao.codigoUnidade")?.description} placeholder={getFieldGuide(metaStepId, "orgao.codigoUnidade")?.placeholder} />
@@ -1197,148 +1357,40 @@ function FieldShell({
   )
 }
 
+function CompactColumnHeader({
+  label,
+  description,
+}: {
+  label: string
+  description?: string
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
+      {description ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground/70 transition-colors hover:text-primary"
+              aria-label={`Mais informações sobre ${label}`}
+            >
+              <CircleHelp className="size-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" sideOffset={8} className="max-w-72 bg-primary px-3 py-2 text-[11px] leading-relaxed text-primary-foreground">
+            {description}
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
+    </div>
+  )
+}
+
 function EmptyState({ message }: { message: string }) {
   return (
     <div className="flex min-h-28 items-center justify-center rounded-lg bg-surface-container-lowest text-sm text-muted-foreground">
       {message}
-    </div>
-  )
-}
-
-function DistributionMatrix({
-  items,
-  columns,
-  onValueChange,
-}: {
-  items: ItemDistributionSummary[]
-  columns: DistributionColumn[]
-  onValueChange: (path: DistributionPath, itemId: string, value: string) => void
-}) {
-  if (items.length === 0) {
-    return <EmptyState message="Cadastre os itens do edital antes de montar a matriz de distribuição." />
-  }
-
-  if (columns.length === 0) {
-    return <EmptyState message="Cadastre ao menos o órgão gerenciador para distribuir os itens." />
-  }
-
-  return (
-    <div className="overflow-x-auto rounded-lg bg-surface-container-lowest">
-      <div
-        className="grid min-w-[960px] gap-px bg-slate-200/60"
-        style={{
-          gridTemplateColumns: `minmax(260px,1.4fr) 120px repeat(${columns.length}, minmax(140px, 1fr)) 120px`,
-        }}
-      >
-        <div className="bg-surface-container-low px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          Item do edital
-        </div>
-        <div className="bg-surface-container-low px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          Total
-        </div>
-        {columns.map(column => (
-          <div
-            key={column.id}
-            className="bg-surface-container-low px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground"
-          >
-            <span className="line-clamp-2">{column.label}</span>
-          </div>
-        ))}
-        <div className="bg-surface-container-low px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          Saldo
-        </div>
-
-        {items.map(item => (
-          <React.Fragment key={item.itemId}>
-            <div className="bg-white px-4 py-3">
-              <p className="text-sm font-semibold text-primary">Item {item.numero}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{item.descricao}</p>
-              <p className="mt-2 text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                Unidade: {item.unidadeMedida}
-              </p>
-            </div>
-
-            <div className="bg-white px-4 py-3 text-sm font-medium text-primary">
-              {item.quantidadeTotal} {item.unidadeMedida}
-            </div>
-
-            {columns.map(column => (
-              <div key={`${item.itemId}-${column.id}`} className="bg-white px-3 py-3">
-                <Input
-                  value={getDistributionValue(column.values, item.itemId)}
-                  onChange={event => onValueChange(column.path, item.itemId, event.target.value)}
-                  type="number"
-                  step="0.01"
-                  placeholder="0"
-                  className="h-10 rounded-lg bg-surface-container-lowest text-right"
-                />
-              </div>
-            ))}
-
-            <div className="bg-white px-4 py-3 text-sm font-medium">
-              <span
-                className={cn(
-                  item.saldo < 0
-                    ? "text-destructive"
-                    : item.saldo === 0
-                      ? "text-muted-foreground"
-                      : "text-emerald-700",
-                )}
-              >
-                {item.saldo} {item.unidadeMedida}
-              </span>
-            </div>
-          </React.Fragment>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function getDistributionValue(values: DistributionEntry[], itemId: string) {
-  return values.find(value => value.itemId === itemId)?.quantidade ?? ""
-}
-
-function ItemDistributionTable({ items }: { items: ItemDistributionSummary[] }) {
-  if (items.length === 0) {
-    return <EmptyState message="Cadastre itens do edital para começar a distribuição entre os órgãos." />
-  }
-
-  return (
-    <div className="overflow-hidden rounded-lg bg-surface-container-lowest">
-      <div className="grid grid-cols-[96px_minmax(0,1.5fr)_120px_120px_120px] gap-3 border-b border-slate-200/60 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        <span>Item</span>
-        <span>Descrição</span>
-        <span>Total</span>
-        <span>Distribuído</span>
-        <span>Saldo</span>
-      </div>
-
-      <div className="divide-y divide-slate-200/60">
-        {items.map(item => (
-          <div
-            key={item.itemId}
-            className="grid grid-cols-[96px_minmax(0,1.5fr)_120px_120px_120px] gap-3 px-4 py-3 text-sm"
-          >
-            <span className="font-medium text-primary">#{item.numero}</span>
-            <span className="truncate text-muted-foreground">{item.descricao}</span>
-            <span>{item.quantidadeTotal} {item.unidadeMedida}</span>
-            <span>{item.quantidadeDistribuida} {item.unidadeMedida}</span>
-            <span
-              className={cn(
-                "font-medium",
-                item.saldo < 0
-                  ? "text-destructive"
-                  : item.saldo === 0
-                    ? "text-muted-foreground"
-                    : "text-emerald-700",
-              )}
-            >
-              {item.saldo} {item.unidadeMedida}
-            </span>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }

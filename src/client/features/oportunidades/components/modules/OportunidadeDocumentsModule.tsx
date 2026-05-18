@@ -13,7 +13,6 @@ import type { useDocumentSummaryService } from "@/client/features/licitacoes/ser
 import { WorkspacePanel } from "@/client/components/workspace"
 import { cn } from "@/client/main/lib/utils"
 import {
-  describeAnalyses,
   formatBytes,
   formatDate,
   formatDocumentType,
@@ -42,12 +41,15 @@ export function OportunidadeDocumentsModule({
   const documents = useMemo(() => workspace?.documents ?? [], [workspace?.documents])
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
   const [listCollapsed, setListCollapsed] = useState(false)
-  const [aiOpen, setAiOpen] = useState(true)
+  const [aiOpen, setAiOpen] = useState(false)
   const selectedDocument = documents.find(document => document.id === selectedDocumentId) ?? documents[0] ?? null
   const processingState = toProcessingState(selectedDocument?.status)
 
   return (
     <WorkspacePanel
+      className="flex h-full flex-col border-0 bg-transparent shadow-none"
+      headerClassName="border-b-0 px-0 pb-1 pt-0"
+      contentClassName="min-h-0 flex-1 px-0 pb-0 pt-3"
       title="Documentos"
       description="Edital, anexos e materiais relacionados à oportunidade."
       actions={
@@ -67,14 +69,14 @@ export function OportunidadeDocumentsModule({
           {errorMessage}
         </div>
       ) : documents.length ? (
-        <div className="flex min-h-[680px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white lg:flex-row">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-slate-100 bg-white lg:flex-row">
           <aside
             className={cn(
-              "min-h-0 shrink-0 border-b border-slate-200 bg-slate-50/55 transition-[width] duration-200 lg:border-b-0 lg:border-r",
-              listCollapsed ? "lg:w-16" : "lg:w-80",
+              "min-h-0 shrink-0 border-b border-slate-100 bg-slate-50/45 transition-[width] duration-200 lg:flex lg:flex-col lg:border-b-0 lg:border-r",
+              listCollapsed ? "lg:w-14" : "lg:w-72",
             )}
           >
-            <div className="flex h-14 items-center justify-between gap-2 border-b border-slate-200 px-3">
+            <div className="flex items-center justify-between gap-2 px-3 pb-2 pt-3">
               {!listCollapsed ? (
                 <div className="min-w-0">
                   <p className="truncate text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Arquivos</p>
@@ -93,7 +95,7 @@ export function OportunidadeDocumentsModule({
               </Button>
             </div>
 
-            <div className={cn("max-h-[626px] overflow-y-auto", listCollapsed ? "space-y-2 p-2" : "space-y-3 p-4")}>
+            <div className={cn("min-h-0 flex-1 overflow-y-auto", listCollapsed ? "space-y-2 p-2" : "space-y-2.5 px-3 pb-3")}>
               {documents.map(document => {
                 const isActive = document.id === selectedDocument?.id
 
@@ -104,9 +106,9 @@ export function OportunidadeDocumentsModule({
                     onClick={() => setSelectedDocumentId(document.id)}
                     className={cn(
                       "flex w-full items-start rounded-lg border text-left transition-colors",
-                      listCollapsed ? "min-h-10 justify-center px-2 py-2" : "min-h-[84px] gap-3 px-4 py-4",
+                      listCollapsed ? "min-h-10 justify-center px-2 py-2" : "min-h-[68px] gap-3 px-3.5 py-3",
                       isActive
-                        ? "border-sky-200 bg-sky-50/80"
+                        ? "border-sky-200 bg-sky-50/70 shadow-[0_8px_22px_rgba(56,189,248,0.08)]"
                         : "border-slate-200/80 bg-white hover:border-slate-300",
                     )}
                     title={document.displayName ?? document.originalName}
@@ -120,29 +122,19 @@ export function OportunidadeDocumentsModule({
 
                     {!listCollapsed ? (
                       <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold leading-5 text-primary">
-                            {document.displayName ?? document.originalName}
-                          </p>
-                          {document.displayName && document.displayName !== document.originalName ? (
-                            <p className="mt-1 truncate text-xs text-slate-600">{document.originalName}</p>
-                          ) : null}
-                          <p className="mt-1.5 text-[11px] uppercase tracking-[0.12em] text-slate-500">
-                            {formatDocumentType(document.type)} · {formatBytes(document.sizeBytes)}
-                          </p>
-                        </div>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold leading-5 text-primary">
+                              {document.displayName ?? document.originalName}
+                            </p>
+                            <p className="mt-1 text-[11px] uppercase tracking-[0.12em] text-slate-500">
+                              {formatDocumentType(document.type)}
+                            </p>
+                          </div>
 
-                        <DocumentStatusIcon status={document.status} />
+                          <DocumentStatusIcon status={document.status} />
+                        </div>
                       </div>
-
-                      <p className="mt-2 truncate text-xs text-slate-500">{describeAnalyses(document)}</p>
-                      {document.status === "PROCESSING" ? (
-                        <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-                          <div className="h-full w-1/2 rounded-full bg-primary" />
-                        </div>
-                      ) : null}
-                    </div>
                     ) : null}
                   </button>
                 )
@@ -151,7 +143,7 @@ export function OportunidadeDocumentsModule({
           </aside>
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="flex min-h-16 items-center justify-between gap-4 border-b border-slate-200 px-5 py-3">
+            <div className="flex min-h-15 items-center justify-between gap-4 border-b border-slate-100 px-4 py-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-primary">
                   {selectedDocument?.displayName ?? selectedDocument?.originalName ?? "Documento"}
@@ -177,16 +169,16 @@ export function OportunidadeDocumentsModule({
               <DocumentSurface
                 url={selectedDocument.previewUrl || selectedDocument.documentUrl}
                 title={selectedDocument.displayName ?? selectedDocument.originalName}
-                className="min-h-[616px] flex-1"
+                className="min-h-0 flex-1"
               />
             ) : (
-              <div className="flex min-h-[616px] flex-1 items-center justify-center px-6 text-center text-sm text-slate-500">
+              <div className="flex min-h-0 flex-1 items-center justify-center px-6 text-center text-sm text-slate-500">
                 Este documento ainda não possui URL de preview disponível.
               </div>
             )}
           </div>
 
-          <div className="min-h-0 shrink-0 border-t border-slate-200 bg-white lg:border-l lg:border-t-0">
+          <div className="min-h-0 shrink-0 border-t border-slate-100 bg-white lg:border-l lg:border-t-0">
             <DocumentAiPanel
               open={aiOpen}
               onOpenChange={setAiOpen}

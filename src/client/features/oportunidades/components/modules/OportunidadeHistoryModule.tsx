@@ -6,8 +6,10 @@ import type { OportunidadeWorkspaceModel } from "../../types/oportunidade-worksp
 
 export function OportunidadeHistoryModule({
   workspace,
+  embedded = false,
 }: {
   workspace: OportunidadeWorkspaceModel
+  embedded?: boolean
 }) {
   const { oportunidade } = workspace
   const events = useMemo(() => {
@@ -33,21 +35,27 @@ export function OportunidadeHistoryModule({
     ].sort((a, b) => new Date(b.at ?? 0).getTime() - new Date(a.at ?? 0).getTime())
   }, [oportunidade.createdAt, oportunidade.updatedAt, oportunidade.workflow.updatedAt, workspace])
 
+  const contentNode = (
+    <div role="list" aria-label="Histórico da oportunidade" className="flex flex-col">
+      {events.map((event, index) => (
+        <HistoryEntryRow
+          key={`${event.title}-${event.at ?? index}`}
+          event={event}
+          isLatest={index === 0}
+          isLast={index === events.length - 1}
+        />
+      ))}
+    </div>
+  )
+
+  if (embedded) return contentNode
+
   return (
     <WorkspacePanel
       title="Histórico"
       description="Atualizações principais desta oportunidade."
     >
-      <div role="list" aria-label="Histórico da oportunidade" className="flex flex-col">
-        {events.map((event, index) => (
-          <HistoryEntryRow
-            key={`${event.title}-${event.at ?? index}`}
-            event={event}
-            isLatest={index === 0}
-            isLast={index === events.length - 1}
-          />
-        ))}
-      </div>
+      {contentNode}
     </WorkspacePanel>
   )
 }

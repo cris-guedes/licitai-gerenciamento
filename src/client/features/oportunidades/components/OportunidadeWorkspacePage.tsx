@@ -116,10 +116,14 @@ export default function OportunidadeWorkspacePage() {
           isMoving={page.isMoving}
           isUpdating={page.isUpdating}
           isUpdatingDetails={page.isUpdatingDetails}
+          isUpdatingItem={page.isUpdatingItem}
           documentsErrorMessage={page.errorMessage}
           documentChatService={page.documentChatService}
           documentSummaryService={page.documentSummaryService}
-          onQuickUpdate={page.updateItem}
+          onQuickUpdate={page.updateBoardItem}
+          onUpdateItem={page.updateOportunidadeItem}
+          onCreateItem={page.createOportunidadeItem}
+          onDeleteItem={page.deleteOportunidadeItem}
           onUpdateDetails={page.updateDetails}
           onMove={page.moveToNode}
         />

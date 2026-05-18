@@ -87,21 +87,61 @@ const LicitacaoWorkspaceExecucaoSchema = z.object({
     garantiaTempoAtendimentoHoras: z.string().nullable(),
 });
 
-const LicitacaoWorkspaceItemSchema = z.object({
-    id: z.string(),
-    numeroItem: z.number().nullable(),
-    descricao: z.string().nullable(),
-    tipoItem: z.string().nullable(),
-    lote: z.string().nullable(),
-    quantidadeTotal: z.string().nullable(),
-    unidadeMedida: z.string().nullable(),
-    valorUnitarioEstimado: z.string().nullable(),
-    valorTotalEstimado: z.string().nullable(),
-    codigoCatmatCatser: z.string().nullable(),
-    codigoNcmNbs: z.string().nullable(),
-    criterioJulgamentoItem: z.string().nullable(),
-    beneficioTributario: z.string().nullable(),
-    observacao: z.string().nullable(),
+export const LicitacaoWorkspaceCompanyItemSummarySchema = z.object({
+    id: z.string().describe("ID do item interno da empresa vinculado ao item do edital."),
+    codigo: z.string().describe("Codigo interno do item da empresa."),
+    descricao: z.string().describe("Descricao do item interno da empresa."),
+    marca: z.string().nullable().describe("Marca comercial do item interno, quando informada."),
+    unidadeMedida: z.string().describe("Unidade de medida do item interno."),
+    imageUrl: z.string().nullable().describe("URL da imagem do item interno, quando disponivel."),
+    precoReferencia: z.string().nullable().describe("Preco de referencia atualmente salvo no catalogo interno."),
+    ativo: z.boolean().describe("Indica se o item interno está ativo no catalogo da empresa."),
+    updatedAt: z.string().describe("Data ISO da ultima atualizacao do item interno."),
+});
+
+export const LicitacaoWorkspaceItemPricingSchema = z.object({
+    id: z.string().describe("ID da configuracao de precificacao do item da oportunidade."),
+    quantidadeCotada: z.string().nullable().describe("Quantidade efetivamente considerada para a proposta."),
+    quantidadeAdesao: z.string().nullable().describe("Quantidade adicional prevista para adesao, quando aplicavel."),
+    precoOfertaUnitario: z.string().nullable().describe("Preco unitario ofertado pela empresa."),
+    precoOfertaTotal: z.string().nullable().describe("Preco total calculado para a oferta do item."),
+    custoUnitarioSnapshot: z.string().nullable().describe("Custo unitario congelado para a precificacao desta oportunidade."),
+    valorMinimoLance: z.string().nullable().describe("Valor minimo definido internamente para a fase de lances."),
+    ofertaMarca: z.string().nullable().describe("Marca efetivamente ofertada para este item."),
+    ofertaModelo: z.string().nullable().describe("Modelo efetivamente ofertado para este item."),
+    garantiaDescricao: z.string().nullable().describe("Descricao da garantia comercial prometida para este item."),
+});
+
+export const LicitacaoWorkspaceItemDisputaSchema = z.object({
+    id: z.string().describe("ID do registro operacional da disputa do item."),
+    ultimoLance: z.string().nullable().describe("Ultimo lance registrado pela empresa para o item."),
+    dataUltimoLance: z.string().nullable().describe("Data ISO do ultimo lance informado."),
+    situacaoDisputa: z.string().nullable().describe("Situacao textual resumida da disputa do item."),
+    observacaoOperacional: z.string().nullable().describe("Observacoes operacionais da fase de disputa."),
+});
+
+export const LicitacaoWorkspaceItemSchema = z.object({
+    id: z.string().describe("ID do item oficial do edital."),
+    oportunidadeItemId: z.string().nullable().describe("ID do item operacional da oportunidade que gerencia este item do edital."),
+    numeroItem: z.number().nullable().describe("Numero sequencial do item no edital."),
+    descricao: z.string().nullable().describe("Descricao oficial do item no edital."),
+    tipoItem: z.string().nullable().describe("Tipo do item no edital, como material ou servico."),
+    lote: z.string().nullable().describe("Identificacao do lote ao qual o item pertence, quando houver."),
+    quantidadeTotal: z.string().nullable().describe("Quantidade total solicitada no edital."),
+    unidadeMedida: z.string().nullable().describe("Unidade de medida oficial do item no edital."),
+    valorUnitarioEstimado: z.string().nullable().describe("Valor unitario estimado pelo edital."),
+    valorTotalEstimado: z.string().nullable().describe("Valor total estimado pelo edital."),
+    codigoCatmatCatser: z.string().nullable().describe("Codigo CATMAT ou CATSER informado pelo edital."),
+    codigoNcmNbs: z.string().nullable().describe("Codigo NCM ou NBS informado pelo edital."),
+    criterioJulgamentoItem: z.string().nullable().describe("Criterio de julgamento do item no edital."),
+    beneficioTributario: z.string().nullable().describe("Beneficio tributario associado ao item, quando existir."),
+    observacao: z.string().nullable().describe("Observacoes oficiais do item no edital."),
+    isSelected: z.boolean().describe("Indica se o item continua ativo para a proposta da empresa."),
+    status: z.enum(["PENDING_PRICING", "READY_FOR_BID", "IN_BIDDING", "WON", "LOST", "DISCARDED"]).describe("Status operacional do item dentro da oportunidade."),
+    observacaoInterna: z.string().nullable().describe("Observacoes internas do time comercial para este item."),
+    companyItem: LicitacaoWorkspaceCompanyItemSummarySchema.nullable().describe("Item interno atualmente vinculado ao item do edital."),
+    pricing: LicitacaoWorkspaceItemPricingSchema.nullable().describe("Dados de precificacao salvos para este item da oportunidade."),
+    disputa: LicitacaoWorkspaceItemDisputaSchema.nullable().describe("Dados correntes da fase de disputa do item."),
 });
 
 const LicitacaoWorkspaceOrgaoSchema = z.object({
@@ -133,6 +173,31 @@ const LicitacaoWorkspaceHabilitacaoSchema = z.object({
     categoria: z.string(),
     obrigatorio: z.boolean(),
     ordem: z.number().nullable(),
+});
+
+export const LicitacaoWorkspaceActorSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string(),
+});
+
+export const LicitacaoWorkspaceTaskSchema = z.object({
+    id: z.string(),
+    title: z.string(),
+    status: z.enum(["OPEN", "DONE"]),
+    dueAt: z.string().nullable(),
+    completedAt: z.string().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    createdBy: LicitacaoWorkspaceActorSchema,
+});
+
+export const LicitacaoWorkspaceNoteSchema = z.object({
+    id: z.string(),
+    content: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    createdBy: LicitacaoWorkspaceActorSchema,
 });
 
 export const LicitacaoWorkspaceSchema = z.object({
@@ -206,4 +271,6 @@ export const LicitacaoWorkspaceSchema = z.object({
         updatedAt: z.string().describe("Data ISO da última atualização do edital."),
     }).nullable(),
     documents: z.array(LicitacaoWorkspaceDocumentSchema).describe("Documentos e artefatos do workspace de IA da licitação."),
+    tasks: z.array(LicitacaoWorkspaceTaskSchema).describe("Tarefas operacionais da oportunidade."),
+    notes: z.array(LicitacaoWorkspaceNoteSchema).describe("Notas internas registradas para a oportunidade."),
 });

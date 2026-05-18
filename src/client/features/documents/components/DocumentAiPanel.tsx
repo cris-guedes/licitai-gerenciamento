@@ -37,7 +37,7 @@ export function DocumentAiPanel({
 
   if (!open) {
     return (
-      <aside className="hidden h-full min-h-0 shrink-0 border-l border-slate-200/80 bg-white lg:flex lg:w-16">
+      <aside className="hidden h-full min-h-0 shrink-0 border-l border-slate-100 bg-white lg:flex lg:w-14">
         <button
           type="button"
           onClick={() => onOpenChange(true)}
@@ -59,8 +59,8 @@ export function DocumentAiPanel({
   }
 
   return (
-    <aside className="flex h-[400px] min-h-0 shrink-0 flex-col overflow-hidden bg-white lg:h-full lg:w-[360px] xl:w-[400px]">
-      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200/80 px-5 py-4">
+    <aside className="flex h-[400px] min-h-0 shrink-0 flex-col overflow-hidden bg-white lg:h-full lg:w-[340px] xl:w-[380px]">
+      <div className="flex shrink-0 items-start justify-between gap-3 px-4 pb-2 pt-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-base font-semibold text-primary">
             <Sparkles className="size-4" />
@@ -85,18 +85,18 @@ export function DocumentAiPanel({
         onValueChange={value => setActiveTab(value as "chat" | "summary")}
         className="min-h-0 flex-1 gap-0 overflow-hidden"
       >
-        <div className="shrink-0 border-b border-slate-200/80 px-4 py-3">
-          <TabsList variant="line" className="grid w-full grid-cols-2 gap-1 p-0">
+        <div className="shrink-0 border-b border-slate-100 px-4 pb-2">
+          <TabsList variant="line" className="grid w-full grid-cols-2 gap-1 rounded-none bg-transparent p-0">
             <TabsTrigger
               value="chat"
-              className="rounded-none border border-slate-200/80 bg-white px-3 py-2 data-[state=active]:border-slate-300 data-[state=active]:bg-white"
+              className="rounded-none border-0 bg-transparent px-3 py-2 data-[state=active]:bg-transparent"
             >
               <MessageSquareQuote className="size-4" />
               Chat
             </TabsTrigger>
             <TabsTrigger
               value="summary"
-              className="rounded-none border border-slate-200/80 bg-white px-3 py-2 data-[state=active]:border-slate-300 data-[state=active]:bg-white"
+              className="rounded-none border-0 bg-transparent px-3 py-2 data-[state=active]:bg-transparent"
             >
               <FileText className="size-4" />
               Resumo
@@ -113,7 +113,7 @@ export function DocumentAiPanel({
           />
         </TabsContent>
 
-        <TabsContent value="summary" className="mt-0 min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4">
+        <TabsContent value="summary" className="mt-0 min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-3">
           <DocumentSummaryPanel
             active={activeTab === "summary"}
             documentId={documentId}

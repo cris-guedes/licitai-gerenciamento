@@ -1,6 +1,5 @@
 "use client"
 
-import { Badge } from "@/client/components/ui/badge"
 import { WorkspacePanel } from "@/client/components/workspace"
 import type { OportunidadeWorkspaceModel } from "../../types/oportunidade-workspace"
 
@@ -12,8 +11,6 @@ export function OportunidadeRulesModule({
   const edital = workspace.licitacaoWorkspace?.edital ?? null
   const certame = edital?.certame ?? null
   const execucao = edital?.execucao ?? null
-  const habilitacoes = edital?.habilitacoes ?? []
-  const habilitacoesPorCategoria = groupByCategory(habilitacoes)
 
   return (
     <div className="space-y-6">
@@ -56,46 +53,6 @@ export function OportunidadeRulesModule({
           <DetailCell label="Tempo de atendimento" value={formatHoursString(execucao?.garantiaTempoAtendimentoHoras)} />
         </div>
       </WorkspacePanel>
-
-      <WorkspacePanel
-        title="Habilitação"
-        description="Documentos e exigências que precisam estar prontos antes da decisão de participar."
-        actions={
-          <Badge variant="outline" className="rounded-full border-slate-200 bg-white text-slate-600">
-            {habilitacoes.length} exigência{habilitacoes.length === 1 ? "" : "s"}
-          </Badge>
-        }
-      >
-        {habilitacoes.length ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {habilitacoesPorCategoria.map(group => (
-              <section key={group.category} className="rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-4">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-primary">{group.category}</h3>
-                  <Badge variant="secondary" className="rounded-full text-[10px]">
-                    {group.items.length}
-                  </Badge>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {group.items.map(item => (
-                    <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm">
-                      <span className="min-w-0 flex-1 truncate text-slate-700">{item.tipo || "Documento sem nome"}</span>
-                      <Badge
-                        variant={item.obrigatorio ? "outline" : "secondary"}
-                        className={item.obrigatorio ? "rounded-full border-emerald-200 bg-emerald-50 text-[10px] text-emerald-700" : "rounded-full text-[10px]"}
-                      >
-                        {item.obrigatorio ? "Obrigatório" : "Opcional"}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        ) : (
-          <EmptyBlock text="Nenhuma exigência de habilitação foi consolidada para esta oportunidade." />
-        )}
-      </WorkspacePanel>
     </div>
   )
 }
@@ -115,23 +72,6 @@ function DetailCell({
       <p className="mt-2 break-words text-sm font-medium leading-6 text-slate-900">{value || "Não informado"}</p>
     </div>
   )
-}
-
-function EmptyBlock({ text }: { text: string }) {
-  return (
-    <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm leading-6 text-slate-500">
-      {text}
-    </div>
-  )
-}
-
-function groupByCategory<TItem extends { categoria: string }>(items: TItem[]) {
-  const map = new Map<string, TItem[]>()
-  for (const item of items) {
-    const key = item.categoria || "Sem categoria"
-    map.set(key, [...(map.get(key) ?? []), item])
-  }
-  return Array.from(map.entries()).map(([category, groupItems]) => ({ category, items: groupItems }))
 }
 
 function formatBoolean(value: boolean | null | undefined) {

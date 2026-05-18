@@ -24,18 +24,18 @@ export function WorkspaceSidebarTabs({
   className,
 }: WorkspaceSidebarTabsProps) {
   return (
-    <aside className={cn("w-48 shrink-0 border-r border-slate-200 bg-white", className)}>
-      <div className="flex flex-col gap-0.5 py-4">
+    <aside className={cn("w-44 shrink-0 bg-transparent", className)}>
+      <div className="flex flex-col gap-0.5 py-2">
         {items.map(item => (
           <button
             key={item.id}
             type="button"
             onClick={() => onChange(item.id)}
             className={cn(
-              "flex items-center gap-2.5 border-l-2 px-4 py-2 text-left text-xs font-medium transition-colors",
+              "flex items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-medium transition-colors",
               activeId === item.id
-                ? "border-primary bg-primary/5 text-slate-900"
-                : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-900",
+                ? "bg-primary/6 text-slate-900 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.06)]"
+                : "text-slate-500 hover:bg-slate-50/80 hover:text-slate-900",
             )}
           >
             {item.icon ? <span className="shrink-0 text-slate-400">{item.icon}</span> : null}

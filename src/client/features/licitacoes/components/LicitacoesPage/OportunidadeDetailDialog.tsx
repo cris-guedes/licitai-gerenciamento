@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Building2, CircleDollarSign, ExternalLink, Layers3 } from "lucide-react"
+import { Building2, CircleDollarSign, Layers3, Sparkles, X } from "lucide-react"
 import { Badge } from "@/client/components/ui/badge"
 import { Button } from "@/client/components/ui/button"
 import {
@@ -11,8 +11,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/client/components/ui/dialog"
-import { ScrollArea } from "@/client/components/ui/scroll-area"
 import { Skeleton } from "@/client/components/ui/skeleton"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/client/components/ui/tooltip"
 import { WorkspacePanel } from "@/client/components/workspace"
 import { useCoreApi } from "@/client/hooks/use-core-api"
 import { useDocumentChatService } from "../../services/use-document-chat.service"
@@ -20,8 +24,11 @@ import { useDocumentSummaryService } from "../../services/use-document-summary.s
 import { buildOportunidadeWorkspaceModel, formatCurrency, formatStatusLabel, isWorkflowNodeDescendant, sortWorkflowNodes } from "@/client/features/oportunidades/lib/oportunidade-workspace"
 import { OportunidadeWorkspaceSections } from "@/client/features/oportunidades/components/OportunidadeWorkspaceSections"
 import type {
+  CreateOportunidadeItemPayload,
+  DeleteOportunidadeItemPayload,
   LicitacaoWorkspaceResponse,
   OportunidadeBoardItem,
+  UpdateOportunidadeItemPayload,
   WorkflowNode,
 } from "../../services/use-licitacao.service"
 
@@ -62,10 +69,14 @@ type Props = {
   moveOptions: MoveOption[]
   isMoving: boolean
   isUpdating: boolean
+  isUpdatingItem?: boolean
   responsavelOptions: ResponsavelOption[]
   workflowNodes: WorkflowNode[]
   workflowMetadata: WorkflowMetadata
   onQuickUpdate: (patch: QuickUpdatePatch) => Promise<void>
+  onUpdateItem?: (payload: Omit<UpdateOportunidadeItemPayload, "companyId" | "oportunidadeId">) => Promise<void>
+  onCreateItem?: (payload: Omit<CreateOportunidadeItemPayload, "companyId" | "oportunidadeId">) => Promise<void>
+  onDeleteItem?: (payload: Omit<DeleteOportunidadeItemPayload, "companyId" | "oportunidadeId">) => Promise<void>
   onMove: (targetNodeId: string) => Promise<void>
   workspaceHref: string | null
 }
@@ -80,10 +91,14 @@ export function OportunidadeDetailDialog({
   moveOptions,
   isMoving,
   isUpdating,
+  isUpdatingItem = false,
   responsavelOptions,
   workflowNodes,
   workflowMetadata,
   onQuickUpdate,
+  onUpdateItem,
+  onCreateItem,
+  onDeleteItem,
   onMove,
   workspaceHref,
 }: Props) {
@@ -120,10 +135,11 @@ export function OportunidadeDetailDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        showCloseButton={false}
         className="h-[92vh] max-w-none overflow-hidden border-0 bg-white p-0 shadow-[0_30px_80px_rgba(4,22,39,0.18)]"
         style={{
-          width: "min(1420px, calc(100vw - 1.5rem))",
-          maxWidth: "min(1420px, calc(100vw - 1.5rem))",
+          width: "min(1680px, calc(100vw - 1rem))",
+          maxWidth: "min(1680px, calc(100vw - 1rem))",
         }}
       >
         <DialogHeader className="sr-only">
@@ -177,22 +193,33 @@ export function OportunidadeDetailDialog({
 
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   {workspaceHref ? (
-                    <Button asChild variant="outline" size="sm" className="rounded-lg">
-                      <Link href={workspaceHref}>
-                        Abrir workspace
-                        <ExternalLink className="ml-2 size-4" />
-                      </Link>
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="icon-sm"
+                          className="rounded-2xl border-violet-200 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.95),rgba(243,232,255,0.96)_42%,rgba(233,213,255,0.92)_100%)] text-violet-700 shadow-[0_12px_30px_rgba(168,85,247,0.16)] hover:border-violet-300 hover:bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,1),rgba(237,233,254,0.98)_42%,rgba(221,214,254,0.94)_100%)] hover:text-violet-800"
+                        >
+                          <Link href={workspaceHref} aria-label="Abrir workspace de IA">
+                            <Sparkles className="size-4.5 fill-current" />
+                          </Link>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" sideOffset={10} className="bg-primary text-primary-foreground">
+                        Abrir workspace de IA
+                      </TooltipContent>
+                    </Tooltip>
                   ) : null}
-                  <Button type="button" variant="outline" size="sm" className="rounded-lg" onClick={() => onOpenChange(false)}>
-                    Fechar
+                  <Button type="button" variant="outline" size="icon-sm" className="rounded-xl" onClick={() => onOpenChange(false)} aria-label="Fechar">
+                    <X className="size-4" />
                   </Button>
                 </div>
               </div>
             </div>
 
-            <ScrollArea className="min-h-0 flex-1">
-              <div className="px-4 py-4 sm:px-5">
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <div className="h-full px-4 py-4 sm:px-5">
                 {isLoading || !workspaceModel ? (
                   <OportunidadeDetailSkeleton />
                 ) : (
@@ -208,16 +235,20 @@ export function OportunidadeDetailDialog({
                     moveOptions={moveOptions}
                     isMoving={isMoving}
                     isUpdating={isUpdating}
+                    isUpdatingItem={isUpdatingItem}
                     documentsLoading={false}
                     documentsErrorMessage={errorMessage}
                     documentChatService={documentChatService}
                     documentSummaryService={documentSummaryService}
                     onQuickUpdate={onQuickUpdate}
+                    onUpdateItem={onUpdateItem}
+                    onCreateItem={onCreateItem}
+                    onDeleteItem={onDeleteItem}
                     onMove={onMove}
                   />
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </div>
         ) : null}
       </DialogContent>

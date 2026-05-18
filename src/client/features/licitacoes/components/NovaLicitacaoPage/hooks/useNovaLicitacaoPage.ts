@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form"
 import type { ExtractEditalDataResponse } from "@/client/main/infra/apis/api-core/models/ExtractEditalDataResponse"
 import type {
   FinalizeOportunidadeRegistrationResponse,
+  KnownOrgaoOption,
   LicitacaoWorkspaceResponse,
   LicitacaoDocumentProcessingStatus,
   LicitacaoDocumentType,
@@ -99,6 +100,7 @@ function buildSavedExtractionResult(
 
 export function useNovaLicitacaoPage({ licitacaoService, companyId, initialOportunidadeId }: Props) {
   const getWorkspace = licitacaoService.getWorkspace
+  const listKnownOrgaos = licitacaoService.listKnownOrgaos
   const form = useForm<NovaLicitacaoFormValues>({
     resolver: zodResolver(novaLicitacaoFormSchema),
     defaultValues: createNovaLicitacaoDefaultValues(),
@@ -121,6 +123,8 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId, initialOport
   const [hydratedWorkspaceId, setHydratedWorkspaceId] = useState<string | null>(null)
   const [isSubmittingRegistration, setIsSubmittingRegistration] = useState(false)
   const [submitRegistrationError, setSubmitRegistrationError] = useState<string | null>(null)
+  const [knownOrgaos, setKnownOrgaos] = useState<KnownOrgaoOption[]>([])
+  const [isLoadingKnownOrgaos, setIsLoadingKnownOrgaos] = useState(false)
 
   const selectedDocument = useMemo(() => {
     if (!documents.length) return null
@@ -225,6 +229,36 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId, initialOport
 
     void hydrateWorkspace(initialOportunidadeId)
   }, [companyId, hydrateWorkspace, hydratedWorkspaceId, initialOportunidadeId])
+
+  useEffect(() => {
+    if (!companyId) {
+      setKnownOrgaos([])
+      setIsLoadingKnownOrgaos(false)
+      return
+    }
+
+    let isMounted = true
+    setIsLoadingKnownOrgaos(true)
+
+    void listKnownOrgaos({ companyId })
+      .then(result => {
+        if (!isMounted) return
+        setKnownOrgaos(result.orgaos)
+      })
+      .catch((error: unknown) => {
+        if (!isMounted) return
+        setKnownOrgaos([])
+        toast.error(getErrorMessage(error, "Não foi possível carregar os órgãos já cadastrados."))
+      })
+      .finally(() => {
+        if (!isMounted) return
+        setIsLoadingKnownOrgaos(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [companyId, listKnownOrgaos])
 
   function updateDocument(localId: string, updater: (current: LicitacaoDocumentItem) => LicitacaoDocumentItem) {
     setDocuments(prev => prev.map(document => (document.localId === localId ? updater(document) : document)))
@@ -622,6 +656,8 @@ export function useNovaLicitacaoPage({ licitacaoService, companyId, initialOport
     selectedDocumentId,
     primaryEditalDocument,
     draftContext,
+    knownOrgaos,
+    isLoadingKnownOrgaos,
     isSubmittingRegistration,
     submitRegistrationError,
     isHydratingWorkspace,

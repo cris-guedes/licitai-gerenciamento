@@ -91,6 +91,7 @@ export type LicitacaoWorkspaceExecucaoView = {
 
 export type LicitacaoWorkspaceItemView = {
     id: string;
+    oportunidadeItemId: string | null;
     numeroItem: number | null;
     descricao: string | null;
     tipoItem: string | null;
@@ -104,6 +105,39 @@ export type LicitacaoWorkspaceItemView = {
     criterioJulgamentoItem: string | null;
     beneficioTributario: string | null;
     observacao: string | null;
+    isSelected: boolean;
+    status: "PENDING_PRICING" | "READY_FOR_BID" | "IN_BIDDING" | "WON" | "LOST" | "DISCARDED";
+    observacaoInterna: string | null;
+    companyItem: {
+        id: string;
+        codigo: string;
+        descricao: string;
+        marca: string | null;
+        unidadeMedida: string;
+        imageUrl: string | null;
+        precoReferencia: string | null;
+        ativo: boolean;
+        updatedAt: string;
+    } | null;
+    pricing: {
+        id: string;
+        quantidadeCotada: string | null;
+        quantidadeAdesao: string | null;
+        precoOfertaUnitario: string | null;
+        precoOfertaTotal: string | null;
+        custoUnitarioSnapshot: string | null;
+        valorMinimoLance: string | null;
+        ofertaMarca: string | null;
+        ofertaModelo: string | null;
+        garantiaDescricao: string | null;
+    } | null;
+    disputa: {
+        id: string;
+        ultimoLance: string | null;
+        dataUltimoLance: string | null;
+        situacaoDisputa: string | null;
+        observacaoOperacional: string | null;
+    } | null;
 };
 
 export type LicitacaoWorkspaceOrgaoView = {
@@ -135,6 +169,31 @@ export type LicitacaoWorkspaceHabilitacaoView = {
     categoria: string;
     obrigatorio: boolean;
     ordem: number | null;
+};
+
+export type LicitacaoWorkspaceActorView = {
+    id: string;
+    name: string;
+    email: string;
+};
+
+export type LicitacaoWorkspaceTaskView = {
+    id: string;
+    title: string;
+    status: "OPEN" | "DONE";
+    dueAt: string | null;
+    completedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    createdBy: LicitacaoWorkspaceActorView;
+};
+
+export type LicitacaoWorkspaceNoteView = {
+    id: string;
+    content: string;
+    createdAt: string;
+    updatedAt: string;
+    createdBy: LicitacaoWorkspaceActorView;
 };
 
 export type LicitacaoWorkspaceView = {
@@ -209,6 +268,8 @@ export type LicitacaoWorkspaceView = {
         updatedAt: string;
     } | null;
     documents: LicitacaoWorkspaceDocumentView[];
+    tasks: LicitacaoWorkspaceTaskView[];
+    notes: LicitacaoWorkspaceNoteView[];
 };
 
 export class LicitacaoWorkspaceViewMapper {
@@ -244,6 +305,9 @@ export class LicitacaoWorkspaceViewMapper {
         urlsByDocumentId: Map<string, { documentUrl: string; previewUrlExpiresAt: Date }>;
     }): LicitacaoWorkspaceView {
         const draftPreview = parseLicitacaoDraftPreview(params.workspace.metadata ?? params.workspace.licitacao?.metadados ?? null);
+        const oportunidadeItemByEditalItemId = new Map(
+            params.workspace.itens.map(item => [item.editalItemId, item] as const),
+        );
 
         return {
             companyId: params.workspace.companyId,
@@ -311,7 +375,10 @@ export class LicitacaoWorkspaceViewMapper {
                     cronograma: this.toCronogramaView(params.workspace.edital.cronograma),
                     certame: this.toCertameView(params.workspace.edital.certame),
                     execucao: this.toExecucaoView(params.workspace.edital.dadosExtraidos),
-                    itens: params.workspace.edital.itensDetalhados.map(item => this.toItemView(item)),
+                    itens: params.workspace.edital.itensDetalhados.map(item => this.toItemView({
+                        item,
+                        oportunidadeItem: oportunidadeItemByEditalItemId.get(item.id) ?? null,
+                    })),
                     orgaos: params.workspace.edital.orgaos.map(orgao => this.toOrgaoView(orgao)),
                     habilitacoes: params.workspace.edital.habilitacoes.map(habilitacao => ({
                         id: habilitacao.id,
@@ -330,7 +397,18 @@ export class LicitacaoWorkspaceViewMapper {
                 urls: params.urlsByDocumentId.get(document.id),
                 draftPreview,
             })),
+            tasks: params.workspace.tasks.map(task => this.toTaskView(task)),
+            notes: params.workspace.notes.map(note => this.toNoteView(note)),
         };
+    }
+
+    static toManagedItemView(
+        oportunidadeItem: PrismaOportunidadeRepository.OportunidadeItemRecord,
+    ): LicitacaoWorkspaceItemView {
+        return this.toItemView({
+            item: oportunidadeItem.editalItem,
+            oportunidadeItem,
+        });
     }
 
     private static toCronogramaView(
@@ -389,11 +467,22 @@ export class LicitacaoWorkspaceViewMapper {
         };
     }
 
-    private static toItemView(
-        item: NonNullable<PrismaOportunidadeRepository.OportunidadeWorkspaceRecord["edital"]>["itensDetalhados"][number],
-    ): LicitacaoWorkspaceItemView {
+    private static toOperationalItemStatus(
+        status: PrismaOportunidadeRepository.OportunidadeItemRecord["status"] | null | undefined,
+    ): LicitacaoWorkspaceItemView["status"] {
+        if (!status) return "PENDING_PRICING";
+        return status;
+    }
+
+    private static toItemView(params: {
+        item: NonNullable<PrismaOportunidadeRepository.OportunidadeWorkspaceRecord["edital"]>["itensDetalhados"][number];
+        oportunidadeItem: PrismaOportunidadeRepository.OportunidadeItemRecord | null;
+    }): LicitacaoWorkspaceItemView {
+        const { item, oportunidadeItem } = params;
+
         return {
             id: item.id,
+            oportunidadeItemId: oportunidadeItem?.id ?? null,
             numeroItem: item.numeroItem,
             descricao: item.descricao,
             tipoItem: item.tipoItem,
@@ -407,6 +496,45 @@ export class LicitacaoWorkspaceViewMapper {
             criterioJulgamentoItem: item.criterioJulgamentoItem,
             beneficioTributario: item.beneficioTributario,
             observacao: item.observacao,
+            isSelected: oportunidadeItem?.isSelected ?? true,
+            status: this.toOperationalItemStatus(oportunidadeItem?.status),
+            observacaoInterna: oportunidadeItem?.observacaoInterna ?? null,
+            companyItem: oportunidadeItem?.companyItem
+                ? {
+                    id: oportunidadeItem.companyItem.id,
+                    codigo: oportunidadeItem.companyItem.codigo,
+                    descricao: oportunidadeItem.companyItem.descricao,
+                    marca: oportunidadeItem.companyItem.marca,
+                    unidadeMedida: oportunidadeItem.companyItem.unidadeMedida,
+                    imageUrl: oportunidadeItem.companyItem.imageUrl,
+                    precoReferencia: oportunidadeItem.companyItem.precoReferencia?.toString?.() ?? null,
+                    ativo: oportunidadeItem.companyItem.ativo,
+                    updatedAt: oportunidadeItem.companyItem.updatedAt.toISOString(),
+                }
+                : null,
+            pricing: oportunidadeItem?.pricing
+                ? {
+                    id: oportunidadeItem.pricing.id,
+                    quantidadeCotada: oportunidadeItem.pricing.quantidadeCotada?.toString?.() ?? null,
+                    quantidadeAdesao: oportunidadeItem.pricing.quantidadeAdesao?.toString?.() ?? null,
+                    precoOfertaUnitario: oportunidadeItem.pricing.precoOfertaUnitario?.toString?.() ?? null,
+                    precoOfertaTotal: oportunidadeItem.pricing.precoOfertaTotal?.toString?.() ?? null,
+                    custoUnitarioSnapshot: oportunidadeItem.pricing.custoUnitarioSnapshot?.toString?.() ?? null,
+                    valorMinimoLance: oportunidadeItem.pricing.valorMinimoLance?.toString?.() ?? null,
+                    ofertaMarca: oportunidadeItem.pricing.ofertaMarca,
+                    ofertaModelo: oportunidadeItem.pricing.ofertaModelo,
+                    garantiaDescricao: oportunidadeItem.pricing.garantiaDescricao,
+                }
+                : null,
+            disputa: oportunidadeItem?.disputa
+                ? {
+                    id: oportunidadeItem.disputa.id,
+                    ultimoLance: oportunidadeItem.disputa.ultimoLance?.toString?.() ?? null,
+                    dataUltimoLance: oportunidadeItem.disputa.dataUltimoLance?.toISOString() ?? null,
+                    situacaoDisputa: oportunidadeItem.disputa.situacaoDisputa,
+                    observacaoOperacional: oportunidadeItem.disputa.observacaoOperacional,
+                }
+                : null,
         };
     }
 
@@ -488,6 +616,33 @@ export class LicitacaoWorkspaceViewMapper {
         };
     }
 
+    static toTaskView(
+        task: PrismaOportunidadeRepository.OportunidadeTaskRecord,
+    ): LicitacaoWorkspaceTaskView {
+        return {
+            id: task.id,
+            title: task.title,
+            status: task.status,
+            dueAt: task.dueAt?.toISOString() ?? null,
+            completedAt: task.completedAt?.toISOString() ?? null,
+            createdAt: task.createdAt.toISOString(),
+            updatedAt: task.updatedAt.toISOString(),
+            createdBy: this.toActorView(task.createdBy),
+        };
+    }
+
+    static toNoteView(
+        note: PrismaOportunidadeRepository.OportunidadeNoteRecord,
+    ): LicitacaoWorkspaceNoteView {
+        return {
+            id: note.id,
+            content: note.content,
+            createdAt: note.createdAt.toISOString(),
+            updatedAt: note.updatedAt.toISOString(),
+            createdBy: this.toActorView(note.createdBy),
+        };
+    }
+
     private static toAnalysisView(
         analysis: PrismaDocumentAnalysisRepository.DocumentAnalysisResponse,
     ): LicitacaoWorkspaceAnalysisView {
@@ -503,6 +658,14 @@ export class LicitacaoWorkspaceViewMapper {
             finishedAt: analysis.finishedAt?.toISOString() ?? null,
             createdAt: analysis.createdAt.toISOString(),
             updatedAt: analysis.updatedAt.toISOString(),
+        };
+    }
+
+    private static toActorView(actor: { id: string; name: string; email: string }): LicitacaoWorkspaceActorView {
+        return {
+            id: actor.id,
+            name: actor.name,
+            email: actor.email,
         };
     }
 }

@@ -10,6 +10,9 @@ import { useLicitacaoService } from "@/client/features/licitacoes/services/use-l
 import type {
   CompanyWorkflowResponse,
   OportunidadeBoardItem,
+  UpdateOportunidadeItemPayload,
+  CreateOportunidadeItemPayload,
+  DeleteOportunidadeItemPayload,
   UpdateOportunidadeDetailsPayload,
   WorkflowNode,
 } from "@/client/features/licitacoes/services/use-licitacao.service"
@@ -19,20 +22,11 @@ import {
   isWorkflowNodeDescendant,
   sortWorkflowNodes,
 } from "../lib/oportunidade-workspace"
-
-type WorkflowMetadata = {
-  boardColumnKindKey: string
-  primaryBadgeKindKey: string
-  secondaryBadgeKindKey: string
-}
-
-type MoveOption = {
-  nodeId: string
-  label: string
-  transitionType: string | null
-  phaseId: string | null
-  phaseLabel: string | null
-}
+import {
+  buildWorkflowMoveOptions,
+  readWorkflowMetadata,
+  type WorkflowMoveOption,
+} from "../lib/workflow-move-options"
 
 type QuickUpdatePatch = {
   responsavelUserId?: string | null
@@ -41,28 +35,9 @@ type QuickUpdatePatch = {
   situationNodeId?: string
 }
 
-function readWorkflowMetadata(definition: CompanyWorkflowResponse["workflow"] | undefined): WorkflowMetadata {
-  const raw = definition?.metadata
-  const object = raw && typeof raw === "object" && !Array.isArray(raw)
-    ? raw as Record<string, unknown>
-    : {}
-
-  return {
-    boardColumnKindKey: typeof object.boardColumnKindKey === "string" ? object.boardColumnKindKey : "phase",
-    primaryBadgeKindKey: typeof object.primaryBadgeKindKey === "string" ? object.primaryBadgeKindKey : "status",
-    secondaryBadgeKindKey: typeof object.secondaryBadgeKindKey === "string" ? object.secondaryBadgeKindKey : "situation",
-  }
-}
-
 function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) return error.message
   return fallback
-}
-
-function sortNodes(a: { order: number; createdAt: string; id: string }, b: { order: number; createdAt: string; id: string }) {
-  if (a.order !== b.order) return a.order - b.order
-  if (a.createdAt !== b.createdAt) return a.createdAt.localeCompare(b.createdAt)
-  return a.id.localeCompare(b.id)
 }
 
 export function useOportunidadeWorkspacePage(params: {
@@ -165,6 +140,72 @@ export function useOportunidadeWorkspacePage(params: {
     },
   })
 
+  const updateItemMutation = useMutation({
+    mutationFn: (payload: Omit<UpdateOportunidadeItemPayload, "companyId" | "oportunidadeId">) => {
+      if (!selectedItem) {
+        throw new Error("Nenhuma oportunidade selecionada para atualizar o item.")
+      }
+
+      return licitacaoService.updateOportunidadeItem({
+        companyId,
+        oportunidadeId: selectedItem.oportunidadeId,
+        ...payload,
+      })
+    },
+    onSuccess: () => {
+      toast.success("Item da oportunidade atualizado.")
+      void queryClient.invalidateQueries({ queryKey: ["licitacoes", "workspace", companyId, oportunidadeId] })
+      void queryClient.invalidateQueries({ queryKey: ["licitacoes", "board", companyId] })
+    },
+    onError: error => {
+      toast.error(getErrorMessage(error, "Não foi possível atualizar o item da oportunidade."))
+    },
+  })
+
+  const createItemMutation = useMutation({
+    mutationFn: (payload: Omit<CreateOportunidadeItemPayload, "companyId" | "oportunidadeId">) => {
+      if (!selectedItem) {
+        throw new Error("Nenhuma oportunidade selecionada para criar o item.")
+      }
+
+      return licitacaoService.createOportunidadeItem({
+        companyId,
+        oportunidadeId: selectedItem.oportunidadeId,
+        ...payload,
+      })
+    },
+    onSuccess: () => {
+      toast.success("Item adicionado à oportunidade.")
+      void queryClient.invalidateQueries({ queryKey: ["licitacoes", "workspace", companyId, oportunidadeId] })
+      void queryClient.invalidateQueries({ queryKey: ["licitacoes", "board", companyId] })
+    },
+    onError: error => {
+      toast.error(getErrorMessage(error, "Não foi possível adicionar o item."))
+    },
+  })
+
+  const deleteItemMutation = useMutation({
+    mutationFn: (payload: Omit<DeleteOportunidadeItemPayload, "companyId" | "oportunidadeId">) => {
+      if (!selectedItem) {
+        throw new Error("Nenhuma oportunidade selecionada para remover o item.")
+      }
+
+      return licitacaoService.deleteOportunidadeItem({
+        companyId,
+        oportunidadeId: selectedItem.oportunidadeId,
+        ...payload,
+      })
+    },
+    onSuccess: () => {
+      toast.success("Item removido da oportunidade.")
+      void queryClient.invalidateQueries({ queryKey: ["licitacoes", "workspace", companyId, oportunidadeId] })
+      void queryClient.invalidateQueries({ queryKey: ["licitacoes", "board", companyId] })
+    },
+    onError: error => {
+      toast.error(getErrorMessage(error, "Não foi possível remover o item."))
+    },
+  })
+
   const workflow = workflowQuery.data?.workflow
   const workflowMetadata = readWorkflowMetadata(workflow)
   const workflowNodes = useMemo(() => workflow?.nodes ?? [], [workflow?.nodes])
@@ -186,75 +227,13 @@ export function useOportunidadeWorkspacePage(params: {
     return map
   }, [workflow?.transitions])
 
-  const phases = useMemo(() => {
-    return workflowNodes
-      .filter(node => node.kind.key === workflowMetadata.boardColumnKindKey)
-      .sort(sortNodes)
-  }, [workflowMetadata.boardColumnKindKey, workflowNodes])
-
-  const getNodeAncestors = (nodeId: string | null) => {
-    const ancestors: WorkflowNode[] = []
-    let cursor = nodeId ? nodeById.get(nodeId) ?? null : null
-
-    while (cursor) {
-      ancestors.push(cursor)
-      cursor = cursor.parentId ? nodeById.get(cursor.parentId) ?? null : null
-    }
-
-    return ancestors
-  }
-
-  const getMoveOptions = (item: OportunidadeBoardItem): MoveOption[] => {
-    const currentNodeId = item.workflow.currentNode?.id
-    if (!currentNodeId) return []
-
-    const currentNodeIds = getNodeAncestors(currentNodeId).map(node => node.id)
-    const currentPhaseNode = item.workflow.phase?.id
-      ? nodeById.get(item.workflow.phase.id) ?? null
-      : getNodeAncestors(currentNodeId).find(node => node.kind.key === workflowMetadata.boardColumnKindKey) ?? null
-
-    const transitions = Array.from(new Map(
-      currentNodeIds
-        .flatMap(nodeId => transitionsByFromNodeId.get(nodeId) ?? [])
-        .map(transition => [transition.id, transition]),
-    ).values())
-
-    const transitionOptions = transitions
-      .map(transition => {
-        const targetNode = nodeById.get(transition.toNodeId)
-        if (!targetNode) return null
-
-        const phaseNode = getNodeAncestors(targetNode.id)
-          .find(node => node.kind.key === workflowMetadata.boardColumnKindKey) ?? null
-
-        return {
-          nodeId: targetNode.id,
-          label: targetNode.label,
-          transitionType: transition.transitionType,
-          phaseId: phaseNode?.id ?? null,
-          phaseLabel: phaseNode?.label ?? null,
-        } satisfies MoveOption
-      })
-      .filter((option): option is MoveOption => Boolean(option))
-
-    const optionsByNodeId = new Map(transitionOptions.map(option => [option.nodeId, option]))
-
-    if (currentPhaseNode) {
-      for (const phase of phases) {
-        if (phase.id === currentPhaseNode.id || sortNodes(phase, currentPhaseNode) >= 0) continue
-        if (optionsByNodeId.has(phase.id)) continue
-
-        optionsByNodeId.set(phase.id, {
-          nodeId: phase.id,
-          label: `Voltar para ${phase.label}`,
-          transitionType: "retorno",
-          phaseId: phase.id,
-          phaseLabel: phase.label,
-        })
-      }
-    }
-
-    return Array.from(optionsByNodeId.values())
+  const getMoveOptions = (item: OportunidadeBoardItem): WorkflowMoveOption[] => {
+    return buildWorkflowMoveOptions({
+      item,
+      workflowMetadata,
+      nodeById,
+      transitionsByFromNodeId,
+    })
   }
 
   const workspaceModel = selectedItem
@@ -303,7 +282,7 @@ export function useOportunidadeWorkspacePage(params: {
     })
   }
 
-  const updateItem = async (patch: QuickUpdatePatch) => {
+  const updateBoardItem = async (patch: QuickUpdatePatch) => {
     if (!selectedItem) return
     await updateDetailMutation.mutateAsync({
       oportunidadeId: selectedItem.oportunidadeId,
@@ -313,6 +292,18 @@ export function useOportunidadeWorkspacePage(params: {
 
   const updateDetails = async (patch: Omit<UpdateOportunidadeDetailsPayload, "companyId" | "oportunidadeId">) => {
     await updateDetailsMutation.mutateAsync(patch)
+  }
+
+  const updateOportunidadeItem = async (payload: Omit<UpdateOportunidadeItemPayload, "companyId" | "oportunidadeId">) => {
+    await updateItemMutation.mutateAsync(payload)
+  }
+
+  const createOportunidadeItem = async (payload: Omit<CreateOportunidadeItemPayload, "companyId" | "oportunidadeId">) => {
+    await createItemMutation.mutateAsync(payload)
+  }
+
+  const deleteOportunidadeItem = async (payload: Omit<DeleteOportunidadeItemPayload, "companyId" | "oportunidadeId">) => {
+    await deleteItemMutation.mutateAsync(payload)
   }
 
   return {
@@ -332,7 +323,11 @@ export function useOportunidadeWorkspacePage(params: {
     isMoving: moveMutation.isPending,
     isUpdating: updateDetailMutation.isPending,
     isUpdatingDetails: updateDetailsMutation.isPending,
-    updateItem,
+    isUpdatingItem: updateItemMutation.isPending || createItemMutation.isPending || deleteItemMutation.isPending,
+    updateBoardItem,
+    updateOportunidadeItem,
+    createOportunidadeItem,
+    deleteOportunidadeItem,
     updateDetails,
     moveToNode,
     documentChatService,

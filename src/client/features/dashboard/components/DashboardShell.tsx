@@ -8,6 +8,7 @@ import {
   Bell,
   Building2,
   Clock3,
+  Boxes,
   ChevronsUpDown,
   ChevronRight,
   FileText,
@@ -331,6 +332,18 @@ function NavMain() {
         </SidebarMenuSubItem>
       </NavCollapsible>
 
+      {/* Cadastro */}
+      <NavCollapsible id="cadastro" icon={Boxes} label="Cadastro" active={is("cadastro")}>
+        <SidebarMenuSubItem>
+          <SidebarMenuSubButton asChild isActive={pathname === `${base}/cadastro/itens`}>
+            <Link href={`${base}/cadastro/itens`}>
+              <Boxes className="size-[14px]" />
+              <span className={NAV_LABEL_CLASS}>Itens</span>
+            </Link>
+          </SidebarMenuSubButton>
+        </SidebarMenuSubItem>
+      </NavCollapsible>
+
       {/* Minha Empresa */}
       <NavCollapsible id="empresa" icon={Building2} label="Minha Empresa" active={is("time") || is("empresa") || is("configuracoes") || is("conta")}>
         <SidebarMenuSubItem>
@@ -443,6 +456,7 @@ function resolvePageMeta(pathname: string, base: string) {
     { key: "licitacoes/rascunhos", title: "Rascunhos", subtitle: "Retome licitações em andamento com o contexto da IA preservado." },
     { key: "licitacoes", title: "Gerenciar Oportunidades", subtitle: "Acompanhe oportunidades, status e próximos movimentos." },
     { key: "contratos", title: "Execução e Contratos", subtitle: "Gestão de contratos, empenhos e pipeline logístico." },
+    { key: "cadastro/itens", title: "Cadastro de Itens", subtitle: "Monte o catálogo interno que será reutilizado na precificação." },
     { key: "time", title: "Gerenciar Time", subtitle: "Coordene acessos, papéis e responsabilidades." },
     { key: "empresa", title: "Gerenciar Empresas", subtitle: "Organize os dados mestres da operação." },
     { key: "configuracoes", title: "Configurações", subtitle: "Defina ajustes globais da empresa ativa." },

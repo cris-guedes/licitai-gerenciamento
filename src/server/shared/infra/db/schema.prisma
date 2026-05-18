@@ -28,6 +28,8 @@ model User {
   createdDocumentAnalyses  DocumentAnalysis[]
   createdEditalAnalyses    EditalAnalysis[]
   responsibleOportunidades Oportunidade[]     @relation("OportunidadeResponsavel")
+  createdOportunidadeTasks OportunidadeTask[] @relation("OportunidadeTaskCreatedBy")
+  createdOportunidadeNotes OportunidadeNote[] @relation("OportunidadeNoteCreatedBy")
 }
 
 model Session {
@@ -122,9 +124,32 @@ model Company {
   documents          Document[]
   documentAnalyses   DocumentAnalysis[]
   editalAnalyses     EditalAnalysis[]
-  oportunidades      Oportunidade[]
+  oportunidades       Oportunidade[]
+  oportunidadeTasks   OportunidadeTask[]
+  oportunidadeNotes   OportunidadeNote[]
   workflowDefinitions WorkflowDefinition[]
-  contratos          Contrato[]
+  contratos           Contrato[]
+  companyItems        CompanyItem[]
+}
+
+model CompanyItem {
+  id            String   @id @default(cuid())
+  companyId     String
+  codigo        String
+  descricao     String
+  marca         String?
+  unidadeMedida String
+  imageUrl      String?
+  precoReferencia Float?
+  ativo         Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  oportunidadeItens OportunidadeItem[]
+
+  @@unique([companyId, codigo])
+  @@index([companyId, createdAt])
 }
 
 // ─── Membership ───────────────────────────────────────────────────────────────
@@ -386,6 +411,8 @@ model Oportunidade {
   currentSituationNode WorkflowNode?      @relation("OportunidadeCurrentSituationNode", fields: [currentSituationNodeId], references: [id], onDelete: SetNull)
   responsavel         User?               @relation("OportunidadeResponsavel", fields: [responsavelUserId], references: [id], onDelete: SetNull)
   itens               OportunidadeItem[]
+  tasks               OportunidadeTask[]
+  notes               OportunidadeNote[]
   contratos           Contrato[]
 
   @@unique([companyId, licitacaoId])
@@ -405,16 +432,99 @@ model OportunidadeItem {
   id             String   @id @default(cuid())
   oportunidadeId String
   editalItemId   String
+  companyItemId  String?
+  isSelected     Boolean  @default(true)
+  status         OportunidadeItemStatus @default(PENDING_PRICING)
+  observacaoInterna String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   oportunidade Oportunidade @relation(fields: [oportunidadeId], references: [id], onDelete: Cascade)
   editalItem   EditalItem   @relation(fields: [editalItemId], references: [id], onDelete: Cascade)
+  companyItem  CompanyItem? @relation(fields: [companyItemId], references: [id], onDelete: SetNull)
+  pricing      OportunidadeItemPricing?
+  disputa      OportunidadeItemDisputa?
   contratoItens ContratoItem[]
 
   @@unique([oportunidadeId, editalItemId])
   @@index([oportunidadeId, createdAt])
   @@index([editalItemId, createdAt])
+  @@index([companyItemId, createdAt])
+  @@index([status, createdAt])
+}
+
+model OportunidadeItemPricing {
+  id                  String   @id @default(cuid())
+  oportunidadeItemId  String   @unique
+  quantidadeCotada    Decimal? @db.Decimal(18, 4)
+  quantidadeAdesao    Decimal? @db.Decimal(18, 4)
+  precoOfertaUnitario Decimal? @db.Decimal(15, 2)
+  precoOfertaTotal    Decimal? @db.Decimal(15, 2)
+  custoUnitarioSnapshot Decimal? @db.Decimal(15, 2)
+  valorMinimoLance    Decimal? @db.Decimal(15, 2)
+  ofertaMarca         String?
+  ofertaModelo        String?
+  garantiaDescricao   String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  oportunidadeItem OportunidadeItem @relation(fields: [oportunidadeItemId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+}
+
+model OportunidadeItemDisputa {
+  id                   String   @id @default(cuid())
+  oportunidadeItemId   String   @unique
+  ultimoLance          Decimal? @db.Decimal(15, 2)
+  dataUltimoLance      DateTime?
+  situacaoDisputa      String?
+  observacaoOperacional String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  oportunidadeItem OportunidadeItem @relation(fields: [oportunidadeItemId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+}
+
+model OportunidadeTask {
+  id             String                 @id @default(cuid())
+  oportunidadeId String
+  companyId      String
+  createdById    String
+  title          String
+  status         OportunidadeTaskStatus @default(OPEN)
+  dueAt          DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  oportunidade Oportunidade @relation(fields: [oportunidadeId], references: [id], onDelete: Cascade)
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation("OportunidadeTaskCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([oportunidadeId, createdAt])
+  @@index([companyId, createdAt])
+  @@index([status, createdAt])
+  @@index([dueAt])
+}
+
+model OportunidadeNote {
+  id             String   @id @default(cuid())
+  oportunidadeId String
+  companyId      String
+  createdById    String
+  content        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  oportunidade Oportunidade @relation(fields: [oportunidadeId], references: [id], onDelete: Cascade)
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation("OportunidadeNoteCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([oportunidadeId, createdAt])
+  @@index([companyId, createdAt])
 }
 
 model WorkflowDefinition {
@@ -790,6 +900,20 @@ enum OportunidadeStatus {
   DRAFT
   ACTIVE
   CANCELLED
+}
+
+enum OportunidadeItemStatus {
+  PENDING_PRICING
+  READY_FOR_BID
+  IN_BIDDING
+  WON
+  LOST
+  DISCARDED
+}
+
+enum OportunidadeTaskStatus {
+  OPEN
+  DONE
 }
 
 enum ChatMessageRole {

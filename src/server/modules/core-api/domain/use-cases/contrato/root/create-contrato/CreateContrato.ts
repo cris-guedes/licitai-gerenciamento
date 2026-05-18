@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-namespace */
 import { PrismaContratoRepository } from "@/server/shared/infra/repositories/contrato.repository";
 import { PrismaOportunidadeRepository } from "@/server/shared/infra/repositories/oportunidade.repository";
 import { CreateContratoDTO } from "./dtos/CreateContratoDTOs";
@@ -18,8 +19,8 @@ export class CreateContrato {
         });
 
         if (!oportunidade) {
-            const error = new Error("Oportunidade não encontrada");
-            (error as any).statusCode = 404;
+            const error = new Error("Oportunidade não encontrada") as Error & { statusCode: number };
+            error.statusCode = 404;
             throw error;
         }
 
@@ -28,17 +29,18 @@ export class CreateContrato {
             : (await this.oportunidadeRepository.listItemsByOportunidadeId({
                 oportunidadeId: params.oportunidadeId,
                 companyId: params.companyId,
+                selectedOnly: true,
             })).map(item => ({
                 oportunidadeItemId: item.id,
-                quantidadeContratada: item.editalItem.quantidadeTotal === null
-                    ? undefined
-                    : Number(item.editalItem.quantidadeTotal),
-                valorUnitario: item.editalItem.valorUnitarioEstimado === null
-                    ? undefined
-                    : Number(item.editalItem.valorUnitarioEstimado),
-                valorTotal: item.editalItem.valorTotalEstimado === null
-                    ? undefined
-                    : Number(item.editalItem.valorTotalEstimado),
+                quantidadeContratada: item.pricing?.quantidadeCotada !== null && item.pricing?.quantidadeCotada !== undefined
+                    ? Number(item.pricing.quantidadeCotada)
+                    : (item.editalItem.quantidadeTotal === null ? undefined : Number(item.editalItem.quantidadeTotal)),
+                valorUnitario: item.pricing?.precoOfertaUnitario !== null && item.pricing?.precoOfertaUnitario !== undefined
+                    ? Number(item.pricing.precoOfertaUnitario)
+                    : (item.editalItem.valorUnitarioEstimado === null ? undefined : Number(item.editalItem.valorUnitarioEstimado)),
+                valorTotal: item.pricing?.precoOfertaTotal !== null && item.pricing?.precoOfertaTotal !== undefined
+                    ? Number(item.pricing.precoOfertaTotal)
+                    : (item.editalItem.valorTotalEstimado === null ? undefined : Number(item.editalItem.valorTotalEstimado)),
             }));
         const valorGlobal = params.valorGlobal
             || params.valorTotal

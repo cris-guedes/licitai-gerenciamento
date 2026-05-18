@@ -22,9 +22,20 @@ export function buildOportunidadeWorkspaceModel(params: {
   const { companyId, item, workspace } = params
   const resumo = item.objetoResumo ?? workspace?.oportunidade.draftPreview?.objetoResumo ?? workspace?.licitacao.draftPreview?.objetoResumo ?? null
   const documents = workspace?.documents ?? []
+  const tasks = workspace?.tasks ?? []
+  const notes = workspace?.notes ?? []
+  const habilitacoes = workspace?.edital?.habilitacoes ?? []
   const ready = documents.filter(document => document.status === "READY").length
   const processing = documents.filter(document => document.status === "PROCESSING").length
   const failed = documents.filter(document => document.status === "FAILED").length
+  const openTasks = tasks.filter(task => task.status === "OPEN")
+  const doneTasks = tasks.filter(task => task.status === "DONE")
+  const overdueTasks = openTasks.filter(task => isOverdue(task.dueAt)).length
+  const mandatoryQualifications = habilitacoes.filter(item => item.obrigatorio).length
+  const qualificationCategories = new Set(
+    habilitacoes
+      .map(item => item.categoria?.trim() || "Sem categoria"),
+  ).size
 
   return {
     companyId,
@@ -33,11 +44,25 @@ export function buildOportunidadeWorkspaceModel(params: {
     resumo,
     latestSyncAt: workspace?.licitacao.updatedAt ?? workspace?.oportunidade.updatedAt ?? null,
     documents,
+    tasks,
+    notes,
     documentsSummary: {
       total: documents.length,
       ready,
       processing,
       failed,
+    },
+    tasksSummary: {
+      total: tasks.length,
+      open: openTasks.length,
+      done: doneTasks.length,
+      overdue: overdueTasks,
+    },
+    qualificationSummary: {
+      total: habilitacoes.length,
+      mandatory: mandatoryQualifications,
+      optional: Math.max(habilitacoes.length - mandatoryQualifications, 0),
+      categories: habilitacoes.length ? qualificationCategories : 0,
     },
     registration: {
       oportunidadeStatus: item.oportunidadeStatus,
@@ -152,6 +177,20 @@ export function describeAnalyses(document: NonNullable<LicitacaoWorkspaceRespons
   ].filter(Boolean)
 
   return parts.join(" · ") || `${document.analyses.length} análise(s)`
+}
+
+function isOverdue(value: string | null) {
+  if (!value) return false
+
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? new Date(`${value}T12:00:00`)
+    : new Date(value)
+  if (Number.isNaN(date.getTime())) return false
+
+  const endOfToday = new Date()
+  endOfToday.setHours(23, 59, 59, 999)
+
+  return date.getTime() < endOfToday.getTime()
 }
 
 export function sortWorkflowNodes(a: WorkflowNode, b: WorkflowNode) {

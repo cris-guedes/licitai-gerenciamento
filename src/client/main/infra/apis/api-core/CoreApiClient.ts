@@ -7,6 +7,7 @@ import type { OpenAPIConfig } from './core/OpenAPI';
 import { AxiosHttpRequest } from './core/AxiosHttpRequest';
 import { AuthService } from './services/AuthService';
 import { CompanyService } from './services/CompanyService';
+import { CompanyItemService } from './services/CompanyItemService';
 import { ContratosService } from './services/ContratosService';
 import { EmpenhosService } from './services/EmpenhosService';
 import { LicitacaoService } from './services/LicitacaoService';
@@ -18,6 +19,7 @@ type HttpRequestConstructor = new (config: OpenAPIConfig) => BaseHttpRequest;
 export class CoreApiClient {
   public readonly auth: AuthService;
   public readonly company: CompanyService;
+  public readonly companyItem: CompanyItemService;
   public readonly contratos: ContratosService;
   public readonly empenhos: EmpenhosService;
   public readonly licitacao: LicitacaoService;
@@ -40,6 +42,7 @@ export class CoreApiClient {
     });
     this.auth = new AuthService(this.request);
     this.company = new CompanyService(this.request);
+    this.companyItem = new CompanyItemService(this.request);
     this.contratos = new ContratosService(this.request);
     this.empenhos = new EmpenhosService(this.request);
     this.licitacao = new LicitacaoService(this.request);
