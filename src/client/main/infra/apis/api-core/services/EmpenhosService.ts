@@ -30,17 +30,17 @@ export class EmpenhosService {
        */
       contratoId: string;
       /**
-       * Número da nota de empenho
+       * Número da nota de empenho. Se vazio, será gerado automaticamente.
        */
-      numeroEmpenho: string;
+      numeroEmpenho?: string;
       /**
        * Ex: ordinario, estimativo, global
        */
       tipoEmpenho?: string;
       /**
-       * Valor total do empenho
+       * Valor total do empenho. Se vazio, será calculado pelos itens.
        */
-      valor: number;
+      valor?: number;
       /**
        * Data de emissão da nota de empenho
        */
@@ -170,6 +170,9 @@ export class EmpenhosService {
     requestBody,
   }: {
     requestBody: {
+      /**
+       * ID da empresa
+       */
       companyId: string;
       /**
        * ID do Contrato
@@ -179,9 +182,38 @@ export class EmpenhosService {
        * ID do Empenho
        */
       empenhoId: string;
-      empenhoItemId: string;
-      quantidade: number;
+      /**
+       * ID do item do empenho para criação simples.
+       */
+      empenhoItemId?: string;
+      /**
+       * Quantidade para criação simples.
+       */
+      quantidade?: number;
+      /**
+       * Itens que serão inseridos na entrega em lote.
+       */
+      itens?: Array<{
+        /**
+         * ID do item do empenho.
+         */
+        empenhoItemId: string;
+        /**
+         * Quantidade a entregar deste item.
+         */
+        quantidade: number;
+      }>;
+      /**
+       * Local de entrega previamente cadastrado.
+       */
+      localEntregaId?: string;
+      /**
+       * Data prevista para entrega.
+       */
       dataPrevista?: string;
+      /**
+       * Observações gerais da entrega.
+       */
       observacoes?: string;
     },
   }): CancelablePromise<PostCoreContratosContratoIdEmpenhosEmpenhoIdEntregasResponse> {

@@ -1,13 +1,16 @@
 "use client"
 
 import React, { useState } from "react"
-import { Search, SlidersHorizontal, ChevronDown, X, Info } from "lucide-react"
+import { Search, SlidersHorizontal, ChevronDown, X, Info, CalendarDays } from "lucide-react"
+import type { DateRange } from "react-day-picker"
 import { Button } from "@/client/components/ui/button"
 import { Input }  from "@/client/components/ui/input"
 import { Label }  from "@/client/components/ui/label"
 import { Badge }  from "@/client/components/ui/badge"
 import { cn }     from "@/client/main/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/client/components/ui/tooltip"
+import { Calendar } from "@/client/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/client/components/ui/popover"
 
 function InfoTip({ text, content }: { text?: string; content?: React.ReactNode }) {
   return (
@@ -115,6 +118,132 @@ function ToggleGroup<T>({ options, value, onChange }: ToggleGroupProps<T>) {
   )
 }
 
+function toDateInputValue(date?: Date) {
+  if (!date) return ""
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-")
+}
+
+function fromDateInputValue(value: string) {
+  if (!value) return undefined
+  const [year, month, day] = value.split("-").map(Number)
+  if (!year || !month || !day) return undefined
+  return new Date(year, month - 1, day)
+}
+
+function formatDateLabel(value: string) {
+  const date = fromDateInputValue(value)
+  return date ? date.toLocaleDateString("pt-BR") : value
+}
+
+function formatRangeLabel(start: string, end: string) {
+  if (start && end) return `${formatDateLabel(start)} - ${formatDateLabel(end)}`
+  if (start) return `A partir de ${formatDateLabel(start)}`
+  if (end) return `Até ${formatDateLabel(end)}`
+  return "Selecionar período"
+}
+
+function DateRangePicker({
+  label,
+  tooltip,
+  start,
+  end,
+  onChange,
+}: {
+  label: string
+  tooltip: string
+  start: string
+  end: string
+  onChange: (range: { start: string; end: string }) => void
+}) {
+  const selected: DateRange | undefined = start || end
+    ? { from: fromDateInputValue(start), to: fromDateInputValue(end) }
+    : undefined
+
+  function handleSelect(range: DateRange | undefined) {
+    onChange({
+      start: toDateInputValue(range?.from),
+      end: toDateInputValue(range?.to),
+    })
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5">
+        <Label className="text-[10px] font-semibold text-muted-foreground">{label}</Label>
+        <InfoTip text={tooltip} />
+      </div>
+      <div className="flex items-center gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className={cn(
+                "h-10 w-full justify-start gap-2 bg-background text-left text-xs font-semibold",
+                !start && !end && "text-muted-foreground"
+              )}
+            >
+              <CalendarDays className="size-4 opacity-60" />
+              {formatRangeLabel(start, end)}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-auto rounded-2xl p-0 shadow-lg">
+            <Calendar
+              mode="range"
+              selected={selected}
+              onSelect={handleSelect}
+              numberOfMonths={2}
+              className="p-4 [--cell-size:--spacing(9)]"
+              classNames={{
+                months: "flex flex-col gap-5 sm:flex-row",
+                month: "flex w-full flex-col gap-4",
+                caption_label: "text-base font-semibold text-foreground",
+                month_caption: "flex h-9 items-center justify-center px-9",
+                nav: "absolute inset-x-3 top-4 flex items-center justify-between",
+                button_previous: "size-8 rounded-full text-foreground hover:bg-muted",
+                button_next: "size-8 rounded-full text-foreground hover:bg-muted",
+                weekdays: "flex text-muted-foreground",
+                weekday: "flex-1 text-center text-sm font-normal",
+                week: "mt-2 flex w-full",
+                day: "aspect-square h-9 w-9 p-0 text-center",
+                day_button: cn(
+                  "size-9 rounded-lg text-sm font-medium text-foreground hover:bg-muted",
+                  "data-[today=true]:border data-[today=true]:border-primary/45 data-[today=true]:font-bold data-[today=true]:text-primary",
+                  "data-[selected-single=true]:bg-zinc-950 data-[selected-single=true]:text-white",
+                  "data-[range-start=true]:bg-zinc-950 data-[range-start=true]:text-white",
+                  "data-[range-end=true]:bg-zinc-950 data-[range-end=true]:text-white",
+                  "data-[range-middle=true]:bg-muted data-[range-middle=true]:text-foreground"
+                ),
+                range_start: "rounded-l-lg bg-muted",
+                range_middle: "rounded-none bg-muted",
+                range_end: "rounded-r-lg bg-muted",
+                today: "rounded-lg bg-primary/5 text-primary",
+                outside: "text-muted-foreground/70",
+              }}
+            />
+          </PopoverContent>
+        </Popover>
+        {(start || end) && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-9 shrink-0 text-muted-foreground hover:text-destructive"
+            onClick={() => onChange({ start: "", end: "" })}
+            title="Limpar período"
+          >
+            <X className="size-4" />
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 type Props = {
@@ -178,13 +307,25 @@ export function SearchFilters({ onSearch, onReset }: Props) {
       key: "ecn", label: "Conteúdo Nacional",
       clear: () => set("exigenciaConteudoNacional", null),
     }] : []),
+    ...(local.dataAberturaInicio || local.dataAberturaFim ? [{
+      key: "abertura-range",
+      label: `Abertura: ${formatRangeLabel(local.dataAberturaInicio, local.dataAberturaFim)}`,
+      clear: () => setLocal(prev => ({ ...prev, dataAberturaInicio: "", dataAberturaFim: "" })),
+    }] : []),
+    ...(local.dataEncerramentoInicio || local.dataEncerramentoFim ? [{
+      key: "encerramento-range",
+      label: `Encerramento: ${formatRangeLabel(local.dataEncerramentoInicio, local.dataEncerramentoFim)}`,
+      clear: () => setLocal(prev => ({ ...prev, dataEncerramentoInicio: "", dataEncerramentoFim: "" })),
+    }] : []),
   ]
 
   const advancedCount =
     local.tiposDocumento.length + local.modalidades.length + local.ufs.length +
     local.esferas.length + local.poderes.length + local.tipos.length +
     local.fontesOrcamentarias.length + local.tiposMargensPreferencia.length +
-    (local.exigenciaConteudoNacional ? 1 : 0)
+    (local.exigenciaConteudoNacional ? 1 : 0) +
+    (local.dataAberturaInicio || local.dataAberturaFim ? 1 : 0) +
+    (local.dataEncerramentoInicio || local.dataEncerramentoFim ? 1 : 0)
 
   return (
     <div className="flex flex-col">
@@ -282,6 +423,41 @@ export function SearchFilters({ onSearch, onReset }: Props) {
       {/* ── Filtros Avançados ───────────────────────────────────────────────── */}
       {expanded && (
         <div className="border-t border-border/50 px-6 py-6 space-y-6 bg-muted/10 animate-in slide-in-from-top-2 duration-200">
+
+          {/* Row 0: Datas de Proposta */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-1.5">
+              <CalendarDays className="size-3.5 text-muted-foreground/50" />
+              <Label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80">
+                Datas das propostas
+              </Label>
+              <InfoTip text="Filtra oportunidades com recebimento de propostas em aberto usando as datas de abertura e encerramento retornadas pela API de consulta do PNCP." />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <DateRangePicker
+                label="Período de abertura das propostas"
+                tooltip="Filtra pela janela em que o PNCP indica o início do recebimento de propostas."
+                start={local.dataAberturaInicio}
+                end={local.dataAberturaFim}
+                onChange={range => setLocal(prev => ({
+                  ...prev,
+                  dataAberturaInicio: range.start,
+                  dataAberturaFim: range.end,
+                }))}
+              />
+              <DateRangePicker
+                label="Período de encerramento das propostas"
+                tooltip="Filtra pela janela em que o PNCP indica o fim do recebimento de propostas."
+                start={local.dataEncerramentoInicio}
+                end={local.dataEncerramentoFim}
+                onChange={range => setLocal(prev => ({
+                  ...prev,
+                  dataEncerramentoInicio: range.start,
+                  dataEncerramentoFim: range.end,
+                }))}
+              />
+            </div>
+          </div>
 
           {/* Row 1: Tipos de Instrumento | Tipos (Bem/Serviço/Obra) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

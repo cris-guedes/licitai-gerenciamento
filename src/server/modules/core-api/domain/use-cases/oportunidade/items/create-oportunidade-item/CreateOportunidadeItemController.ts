@@ -12,10 +12,10 @@ import { CreateOportunidadeItemControllerSchemas } from "./CreateOportunidadeIte
 import { z } from "zod";
 
 interface CreateOportunidadeItemControllerTypes {
-    Body: z.infer<typeof CreateOportunidadeItemControllerSchemas.Body>;
+    Body: CreateOportunidadeItemControllerSchemas.Input;
     Query: null;
     Params: null;
-    Response: { item: any };
+    Response: CreateOportunidadeItemOutput;
 }
 
 export class CreateOportunidadeItemController implements Controller<CreateOportunidadeItemControllerTypes> {
@@ -34,13 +34,37 @@ export class CreateOportunidadeItemController implements Controller<CreateOportu
             const record = await this.useCase.execute({
                 companyId: payload.companyId,
                 oportunidadeId: payload.oportunidadeId,
-                data: payload.data,
+                data: {
+                    ...payload.data,
+                    numeroItem: toNullableNumber(payload.data.numeroItem, "número do item"),
+                    quantidadeTotal: toNullableNumber(payload.data.quantidadeTotal, "quantidade total"),
+                    valorUnitarioEstimado: toNullableNumber(payload.data.valorUnitarioEstimado, "valor unitário estimado"),
+                    valorTotalEstimado: toNullableNumber(payload.data.valorTotalEstimado, "valor total estimado"),
+                },
             });
 
-            return ok({ item: record });
+            return ok(record);
         } catch (error: unknown) {
             if (error instanceof z.ZodError) return badRequest(new Error(error.message));
+            if (error instanceof Error && error.message.includes("inválido")) return badRequest(error);
             return serverError(error instanceof Error ? error : new Error(String(error)));
         }
     }
+}
+
+type CreateOportunidadeItemOutput = Awaited<ReturnType<CreateOportunidadeItem["execute"]>>;
+
+function toNullableNumber(value: string | number | null | undefined, fieldName: string) {
+    if (value === null || value === undefined || value === "") return null;
+
+    const normalized = typeof value === "string" && value.includes(",")
+        ? value.replace(/\./g, "").replace(",", ".")
+        : value;
+    const parsed = Number(normalized);
+
+    if (!Number.isFinite(parsed)) {
+        throw new Error(`Valor inválido para ${fieldName}.`);
+    }
+
+    return parsed;
 }

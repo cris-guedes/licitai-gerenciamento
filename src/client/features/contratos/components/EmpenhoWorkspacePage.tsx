@@ -234,6 +234,8 @@ export default function EmpenhoWorkspacePage() {
                 contratoId={contratoId}
                 empenhoId={empenhoId}
                 empenhoItems={itens}
+                locaisEntrega={locais}
+                defaultLocalName={empenho.orgaoUnidadeNome ?? empenho.orgaoNome}
             />
         </WorkspaceShell>
     );

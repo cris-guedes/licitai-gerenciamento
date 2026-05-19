@@ -2,9 +2,9 @@ export interface CreateEmpenhoDTO {
     contratoId: string;
     companyId: string; // From auth context, to ensure the user has access to the opportunity/contract
 
-    numeroEmpenho: string;
+    numeroEmpenho?: string;
     tipoEmpenho?: string;
-    valor: number;
+    valor?: number;
     dataEmissao?: Date;
 
     orgaoCnpj?: string;

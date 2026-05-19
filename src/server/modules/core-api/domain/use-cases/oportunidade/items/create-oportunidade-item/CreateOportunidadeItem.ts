@@ -1,4 +1,5 @@
 import { PrismaOportunidadeRepository } from "@/server/shared/infra/repositories/oportunidade.repository";
+import { LicitacaoWorkspaceViewMapper, type LicitacaoWorkspaceItemView } from "../../../licitacao/_shared/licitacaoWorkspaceView";
 
 export type CreateOportunidadeItemInput = {
     companyId: string;
@@ -13,7 +14,9 @@ export type CreateOportunidadeItemInput = {
     };
 };
 
-export type CreateOportunidadeItemOutput = PrismaOportunidadeRepository.OportunidadeItemRecord;
+export type CreateOportunidadeItemOutput = {
+    item: LicitacaoWorkspaceItemView;
+};
 
 export class CreateOportunidadeItem {
     constructor(
@@ -30,7 +33,7 @@ export class CreateOportunidadeItem {
             throw new Error("Workspace da oportunidade não encontrado.");
         }
 
-        return this.oportunidadeRepository.createItemManagement({
+        const item = await this.oportunidadeRepository.createItemManagement({
             oportunidadeId: input.oportunidadeId,
             data: {
                 numeroItem: input.data.numeroItem,
@@ -41,5 +44,9 @@ export class CreateOportunidadeItem {
                 unidadeMedida: input.data.unidadeMedida,
             },
         });
+
+        return {
+            item: LicitacaoWorkspaceViewMapper.toManagedItemView(item),
+        };
     }
 }

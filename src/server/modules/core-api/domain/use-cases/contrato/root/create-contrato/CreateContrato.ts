@@ -24,6 +24,9 @@ export class CreateContrato {
             throw error;
         }
 
+        const orgaoContratante = params.orgaoContratante
+            ? await this.resolveOrgaoContratante(params)
+            : undefined;
         const itens = params.itens.length > 0
             ? params.itens
             : (await this.oportunidadeRepository.listItemsByOportunidadeId({
@@ -63,10 +66,45 @@ export class CreateContrato {
             fornecedorNome: params.fornecedorNome,
             valorInicial: params.valorInicial,
             valorGlobal,
+            metadata: orgaoContratante ? { orgaoContratante } : undefined,
             itens,
         });
 
         return CreateContratoMapper.toView(contrato);
+    }
+
+    private async resolveOrgaoContratante(params: CreateContrato.Params) {
+        if (!params.orgaoContratante) return undefined;
+
+        if (!params.orgaoContratante.editalOrgaoId) {
+            return params.orgaoContratante;
+        }
+
+        const workspace = await this.oportunidadeRepository.findWorkspaceById({
+            oportunidadeId: params.oportunidadeId,
+            companyId: params.companyId,
+        });
+        const editalOrgao = workspace?.edital?.orgaos.find(orgao => orgao.id === params.orgaoContratante?.editalOrgaoId);
+
+        if (!editalOrgao) {
+            const error = new Error("Órgão contratante não pertence à oportunidade") as Error & { statusCode: number };
+            error.statusCode = 400;
+            throw error;
+        }
+
+        return {
+            editalOrgaoId: editalOrgao.id,
+            orgaoId: editalOrgao.orgao.id,
+            papel: editalOrgao.papel,
+            cnpj: editalOrgao.orgao.cnpj,
+            razaoSocial: editalOrgao.orgao.razaoSocial,
+            codigoUnidade: editalOrgao.orgao.codigoUnidade,
+            nomeUnidade: editalOrgao.orgao.nomeUnidade,
+            municipio: editalOrgao.orgao.municipio,
+            uf: editalOrgao.orgao.uf,
+            esfera: editalOrgao.orgao.esfera,
+            poder: editalOrgao.orgao.poder,
+        };
     }
 }
 

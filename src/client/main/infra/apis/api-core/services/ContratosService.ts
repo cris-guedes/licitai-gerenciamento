@@ -4,6 +4,9 @@
 /* eslint-disable */
 import type { GetCoreContratosContratoIdWorkspaceResponse } from '../models/GetCoreContratosContratoIdWorkspaceResponse';
 import type { GetCoreContratosListResponse } from '../models/GetCoreContratosListResponse';
+import type { PostCoreContratosItensDeleteResponse } from '../models/PostCoreContratosItensDeleteResponse';
+import type { PostCoreContratosItensResponse } from '../models/PostCoreContratosItensResponse';
+import type { PostCoreContratosItensUpdateResponse } from '../models/PostCoreContratosItensUpdateResponse';
 import type { PostCoreContratosResponse } from '../models/PostCoreContratosResponse';
 import type { PostCoreContratosUpdateResponse } from '../models/PostCoreContratosUpdateResponse';
 import type { CancelablePromise } from '../core/CancelablePromise';
@@ -84,6 +87,22 @@ export class ContratosService {
        * Status do contrato
        */
       status?: 'RASCUNHO' | 'VIGENTE' | 'ENCERRADO' | 'RESCINDIDO' | 'CANCELADO';
+      /**
+       * Órgão contratante selecionado a partir dos órgãos vinculados à oportunidade.
+       */
+      orgaoContratante?: {
+        editalOrgaoId?: string;
+        orgaoId?: string;
+        papel?: string;
+        cnpj?: (string | null);
+        razaoSocial?: (string | null);
+        codigoUnidade?: (string | null);
+        nomeUnidade?: (string | null);
+        municipio?: (string | null);
+        uf?: (string | null);
+        esfera?: (string | null);
+        poder?: (string | null);
+      };
       /**
        * Lista de itens vinculados a este contrato
        */
@@ -195,6 +214,123 @@ export class ContratosService {
     return this.httpRequest.request({
       method: 'POST',
       url: '/contratos/update',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * Adicionar item ao contrato
+   * Vincula ao contrato um item ativo da oportunidade de origem
+   * @returns PostCoreContratosItensResponse Item vinculado com sucesso
+   * @throws ApiError
+   */
+  public postCoreContratosItens({
+    requestBody,
+  }: {
+    requestBody: {
+      /**
+       * ID da empresa
+       */
+      companyId: string;
+      /**
+       * ID do contrato
+       */
+      contratoId: string;
+      /**
+       * ID do item da oportunidade que será vinculado
+       */
+      oportunidadeItemId: string;
+      /**
+       * Quantidade contratada
+       */
+      quantidadeContratada?: (number | null);
+      /**
+       * Valor unitário contratado
+       */
+      valorUnitario?: (number | null);
+      /**
+       * Valor total contratado
+       */
+      valorTotal?: (number | null);
+    },
+  }): CancelablePromise<PostCoreContratosItensResponse> {
+    return this.httpRequest.request({
+      method: 'POST',
+      url: '/contratos/itens',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * Atualizar item do contrato
+   * Atualiza quantidade e valores de um item vinculado ao contrato
+   * @returns PostCoreContratosItensUpdateResponse Item atualizado com sucesso
+   * @throws ApiError
+   */
+  public postCoreContratosItensUpdate({
+    requestBody,
+  }: {
+    requestBody: {
+      /**
+       * ID da empresa
+       */
+      companyId: string;
+      /**
+       * ID do contrato
+       */
+      contratoId: string;
+      /**
+       * ID do item do contrato
+       */
+      contratoItemId: string;
+      /**
+       * Quantidade contratada
+       */
+      quantidadeContratada?: (number | null);
+      /**
+       * Valor unitário contratado
+       */
+      valorUnitario?: (number | null);
+      /**
+       * Valor total contratado
+       */
+      valorTotal?: (number | null);
+    },
+  }): CancelablePromise<PostCoreContratosItensUpdateResponse> {
+    return this.httpRequest.request({
+      method: 'POST',
+      url: '/contratos/itens/update',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * Remover item do contrato
+   * Remove item do contrato quando ele ainda não possui empenhos vinculados
+   * @returns PostCoreContratosItensDeleteResponse Item removido com sucesso
+   * @throws ApiError
+   */
+  public postCoreContratosItensDelete({
+    requestBody,
+  }: {
+    requestBody: {
+      /**
+       * ID da empresa
+       */
+      companyId: string;
+      /**
+       * ID do contrato
+       */
+      contratoId: string;
+      /**
+       * ID do item do contrato
+       */
+      contratoItemId: string;
+    },
+  }): CancelablePromise<PostCoreContratosItensDeleteResponse> {
+    return this.httpRequest.request({
+      method: 'POST',
+      url: '/contratos/itens/delete',
       body: requestBody,
       mediaType: 'application/json',
     });

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Controller, HttpRequest, HttpResponse, ok, serverError, badRequest } from "@/server/modules/core-api/main/adapters/http-adapter";
 import { CreateEntregaControllerSchemas } from "./CreateEntregaControllerSchemas";
 import { CreateEntrega } from "./CreateEntrega";
@@ -24,6 +25,7 @@ export class CreateEntregaController implements Controller<CreateEntregaControll
             return ok(result);
         } catch (error: any) {
             if (error instanceof z.ZodError) return badRequest(new Error(error.message));
+            if (error.statusCode === 400) return badRequest(new Error(error.message));
             return serverError(error);
         }
     }

@@ -338,6 +338,46 @@
               "description": "Se true, filtra apenas licitações que exigem conteúdo de produção nacional.",
               "type": "boolean"
             }
+          },
+          {
+            "name": "dataAberturaInicio",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Data inicial de abertura das propostas (YYYY-MM-DD). Usada via API PNCP Consulta com filtro local.",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "dataAberturaFim",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Data final de abertura das propostas (YYYY-MM-DD). Usada via API PNCP Consulta com filtro local.",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "dataEncerramentoInicio",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Data inicial de encerramento das propostas (YYYY-MM-DD). Usada via API PNCP Consulta com filtro local.",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "dataEncerramentoFim",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Data final de encerramento das propostas (YYYY-MM-DD). Usada via API PNCP Consulta com filtro local.",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
           }
         ],
         "responses": {
@@ -3770,6 +3810,211 @@
         }
       }
     },
+    "/create-oportunidade-item": {
+      "post": {
+        "summary": "Cria um item na oportunidade",
+        "description": "Cria um novo item no edital e vincula à oportunidade.",
+        "operationId": "createOportunidadeItem",
+        "tags": [
+          "Oportunidade"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "ID da empresa dona da oportunidade."
+                  },
+                  "oportunidadeId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "ID da oportunidade que receberá o item."
+                  },
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "numeroItem": {
+                        "description": "Número sequencial do item no edital.",
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "descricao": {
+                        "description": "Descrição oficial do item.",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "quantidadeTotal": {
+                        "description": "Quantidade total solicitada no edital.",
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "valorUnitarioEstimado": {
+                        "description": "Valor unitário estimado pelo edital.",
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "valorTotalEstimado": {
+                        "description": "Valor total estimado pelo edital.",
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "unidadeMedida": {
+                        "description": "Unidade de medida oficial do item.",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Dados iniciais do item da oportunidade."
+                  }
+                },
+                "required": [
+                  "companyId",
+                  "oportunidadeId",
+                  "data"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Item criado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateOportunidadeItemResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delete-oportunidade-item": {
+      "post": {
+        "summary": "Deleta um item da oportunidade",
+        "description": "Remove um item associado a uma oportunidade.",
+        "operationId": "deleteOportunidadeItem",
+        "tags": [
+          "Oportunidade"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "oportunidadeId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "oportunidadeItemId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "companyId",
+                  "oportunidadeId",
+                  "oportunidadeItemId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Item removido com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteOportunidadeItemResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/toggle-oportunidade-task": {
       "post": {
         "summary": "Atualiza o status de uma tarefa da oportunidade",
@@ -5643,6 +5888,102 @@
                       "CANCELADO"
                     ]
                   },
+                  "orgaoContratante": {
+                    "type": "object",
+                    "properties": {
+                      "editalOrgaoId": {
+                        "type": "string"
+                      },
+                      "orgaoId": {
+                        "type": "string"
+                      },
+                      "papel": {
+                        "type": "string"
+                      },
+                      "cnpj": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "razaoSocial": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "codigoUnidade": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "nomeUnidade": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "municipio": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "uf": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "esfera": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "poder": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Órgão contratante selecionado a partir dos órgãos vinculados à oportunidade."
+                  },
                   "itens": {
                     "type": "array",
                     "items": {
@@ -5969,6 +6310,240 @@
         }
       }
     },
+    "/contratos/itens": {
+      "post": {
+        "summary": "Adicionar item ao contrato",
+        "description": "Vincula ao contrato um item ativo da oportunidade de origem",
+        "operationId": "postCoreContratosItens",
+        "tags": [
+          "Contratos"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "ID da empresa"
+                  },
+                  "contratoId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "ID do contrato"
+                  },
+                  "oportunidadeItemId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "ID do item da oportunidade que será vinculado"
+                  },
+                  "quantidadeContratada": {
+                    "description": "Quantidade contratada",
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "valorUnitario": {
+                    "description": "Valor unitário contratado",
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "valorTotal": {
+                    "description": "Valor total contratado",
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "companyId",
+                  "contratoId",
+                  "oportunidadeItemId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Item vinculado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostCoreContratosItensResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contratos/itens/update": {
+      "post": {
+        "summary": "Atualizar item do contrato",
+        "description": "Atualiza quantidade e valores de um item vinculado ao contrato",
+        "operationId": "postCoreContratosItensUpdate",
+        "tags": [
+          "Contratos"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "ID da empresa"
+                  },
+                  "contratoId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "ID do contrato"
+                  },
+                  "contratoItemId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "ID do item do contrato"
+                  },
+                  "quantidadeContratada": {
+                    "description": "Quantidade contratada",
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "valorUnitario": {
+                    "description": "Valor unitário contratado",
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "valorTotal": {
+                    "description": "Valor total contratado",
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "companyId",
+                  "contratoId",
+                  "contratoItemId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Item atualizado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostCoreContratosItensUpdateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contratos/itens/delete": {
+      "post": {
+        "summary": "Remover item do contrato",
+        "description": "Remove item do contrato quando ele ainda não possui empenhos vinculados",
+        "operationId": "postCoreContratosItensDelete",
+        "tags": [
+          "Contratos"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "ID da empresa"
+                  },
+                  "contratoId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "ID do contrato"
+                  },
+                  "contratoItemId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "ID do item do contrato"
+                  }
+                },
+                "required": [
+                  "companyId",
+                  "contratoId",
+                  "contratoItemId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Item removido com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostCoreContratosItensDeleteResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/contratos/empenhos": {
       "post": {
         "summary": "Criar novo empenho",
@@ -5994,16 +6569,16 @@
                     "description": "ID do Contrato"
                   },
                   "numeroEmpenho": {
-                    "type": "string",
-                    "description": "Número da nota de empenho"
+                    "description": "Número da nota de empenho. Se vazio, será gerado automaticamente.",
+                    "type": "string"
                   },
                   "tipoEmpenho": {
                     "description": "Ex: ordinario, estimativo, global",
                     "type": "string"
                   },
                   "valor": {
-                    "type": "number",
-                    "description": "Valor total do empenho"
+                    "description": "Valor total do empenho. Se vazio, será calculado pelos itens.",
+                    "type": "number"
                   },
                   "dataEmissao": {
                     "description": "Data de emissão da nota de empenho",
@@ -6068,8 +6643,6 @@
                 "required": [
                   "companyId",
                   "contratoId",
-                  "numeroEmpenho",
-                  "valor",
                   "itens"
                 ],
                 "additionalProperties": false
@@ -6239,7 +6812,8 @@
                 "type": "object",
                 "properties": {
                   "companyId": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "ID da empresa"
                   },
                   "contratoId": {
                     "type": "string",
@@ -6250,24 +6824,54 @@
                     "description": "ID do Empenho"
                   },
                   "empenhoItemId": {
+                    "description": "ID do item do empenho para criação simples.",
                     "type": "string"
                   },
                   "quantidade": {
-                    "type": "number"
+                    "description": "Quantidade para criação simples.",
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "itens": {
+                    "description": "Itens que serão inseridos na entrega em lote.",
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "empenhoItemId": {
+                          "type": "string",
+                          "description": "ID do item do empenho."
+                        },
+                        "quantidade": {
+                          "type": "number",
+                          "exclusiveMinimum": 0,
+                          "description": "Quantidade a entregar deste item."
+                        }
+                      },
+                      "required": [
+                        "empenhoItemId",
+                        "quantidade"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "localEntregaId": {
+                    "description": "Local de entrega previamente cadastrado.",
+                    "type": "string"
                   },
                   "dataPrevista": {
+                    "description": "Data prevista para entrega.",
                     "type": "string"
                   },
                   "observacoes": {
+                    "description": "Observações gerais da entrega.",
                     "type": "string"
                   }
                 },
                 "required": [
                   "companyId",
                   "contratoId",
-                  "empenhoId",
-                  "empenhoItemId",
-                  "quantidade"
+                  "empenhoId"
                 ],
                 "additionalProperties": false
               }
@@ -16502,6 +17106,522 @@
         ],
         "additionalProperties": false
       },
+      "CreateOportunidadeItemResponse": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "ID do item oficial do edital."
+              },
+              "oportunidadeItemId": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "ID do item operacional da oportunidade que gerencia este item do edital."
+              },
+              "numeroItem": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Numero sequencial do item no edital."
+              },
+              "descricao": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Descricao oficial do item no edital."
+              },
+              "tipoItem": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Tipo do item no edital, como material ou servico."
+              },
+              "lote": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Identificacao do lote ao qual o item pertence, quando houver."
+              },
+              "quantidadeTotal": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Quantidade total solicitada no edital."
+              },
+              "unidadeMedida": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Unidade de medida oficial do item no edital."
+              },
+              "valorUnitarioEstimado": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Valor unitario estimado pelo edital."
+              },
+              "valorTotalEstimado": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Valor total estimado pelo edital."
+              },
+              "codigoCatmatCatser": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Codigo CATMAT ou CATSER informado pelo edital."
+              },
+              "codigoNcmNbs": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Codigo NCM ou NBS informado pelo edital."
+              },
+              "criterioJulgamentoItem": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Criterio de julgamento do item no edital."
+              },
+              "beneficioTributario": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Beneficio tributario associado ao item, quando existir."
+              },
+              "observacao": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Observacoes oficiais do item no edital."
+              },
+              "isSelected": {
+                "type": "boolean",
+                "description": "Indica se o item continua ativo para a proposta da empresa."
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "PENDING_PRICING",
+                  "READY_FOR_BID",
+                  "IN_BIDDING",
+                  "WON",
+                  "LOST",
+                  "DISCARDED"
+                ],
+                "description": "Status operacional do item dentro da oportunidade."
+              },
+              "observacaoInterna": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Observacoes internas do time comercial para este item."
+              },
+              "companyItem": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "ID do item interno da empresa vinculado ao item do edital."
+                      },
+                      "codigo": {
+                        "type": "string",
+                        "description": "Codigo interno do item da empresa."
+                      },
+                      "descricao": {
+                        "type": "string",
+                        "description": "Descricao do item interno da empresa."
+                      },
+                      "marca": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Marca comercial do item interno, quando informada."
+                      },
+                      "unidadeMedida": {
+                        "type": "string",
+                        "description": "Unidade de medida do item interno."
+                      },
+                      "imageUrl": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "URL da imagem do item interno, quando disponivel."
+                      },
+                      "precoReferencia": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Preco de referencia atualmente salvo no catalogo interno."
+                      },
+                      "ativo": {
+                        "type": "boolean",
+                        "description": "Indica se o item interno está ativo no catalogo da empresa."
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "description": "Data ISO da ultima atualizacao do item interno."
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "codigo",
+                      "descricao",
+                      "marca",
+                      "unidadeMedida",
+                      "imageUrl",
+                      "precoReferencia",
+                      "ativo",
+                      "updatedAt"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Item interno atualmente vinculado ao item do edital."
+              },
+              "pricing": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "ID da configuracao de precificacao do item da oportunidade."
+                      },
+                      "quantidadeCotada": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Quantidade efetivamente considerada para a proposta."
+                      },
+                      "quantidadeAdesao": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Quantidade adicional prevista para adesao, quando aplicavel."
+                      },
+                      "precoOfertaUnitario": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Preco unitario ofertado pela empresa."
+                      },
+                      "precoOfertaTotal": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Preco total calculado para a oferta do item."
+                      },
+                      "custoUnitarioSnapshot": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Custo unitario congelado para a precificacao desta oportunidade."
+                      },
+                      "valorMinimoLance": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Valor minimo definido internamente para a fase de lances."
+                      },
+                      "ofertaMarca": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Marca efetivamente ofertada para este item."
+                      },
+                      "ofertaModelo": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Modelo efetivamente ofertado para este item."
+                      },
+                      "garantiaDescricao": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Descricao da garantia comercial prometida para este item."
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "quantidadeCotada",
+                      "quantidadeAdesao",
+                      "precoOfertaUnitario",
+                      "precoOfertaTotal",
+                      "custoUnitarioSnapshot",
+                      "valorMinimoLance",
+                      "ofertaMarca",
+                      "ofertaModelo",
+                      "garantiaDescricao"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Dados de precificacao salvos para este item da oportunidade."
+              },
+              "disputa": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "ID do registro operacional da disputa do item."
+                      },
+                      "ultimoLance": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Ultimo lance registrado pela empresa para o item."
+                      },
+                      "dataUltimoLance": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Data ISO do ultimo lance informado."
+                      },
+                      "situacaoDisputa": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Situacao textual resumida da disputa do item."
+                      },
+                      "observacaoOperacional": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Observacoes operacionais da fase de disputa."
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "ultimoLance",
+                      "dataUltimoLance",
+                      "situacaoDisputa",
+                      "observacaoOperacional"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Dados correntes da fase de disputa do item."
+              }
+            },
+            "required": [
+              "id",
+              "oportunidadeItemId",
+              "numeroItem",
+              "descricao",
+              "tipoItem",
+              "lote",
+              "quantidadeTotal",
+              "unidadeMedida",
+              "valorUnitarioEstimado",
+              "valorTotalEstimado",
+              "codigoCatmatCatser",
+              "codigoNcmNbs",
+              "criterioJulgamentoItem",
+              "beneficioTributario",
+              "observacao",
+              "isSelected",
+              "status",
+              "observacaoInterna",
+              "companyItem",
+              "pricing",
+              "disputa"
+            ],
+            "additionalProperties": false,
+            "description": "Item criado no mesmo formato do workspace da oportunidade."
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "additionalProperties": false
+      },
+      "DeleteOportunidadeItemResponse": {
+        "type": "object",
+        "properties": {
+          "oportunidadeItemId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "oportunidadeItemId"
+        ],
+        "additionalProperties": false
+      },
       "ToggleOportunidadeTaskResponse": {
         "type": "object",
         "properties": {
@@ -24523,6 +25643,122 @@
             "type": "string",
             "description": "Status do contrato"
           },
+          "orgaoContratante": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "editalOrgaoId": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "orgaoId": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "papel": {
+                    "type": "string"
+                  },
+                  "cnpj": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "razaoSocial": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "codigoUnidade": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "nomeUnidade": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "municipio": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "uf": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "esfera": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "poder": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "createdAt": {
             "type": "string"
           },
@@ -24694,6 +25930,122 @@
                 "status": {
                   "type": "string",
                   "description": "Status do contrato"
+                },
+                "orgaoContratante": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "editalOrgaoId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "orgaoId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "papel": {
+                          "type": "string"
+                        },
+                        "cnpj": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "razaoSocial": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "codigoUnidade": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "nomeUnidade": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "municipio": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "uf": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "esfera": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "poder": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "createdAt": {
                   "type": "string"
@@ -24886,6 +26238,122 @@
             "type": "string",
             "description": "Status do contrato"
           },
+          "orgaoContratante": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "editalOrgaoId": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "orgaoId": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "papel": {
+                    "type": "string"
+                  },
+                  "cnpj": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "razaoSocial": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "codigoUnidade": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "nomeUnidade": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "municipio": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "uf": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "esfera": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "poder": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "createdAt": {
             "type": "string"
           },
@@ -24900,6 +26368,608 @@
           "companyId",
           "numeroContrato",
           "status"
+        ],
+        "additionalProperties": false
+      },
+      "PostCoreContratosItensResponse": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "ID do item do contrato."
+              },
+              "oportunidadeItemId": {
+                "type": "string",
+                "description": "ID do item da oportunidade de origem."
+              },
+              "itemNumero": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Número do item no edital."
+              },
+              "descricao": {
+                "type": "string",
+                "description": "Descrição oficial do item."
+              },
+              "unidadeMedida": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Unidade de medida oficial."
+              },
+              "lote": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Lote do item, quando houver."
+              },
+              "tipoItem": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Tipo oficial do item."
+              },
+              "quantidadeContratada": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Quantidade contratada."
+              },
+              "quantidadeEmpenhada": {
+                "type": "string",
+                "description": "Quantidade já empenhada."
+              },
+              "quantidadeEntregue": {
+                "type": "string",
+                "description": "Quantidade já entregue."
+              },
+              "quantidadePaga": {
+                "type": "string",
+                "description": "Quantidade já paga."
+              },
+              "valorUnitario": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Valor unitário contratado."
+              },
+              "valorTotal": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Valor total contratado."
+              },
+              "valorReferencia": {
+                "description": "Valor unitário de referência do edital.",
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "marca": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Marca ofertada ou herdada do item interno."
+              },
+              "modelo": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Modelo ofertado."
+              },
+              "garantia": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Garantia ofertada."
+              },
+              "companyItem": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "ID do item interno da empresa."
+                      },
+                      "companyId": {
+                        "type": "string",
+                        "description": "ID da empresa dona do item interno."
+                      },
+                      "codigo": {
+                        "type": "string",
+                        "description": "Código interno do item."
+                      },
+                      "descricao": {
+                        "type": "string",
+                        "description": "Descrição do item interno."
+                      },
+                      "marca": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Marca comercial cadastrada."
+                      },
+                      "unidadeMedida": {
+                        "type": "string",
+                        "description": "Unidade de medida operacional."
+                      },
+                      "imageUrl": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "URL da imagem do item interno."
+                      },
+                      "precoReferencia": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Preço de referência cadastrado."
+                      },
+                      "ativo": {
+                        "type": "boolean",
+                        "description": "Indica se o item interno está ativo."
+                      },
+                      "createdAt": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "string"
+                          }
+                        ],
+                        "description": "Data de criação do item interno."
+                      },
+                      "updatedAt": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "string"
+                          }
+                        ],
+                        "description": "Data de atualização do item interno."
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "companyId",
+                      "codigo",
+                      "descricao",
+                      "marca",
+                      "unidadeMedida",
+                      "imageUrl",
+                      "precoReferencia",
+                      "ativo",
+                      "createdAt",
+                      "updatedAt"
+                    ],
+                    "additionalProperties": false,
+                    "description": "Resumo do item interno vinculado ao item do contrato."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Item interno vinculado, quando houver."
+              }
+            },
+            "required": [
+              "id",
+              "oportunidadeItemId",
+              "itemNumero",
+              "descricao",
+              "unidadeMedida",
+              "lote",
+              "tipoItem",
+              "quantidadeContratada",
+              "quantidadeEmpenhada",
+              "quantidadeEntregue",
+              "quantidadePaga",
+              "valorUnitario",
+              "valorTotal",
+              "marca",
+              "modelo",
+              "garantia",
+              "companyItem"
+            ],
+            "additionalProperties": {},
+            "description": "Item do contrato criado ou atualizado."
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "additionalProperties": false,
+        "description": "Resposta de mutação de item do contrato."
+      },
+      "PostCoreContratosItensUpdateResponse": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "ID do item do contrato."
+              },
+              "oportunidadeItemId": {
+                "type": "string",
+                "description": "ID do item da oportunidade de origem."
+              },
+              "itemNumero": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Número do item no edital."
+              },
+              "descricao": {
+                "type": "string",
+                "description": "Descrição oficial do item."
+              },
+              "unidadeMedida": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Unidade de medida oficial."
+              },
+              "lote": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Lote do item, quando houver."
+              },
+              "tipoItem": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Tipo oficial do item."
+              },
+              "quantidadeContratada": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Quantidade contratada."
+              },
+              "quantidadeEmpenhada": {
+                "type": "string",
+                "description": "Quantidade já empenhada."
+              },
+              "quantidadeEntregue": {
+                "type": "string",
+                "description": "Quantidade já entregue."
+              },
+              "quantidadePaga": {
+                "type": "string",
+                "description": "Quantidade já paga."
+              },
+              "valorUnitario": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Valor unitário contratado."
+              },
+              "valorTotal": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Valor total contratado."
+              },
+              "valorReferencia": {
+                "description": "Valor unitário de referência do edital.",
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "marca": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Marca ofertada ou herdada do item interno."
+              },
+              "modelo": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Modelo ofertado."
+              },
+              "garantia": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Garantia ofertada."
+              },
+              "companyItem": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "ID do item interno da empresa."
+                      },
+                      "companyId": {
+                        "type": "string",
+                        "description": "ID da empresa dona do item interno."
+                      },
+                      "codigo": {
+                        "type": "string",
+                        "description": "Código interno do item."
+                      },
+                      "descricao": {
+                        "type": "string",
+                        "description": "Descrição do item interno."
+                      },
+                      "marca": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Marca comercial cadastrada."
+                      },
+                      "unidadeMedida": {
+                        "type": "string",
+                        "description": "Unidade de medida operacional."
+                      },
+                      "imageUrl": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "URL da imagem do item interno."
+                      },
+                      "precoReferencia": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Preço de referência cadastrado."
+                      },
+                      "ativo": {
+                        "type": "boolean",
+                        "description": "Indica se o item interno está ativo."
+                      },
+                      "createdAt": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "string"
+                          }
+                        ],
+                        "description": "Data de criação do item interno."
+                      },
+                      "updatedAt": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "string"
+                          }
+                        ],
+                        "description": "Data de atualização do item interno."
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "companyId",
+                      "codigo",
+                      "descricao",
+                      "marca",
+                      "unidadeMedida",
+                      "imageUrl",
+                      "precoReferencia",
+                      "ativo",
+                      "createdAt",
+                      "updatedAt"
+                    ],
+                    "additionalProperties": false,
+                    "description": "Resumo do item interno vinculado ao item do contrato."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Item interno vinculado, quando houver."
+              }
+            },
+            "required": [
+              "id",
+              "oportunidadeItemId",
+              "itemNumero",
+              "descricao",
+              "unidadeMedida",
+              "lote",
+              "tipoItem",
+              "quantidadeContratada",
+              "quantidadeEmpenhada",
+              "quantidadeEntregue",
+              "quantidadePaga",
+              "valorUnitario",
+              "valorTotal",
+              "marca",
+              "modelo",
+              "garantia",
+              "companyItem"
+            ],
+            "additionalProperties": {},
+            "description": "Item do contrato criado ou atualizado."
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "additionalProperties": false,
+        "description": "Resposta de mutação de item do contrato."
+      },
+      "PostCoreContratosItensDeleteResponse": {
+        "type": "object",
+        "properties": {
+          "contratoItemId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contratoItemId"
         ],
         "additionalProperties": false
       },
@@ -25121,57 +27191,106 @@
       "PostCoreContratosContratoIdEmpenhosEmpenhoIdEntregasResponse": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "empenhoItemId": {
-            "type": "string"
-          },
-          "quantidadeEntregue": {},
-          "dataEntrega": {
-            "anyOf": [
-              {
-                "type": "string"
+          "entregas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "ID da entrega criada."
+                },
+                "empenhoItemId": {
+                  "type": "string",
+                  "description": "ID do item do empenho entregue."
+                },
+                "localEntregaId": {
+                  "description": "ID do local de entrega vinculado.",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "quantidadeEntregue": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "description": "Quantidade reservada para entrega."
+                },
+                "dataEntrega": {
+                  "description": "Data em que a entrega foi concluída.",
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "description": "Status atual da entrega no pipeline."
+                },
+                "observacao": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Observações registradas para a entrega."
+                }
               },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "status": {
-            "type": "string"
-          },
-          "observacao": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+              "required": [
+                "id",
+                "empenhoItemId",
+                "quantidadeEntregue",
+                "status",
+                "observacao"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Entregas criadas no pipeline."
           }
         },
         "required": [
-          "id",
-          "empenhoItemId",
-          "quantidadeEntregue",
-          "status",
-          "observacao"
+          "entregas"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Resposta da criação de entregas."
       },
       "PostCoreContratosContratoIdEmpenhosEmpenhoIdEntregasEntregaIdStatusResponse": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "ID da entrega criada."
           },
           "empenhoItemId": {
-            "type": "string"
+            "type": "string",
+            "description": "ID do item do empenho entregue."
           },
-          "quantidadeEntregue": {},
-          "dataEntrega": {
+          "localEntregaId": {
+            "description": "ID do local de entrega vinculado.",
             "anyOf": [
               {
                 "type": "string"
@@ -25181,8 +27300,38 @@
               }
             ]
           },
+          "quantidadeEntregue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "description": "Quantidade reservada para entrega."
+          },
+          "dataEntrega": {
+            "description": "Data em que a entrega foi concluída.",
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "Status atual da entrega no pipeline."
           },
           "observacao": {
             "anyOf": [
@@ -25192,7 +27341,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Observações registradas para a entrega."
           }
         },
         "required": [

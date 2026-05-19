@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-namespace */
 import { PrismaEmpenhoRepository } from "@/server/shared/infra/repositories/empenho.repository";
 import { PrismaContratoRepository } from "@/server/shared/infra/repositories/contrato.repository";
 import { CreateEmpenhoDTO } from "./dtos/CreateEmpenhoDTOs";
@@ -43,7 +44,12 @@ export class CreateEmpenho {
         } catch (error: any) {
             // Se o repositório lançou um erro de validação de saldo, o controller vai retornar 500 ou 400
             // Idealmente mapearíamos para BadRequest (400) se for problema de saldo.
-            if (error.message.includes("saldo do contrato")) {
+            if (
+                error.message.includes("saldo do contrato")
+                || error.message.includes("Informe ao menos um item")
+                || error.message.includes("Quantidade inválida")
+                || error.message.includes("Item de contrato não encontrado")
+            ) {
                 error.statusCode = 400;
             }
             throw error;

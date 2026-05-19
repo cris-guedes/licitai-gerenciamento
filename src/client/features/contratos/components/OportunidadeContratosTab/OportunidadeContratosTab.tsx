@@ -6,13 +6,15 @@ import { CreateContratoDialog } from "./CreateContratoDialog";
 import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import type { ContratosListResponse } from "../../types";
+import type { OportunidadeWorkspaceModel } from "@/client/features/oportunidades/types/oportunidade-workspace";
 
 type Props = {
     companyId: string;
     oportunidadeId: string;
+    workspace?: OportunidadeWorkspaceModel;
 };
 
-export function OportunidadeContratosTab({ companyId, oportunidadeId }: Props) {
+export function OportunidadeContratosTab({ companyId, oportunidadeId, workspace }: Props) {
     const router = useRouter();
     const params = useParams();
     const orgId = params.orgId as string;
@@ -68,7 +70,9 @@ export function OportunidadeContratosTab({ companyId, oportunidadeId }: Props) {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <h4 className="font-semibold text-primary">{contrato.numeroContrato || "Sem número"}</h4>
-                                        <p className="text-xs text-muted-foreground">Status: {contrato.status}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {contrato.orgaoContratante?.razaoSocial || "Órgão da oportunidade"} · Status: {contrato.status}
+                                        </p>
                                     </div>
                                     <Button 
                                         variant="outline" 
@@ -89,6 +93,7 @@ export function OportunidadeContratosTab({ companyId, oportunidadeId }: Props) {
                 onOpenChange={setIsCreateModalOpen} 
                 companyId={companyId} 
                 oportunidadeId={oportunidadeId} 
+                workspace={workspace}
             />
         </section>
     );

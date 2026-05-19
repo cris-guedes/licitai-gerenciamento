@@ -1,3 +1,5 @@
+import type { CompanyItem } from "@/client/main/infra/apis/api-core/models/CompanyItem"
+
 export type ContratoStatus = "RASCUNHO" | "VIGENTE" | "ENCERRADO" | "RESCINDIDO" | "CANCELADO"
 
 export type ContratoListItem = {
@@ -18,6 +20,19 @@ export type ContratoListItem = {
   dataVigenciaInicio: string | null
   dataVigenciaFim: string | null
   status: ContratoStatus
+  orgaoContratante?: {
+    editalOrgaoId?: string | null
+    orgaoId?: string | null
+    papel?: string | null
+    cnpj?: string | null
+    razaoSocial?: string | null
+    codigoUnidade?: string | null
+    nomeUnidade?: string | null
+    municipio?: string | null
+    uf?: string | null
+    esfera?: string | null
+    poder?: string | null
+  } | null
   createdAt: string
   updatedAt: string
   oportunidade?: {
@@ -40,12 +55,42 @@ export type ContratoItem = {
   itemNumero: number | null
   descricao: string
   unidadeMedida: string | null
+  lote?: string | null
+  tipoItem?: string | null
   quantidadeContratada: string | null
   quantidadeEmpenhada: string
   quantidadeEntregue: string
   quantidadePaga: string
   valorUnitario: string | null
   valorTotal: string | null
+  valorReferencia?: string | null
+  marca?: string | null
+  modelo?: string | null
+  garantia?: string | null
+  companyItem?: CompanyItem | null
+}
+
+export type ContratoOpportunityItem = {
+  id: string
+  isSelected: boolean
+  status: string
+  itemNumero: number | null
+  descricao: string
+  lote?: string | null
+  tipoItem?: string | null
+  unidadeMedida?: string | null
+  quantidadeTotal?: string | null
+  valorUnitarioEstimado?: string | null
+  valorTotalEstimado?: string | null
+  pricing?: {
+    quantidadeCotada?: string | null
+    precoOfertaUnitario?: string | null
+    precoOfertaTotal?: string | null
+    ofertaMarca?: string | null
+    ofertaModelo?: string | null
+    garantiaDescricao?: string | null
+  } | null
+  companyItem?: CompanyItem | null
 }
 
 export type EmpenhoEntrega = {
@@ -69,6 +114,9 @@ export type ContratoEmpenhoItem = {
   quantidade: string
   valorUnitario: string | null
   valorTotal: string | null
+  quantidadeEntregue: string
+  quantidadeAceita?: string
+  quantidadePaga?: string
   contratoItem: ContratoItem | null
   entregas: EmpenhoEntrega[]
 }
@@ -88,6 +136,9 @@ export type ContratoEmpenho = {
   status: string
   valor: string
   dataEmissao?: string | null
+  orgaoCnpj?: string | null
+  orgaoNome?: string | null
+  orgaoUnidadeNome?: string | null
   itens: ContratoEmpenhoItem[]
   entregas: EmpenhoEntrega[]
   locaisEntrega: EmpenhoLocalEntrega[]
@@ -109,6 +160,7 @@ export type ContratoWorkspaceData = {
     } | null
   } | null
   itens: ContratoItem[]
+  itensDisponiveis?: ContratoOpportunityItem[]
   empenhos: ContratoEmpenho[]
 }
 

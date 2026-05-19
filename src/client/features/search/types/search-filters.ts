@@ -15,6 +15,10 @@ export type SearchFilters = {
   fontesOrcamentarias:       Array<"federal" | "estadual" | "municipal" | "organismo_internacional" | "nao_se_aplica">
   tiposMargensPreferencia:   Array<"resolucao_cics" | "resolucao_ciia_pac">
   exigenciaConteudoNacional: boolean | null
+  dataAberturaInicio:        string
+  dataAberturaFim:           string
+  dataEncerramentoInicio:    string
+  dataEncerramentoFim:       string
   pagina:                    number
 }
 
@@ -31,6 +35,10 @@ export const SEARCH_FILTERS_DEFAULT: SearchFilters = {
   fontesOrcamentarias:       [],
   tiposMargensPreferencia:   [],
   exigenciaConteudoNacional: null,
+  dataAberturaInicio:        "",
+  dataAberturaFim:           "",
+  dataEncerramentoInicio:    "",
+  dataEncerramentoFim:       "",
   pagina:                    1,
 }
 

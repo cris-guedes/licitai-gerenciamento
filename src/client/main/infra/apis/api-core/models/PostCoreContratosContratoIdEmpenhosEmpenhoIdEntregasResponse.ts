@@ -2,12 +2,42 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+/**
+ * Resposta da criação de entregas.
+ */
 export type PostCoreContratosContratoIdEmpenhosEmpenhoIdEntregasResponse = {
-  id: string;
-  empenhoItemId: string;
-  quantidadeEntregue: any;
-  dataEntrega?: (string | null);
-  status: string;
-  observacao: (string | null);
+  /**
+   * Entregas criadas no pipeline.
+   */
+  entregas: Array<{
+    /**
+     * ID da entrega criada.
+     */
+    id: string;
+    /**
+     * ID do item do empenho entregue.
+     */
+    empenhoItemId: string;
+    /**
+     * ID do local de entrega vinculado.
+     */
+    localEntregaId?: (string | null);
+    /**
+     * Quantidade reservada para entrega.
+     */
+    quantidadeEntregue: (string | number);
+    /**
+     * Data em que a entrega foi concluída.
+     */
+    dataEntrega?: (string | null);
+    /**
+     * Status atual da entrega no pipeline.
+     */
+    status: string;
+    /**
+     * Observações registradas para a entrega.
+     */
+    observacao: (string | null);
+  }>;
 };
 

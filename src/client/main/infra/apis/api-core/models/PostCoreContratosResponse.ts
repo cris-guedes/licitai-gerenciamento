@@ -35,6 +35,19 @@ export type PostCoreContratosResponse = {
    * Status do contrato
    */
   status: string;
+  orgaoContratante?: ({
+    editalOrgaoId?: (string | null);
+    orgaoId?: (string | null);
+    papel?: string;
+    cnpj?: (string | null);
+    razaoSocial?: (string | null);
+    codigoUnidade?: (string | null);
+    nomeUnidade?: (string | null);
+    municipio?: (string | null);
+    uf?: (string | null);
+    esfera?: (string | null);
+    poder?: (string | null);
+  } | null);
   createdAt?: string;
   updatedAt?: string;
   oportunidade?: any;

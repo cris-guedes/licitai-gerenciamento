@@ -1,6 +1,18 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-namespace */
 import { ContratoStatus, Prisma } from "@prisma/client";
 import { prisma } from "../db/client";
 import { Contrato } from "@/server/modules/core-api/domain/entities";
+
+const contratoItemInclude = {
+    oportunidadeItem: {
+        include: {
+            editalItem: true,
+            pricing: true,
+            disputa: true,
+            companyItem: true,
+        },
+    },
+} satisfies Prisma.ContratoItemInclude;
 
 export class PrismaContratoRepository {
     async create(params: PrismaContratoRepository.CreateParams): Promise<Contrato> {
@@ -9,6 +21,7 @@ export class PrismaContratoRepository {
                 companyId: params.companyId,
                 oportunidadeId: params.oportunidadeId,
                 status: params.status ?? "RASCUNHO",
+                metadata: params.metadata ?? undefined,
                 numeroContrato: params.numeroContrato,
                 anoContrato: params.anoContrato,
                 processo: params.processo,
@@ -134,16 +147,22 @@ export class PrismaContratoRepository {
                     include: {
                         licitacao: true,
                         edital: true,
+                        itens: {
+                            include: {
+                                editalItem: true,
+                                pricing: true,
+                                disputa: true,
+                                companyItem: true,
+                            },
+                            orderBy: [
+                                { editalItem: { numeroItem: "asc" } },
+                                { createdAt: "asc" },
+                            ],
+                        },
                     }
                 },
                 itens: {
-                    include: {
-                        oportunidadeItem: {
-                            include: {
-                                editalItem: true
-                            }
-                        }
-                    }
+                    include: contratoItemInclude,
                 },
                 empenhos: {
                     orderBy: { createdAt: "desc" },
@@ -169,6 +188,101 @@ export class PrismaContratoRepository {
                         },
                     }
                 }
+            },
+        });
+    }
+
+    async findItemById(params: PrismaContratoRepository.FindItemByIdParams): Promise<any | null> {
+        return prisma.contratoItem.findFirst({
+            where: {
+                id: params.contratoItemId,
+                contratoId: params.contratoId,
+                contrato: {
+                    companyId: params.companyId,
+                },
+            },
+            include: {
+                ...contratoItemInclude,
+                _count: {
+                    select: {
+                        empenhoItens: true,
+                    },
+                },
+            },
+        });
+    }
+
+    async findItemByOpportunityItem(params: PrismaContratoRepository.FindItemByOpportunityItemParams): Promise<any | null> {
+        return prisma.contratoItem.findFirst({
+            where: {
+                contratoId: params.contratoId,
+                oportunidadeItemId: params.oportunidadeItemId,
+                contrato: {
+                    companyId: params.companyId,
+                },
+            },
+            include: contratoItemInclude,
+        });
+    }
+
+    async findOpportunityItemForContrato(params: PrismaContratoRepository.FindOpportunityItemForContratoParams): Promise<any | null> {
+        const contrato = await prisma.contrato.findFirst({
+            where: {
+                id: params.contratoId,
+                companyId: params.companyId,
+            },
+            select: {
+                oportunidadeId: true,
+            },
+        });
+
+        if (!contrato) return null;
+
+        return prisma.oportunidadeItem.findFirst({
+            where: {
+                id: params.oportunidadeItemId,
+                oportunidadeId: contrato.oportunidadeId,
+            },
+            include: {
+                editalItem: true,
+                pricing: true,
+                disputa: true,
+                companyItem: true,
+            },
+        });
+    }
+
+    async createItem(params: PrismaContratoRepository.CreateItemParams): Promise<any> {
+        return prisma.contratoItem.create({
+            data: {
+                contratoId: params.contratoId,
+                oportunidadeItemId: params.oportunidadeItemId,
+                quantidadeContratada: params.quantidadeContratada,
+                valorUnitario: params.valorUnitario,
+                valorTotal: params.valorTotal,
+            },
+            include: contratoItemInclude,
+        });
+    }
+
+    async updateItem(params: PrismaContratoRepository.UpdateItemParams): Promise<any> {
+        return prisma.contratoItem.update({
+            where: {
+                id: params.contratoItemId,
+            },
+            data: {
+                quantidadeContratada: params.quantidadeContratada,
+                valorUnitario: params.valorUnitario,
+                valorTotal: params.valorTotal,
+            },
+            include: contratoItemInclude,
+        });
+    }
+
+    async deleteItem(params: PrismaContratoRepository.DeleteItemParams): Promise<void> {
+        await prisma.contratoItem.delete({
+            where: {
+                id: params.contratoItemId,
             },
         });
     }
@@ -198,6 +312,7 @@ export namespace PrismaContratoRepository {
 
         valorInicial?: number | null;
         valorGlobal?: number | null;
+        metadata?: Prisma.InputJsonValue | null;
 
         itens: Array<{
             oportunidadeItemId: string;
@@ -226,5 +341,42 @@ export namespace PrismaContratoRepository {
         valorInicial?: number | null;
         valorGlobal?: number | null;
         status?: ContratoStatus;
+    };
+
+    export type FindItemByIdParams = {
+        companyId: string;
+        contratoId: string;
+        contratoItemId: string;
+    };
+
+    export type FindItemByOpportunityItemParams = {
+        companyId: string;
+        contratoId: string;
+        oportunidadeItemId: string;
+    };
+
+    export type FindOpportunityItemForContratoParams = {
+        companyId: string;
+        contratoId: string;
+        oportunidadeItemId: string;
+    };
+
+    export type CreateItemParams = {
+        contratoId: string;
+        oportunidadeItemId: string;
+        quantidadeContratada?: number | null;
+        valorUnitario?: number | null;
+        valorTotal?: number | null;
+    };
+
+    export type UpdateItemParams = {
+        contratoItemId: string;
+        quantidadeContratada?: number | null;
+        valorUnitario?: number | null;
+        valorTotal?: number | null;
+    };
+
+    export type DeleteItemParams = {
+        contratoItemId: string;
     };
 }

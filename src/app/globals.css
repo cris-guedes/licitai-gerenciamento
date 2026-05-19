@@ -2,7 +2,7 @@
 @plugin "@tailwindcss/typography";
 
 :root {
-  --background: #f8f9ff;
+  --background: #ffffff;
   --foreground: #102033;
 
   --primary: #041627;
@@ -31,7 +31,7 @@
   --input: rgba(196, 198, 205, 0.2);
   --ring: rgba(0, 88, 190, 0.28);
 
-  --surface: #f8f9ff;
+  --surface: #ffffff;
   --surface-dim: #e9edf8;
   --surface-container-low: #eff4ff;
   --surface-container-lowest: #ffffff;
@@ -125,7 +125,7 @@ html {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
-  background: var(--surface);
+  background: #ffffff;
 }
 
 body {
@@ -133,10 +133,7 @@ body {
   max-width: 100%;
   overflow-x: hidden;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(33, 112, 228, 0.12), transparent 28%),
-    radial-gradient(circle at 85% 15%, rgba(4, 22, 39, 0.06), transparent 22%),
-    linear-gradient(180deg, #fbfcff 0%, #f3f7ff 55%, #eef3ff 100%);
+  background: #ffffff;
   color: var(--foreground);
   font-family: var(--font-sans);
   text-rendering: optimizeLegibility;

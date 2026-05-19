@@ -27,6 +27,7 @@ export type { CreateCompanyWorkflowNodeResponse } from './models/CreateCompanyWo
 export type { CreateCompanyWorkflowTransitionResponse } from './models/CreateCompanyWorkflowTransitionResponse';
 export type { CreateInviteResponse } from './models/CreateInviteResponse';
 export type { CreateMemberResponse } from './models/CreateMemberResponse';
+export type { CreateOportunidadeItemResponse } from './models/CreateOportunidadeItemResponse';
 export type { CreateOportunidadeNoteResponse } from './models/CreateOportunidadeNoteResponse';
 export type { CreateOportunidadeTaskResponse } from './models/CreateOportunidadeTaskResponse';
 export type { DeleteCompanyItemResponse } from './models/DeleteCompanyItemResponse';
@@ -35,6 +36,7 @@ export type { DeleteCompanyWorkflowNodeResponse } from './models/DeleteCompanyWo
 export type { DeleteCompanyWorkflowTransitionResponse } from './models/DeleteCompanyWorkflowTransitionResponse';
 export type { DeleteLicitacaoDocumentResponse } from './models/DeleteLicitacaoDocumentResponse';
 export type { DeleteLicitacaoDraftResponse } from './models/DeleteLicitacaoDraftResponse';
+export type { DeleteOportunidadeItemResponse } from './models/DeleteOportunidadeItemResponse';
 export type { DeleteOportunidadeNoteResponse } from './models/DeleteOportunidadeNoteResponse';
 export type { DeleteOportunidadeTaskResponse } from './models/DeleteOportunidadeTaskResponse';
 export type { DeleteUserResponse } from './models/DeleteUserResponse';
@@ -88,6 +90,9 @@ export type { PostCoreContratosContratoIdEmpenhosEmpenhoIdEntregasEntregaIdStatu
 export type { PostCoreContratosContratoIdEmpenhosEmpenhoIdEntregasResponse } from './models/PostCoreContratosContratoIdEmpenhosEmpenhoIdEntregasResponse';
 export type { PostCoreContratosContratoIdEmpenhosEmpenhoIdLocaisResponse } from './models/PostCoreContratosContratoIdEmpenhosEmpenhoIdLocaisResponse';
 export type { PostCoreContratosContratoIdEmpenhosResponse } from './models/PostCoreContratosContratoIdEmpenhosResponse';
+export type { PostCoreContratosItensDeleteResponse } from './models/PostCoreContratosItensDeleteResponse';
+export type { PostCoreContratosItensResponse } from './models/PostCoreContratosItensResponse';
+export type { PostCoreContratosItensUpdateResponse } from './models/PostCoreContratosItensUpdateResponse';
 export type { PostCoreContratosResponse } from './models/PostCoreContratosResponse';
 export type { PostCoreContratosUpdateResponse } from './models/PostCoreContratosUpdateResponse';
 export type { ProcurementAta } from './models/ProcurementAta';

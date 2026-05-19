@@ -74,6 +74,9 @@ import { CreateContratoControllerSchemas } from "../../domain/use-cases/contrato
 import { ListContratosControllerSchemas } from "../../domain/use-cases/contrato/root/list-contratos/ListContratosControllerSchemas";
 import { GetContratoWorkspaceControllerSchemas } from "../../domain/use-cases/contrato/root/get-contrato-workspace/GetContratoWorkspaceControllerSchemas";
 import { UpdateContratoControllerSchemas } from "../../domain/use-cases/contrato/root/update-contrato/UpdateContratoControllerSchemas";
+import { CreateContratoItemControllerSchemas } from "../../domain/use-cases/contrato/item/create-contrato-item/CreateContratoItemControllerSchemas";
+import { UpdateContratoItemControllerSchemas } from "../../domain/use-cases/contrato/item/update-contrato-item/UpdateContratoItemControllerSchemas";
+import { DeleteContratoItemControllerSchemas } from "../../domain/use-cases/contrato/item/delete-contrato-item/DeleteContratoItemControllerSchemas";
 import { CreateEmpenhoControllerSchemas } from "../../domain/use-cases/contrato/empenho/create-empenho/CreateEmpenhoControllerSchemas";
 import { ListEmpenhosControllerSchemas } from "../../domain/use-cases/contrato/empenho/list-empenhos/ListEmpenhosControllerSchemas";
 import { CreateLocalEntregaControllerSchemas } from "../../domain/use-cases/contrato/empenho/create-local-entrega/CreateLocalEntregaControllerSchemas";
@@ -1105,6 +1108,36 @@ export const apiEndpoints: EndpointConfig[] = [
     successDescription: "Contrato atualizado com sucesso",
     method: "POST",
     schemas: UpdateContratoControllerSchemas as unknown as EndpointSchemas,
+  },
+  {
+    path: "/contratos/itens",
+    operationId: "postCoreContratosItens",
+    tag: "Contratos",
+    summary: "Adicionar item ao contrato",
+    description: "Vincula ao contrato um item ativo da oportunidade de origem",
+    successDescription: "Item vinculado com sucesso",
+    method: "POST",
+    schemas: CreateContratoItemControllerSchemas as unknown as EndpointSchemas,
+  },
+  {
+    path: "/contratos/itens/update",
+    operationId: "postCoreContratosItensUpdate",
+    tag: "Contratos",
+    summary: "Atualizar item do contrato",
+    description: "Atualiza quantidade e valores de um item vinculado ao contrato",
+    successDescription: "Item atualizado com sucesso",
+    method: "POST",
+    schemas: UpdateContratoItemControllerSchemas as unknown as EndpointSchemas,
+  },
+  {
+    path: "/contratos/itens/delete",
+    operationId: "postCoreContratosItensDelete",
+    tag: "Contratos",
+    summary: "Remover item do contrato",
+    description: "Remove item do contrato quando ele ainda não possui empenhos vinculados",
+    successDescription: "Item removido com sucesso",
+    method: "POST",
+    schemas: DeleteContratoItemControllerSchemas as unknown as EndpointSchemas,
   },
   {
     path: "/contratos/empenhos",
