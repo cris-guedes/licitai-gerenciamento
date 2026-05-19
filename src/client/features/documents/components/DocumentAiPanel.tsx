@@ -86,7 +86,7 @@ export function DocumentAiPanel({
         className="min-h-0 flex-1 gap-0 overflow-hidden"
       >
         <div className="shrink-0 border-b border-slate-100 px-4 pb-2">
-          <TabsList variant="line" className="grid w-full grid-cols-2 gap-1 rounded-none bg-transparent p-0">
+          <TabsList  className="grid w-full grid-cols-2 gap-1 rounded-none bg-transparent p-0">
             <TabsTrigger
               value="chat"
               className="rounded-none border-0 bg-transparent px-3 py-2 data-[state=active]:bg-transparent"

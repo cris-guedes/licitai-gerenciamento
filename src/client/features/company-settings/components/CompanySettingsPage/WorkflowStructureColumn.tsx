@@ -188,7 +188,7 @@ export function WorkflowStructureColumn({
           <Button
             type="button"
             variant="outline"
-            size="xs"
+            
             className="mt-3 rounded-lg"
             onClick={createChild}
           >

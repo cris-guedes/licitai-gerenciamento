@@ -242,7 +242,7 @@ export function OportunidadeOverviewModule({
             <OverviewAccordionItem value="activity" title="Atividade">
               <Tabs defaultValue="notes" className="gap-4">
                 <TabsList
-                  variant="line"
+                  
                   className="w-fit gap-6 rounded-none border-b border-slate-200 bg-transparent p-0 text-slate-500"
                 >
                   <TabsTrigger

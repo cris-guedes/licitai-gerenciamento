@@ -282,7 +282,7 @@ export function OportunidadeItemsDataTable({
                     <td className="w-10 px-2 py-2.5 text-center whitespace-nowrap">
                       <div className="flex justify-center">
                         <Switch
-                          size="sm"
+                          
                           checked={item.isSelected}
                           disabled={isUpdating || !item.oportunidadeItemId}
                           onCheckedChange={checked => void onToggleItem(item, checked)}

@@ -178,7 +178,7 @@ export function OportunidadeItemPricingDialog({
 
             <Tabs defaultValue="mapping" className="gap-5">
               <TabsList
-                variant="line"
+                
                 className="w-full justify-start gap-6 rounded-none border-b border-slate-200 bg-transparent p-0"
               >
                 <TabsTrigger value="mapping" className="h-auto flex-none rounded-none border-0 px-0 pb-2 pt-0 text-sm font-medium text-slate-500 shadow-none data-[state=active]:bg-transparent data-[state=active]:text-slate-900">

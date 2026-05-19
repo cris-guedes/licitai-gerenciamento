@@ -24,7 +24,7 @@ export function OportunidadeOwnerModule({
   const contentNode = (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Avatar size="lg">
+        <Avatar >
           <AvatarFallback>{initials(item.responsavel?.name)}</AvatarFallback>
         </Avatar>
         <div className="min-w-0">

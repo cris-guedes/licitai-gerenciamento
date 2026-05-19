@@ -68,7 +68,7 @@ export function OportunidadeItemsModule({
           </div>
 
           <Tabs value={itemsModule.filter} onValueChange={value => itemsModule.setFilter(value as typeof itemsModule.filter)} className="gap-0">
-            <TabsList variant="line" className="w-full justify-start gap-5 rounded-none bg-transparent p-0">
+            <TabsList  className="w-full justify-start gap-5 rounded-none bg-transparent p-0">
               <TabsTrigger value="ALL" className="h-auto flex-none rounded-none border-0 px-0 pb-2 pt-0 text-sm font-medium text-slate-500 shadow-none data-[state=active]:bg-transparent data-[state=active]:text-slate-900">
                 Todos
               </TabsTrigger>

@@ -64,7 +64,7 @@ export function ExtractEditalReviewWorkspace({ result }: Props) {
         className="flex h-full min-h-0 w-full min-w-0 flex-col gap-0"
       >
         <div className="shrink-0 border-b border-slate-200/80 bg-white px-6 py-4">
-          <TabsList variant="line" className="grid h-auto w-full grid-cols-2 gap-2 p-0 lg:grid-cols-3 xl:grid-cols-5">
+          <TabsList  className="grid h-auto w-full grid-cols-2 gap-2 p-0 lg:grid-cols-3 xl:grid-cols-5">
             {tabs.map(tab => (
               <TabsTrigger
                 key={tab.id}
