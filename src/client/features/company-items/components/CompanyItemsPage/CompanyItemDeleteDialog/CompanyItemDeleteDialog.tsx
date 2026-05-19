@@ -23,7 +23,7 @@ type Props = {
 export function CompanyItemDeleteDialog({ open, item, isPending, onClose, onConfirm }: Props) {
   return (
     <AlertDialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
-      <AlertDialogContent size="sm">
+      <AlertDialogContent >
         <AlertDialogHeader>
           <AlertDialogTitle>Remover item</AlertDialogTitle>
           <AlertDialogDescription>
@@ -35,7 +35,7 @@ export function CompanyItemDeleteDialog({ open, item, isPending, onClose, onConf
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
           <AlertDialogAction
-            variant="destructive"
+           
             disabled={isPending}
             onClick={(event) => {
               event.preventDefault()

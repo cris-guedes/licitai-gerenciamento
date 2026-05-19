@@ -57,20 +57,12 @@ export function useSearchResultCard(item: LicitacaoItem, deps: SearchResultCardD
   const daysLeft = item.data_fim_vigencia
     ? Math.ceil((new Date(item.data_fim_vigencia).getTime() - now) / 86_400_000)
     : null
-  const openingUrgency = daysUntilOpening != null && daysUntilOpening >= 0
-    ? daysUntilOpening <= 2
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-      : daysUntilOpening <= 7
-        ? "border-emerald-100 bg-emerald-50/60 text-emerald-600"
-        : undefined
-    : null
-  const urgency = daysLeft != null && daysLeft >= 0
-    ? daysLeft <= 2
-      ? "border-red-200 bg-red-50 text-red-700"
-      : daysLeft <= 7
-        ? "border-red-100 bg-red-50/60 text-red-600"
-        : undefined
-    : null
+  const openingLevel = daysUntilOpening != null && daysUntilOpening >= 0
+    ? (daysUntilOpening <= 2 ? 2 : daysUntilOpening <= 7 ? 1 : 0)
+    : 0
+  const closingLevel = daysLeft != null && daysLeft >= 0
+    ? (daysLeft <= 2 ? 2 : daysLeft <= 7 ? 1 : 0)
+    : 0
 
   return {
     sheetOpen,
@@ -84,7 +76,7 @@ export function useSearchResultCard(item: LicitacaoItem, deps: SearchResultCardD
     aberturaDate,
     encerramentoDate,
     publicacaoDate,
-    openingUrgency,
-    urgency,
+    openingLevel,
+    closingLevel,
   }
 }

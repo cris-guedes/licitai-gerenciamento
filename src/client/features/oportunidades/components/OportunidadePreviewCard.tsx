@@ -156,7 +156,7 @@ export function OportunidadePreviewCard({
         {latestComment ? (
           <div className="mt-4 rounded-lg bg-slate-50 px-3 py-2.5">
             <div className="flex items-start gap-2">
-              <Avatar size="sm" className="mt-0.5 bg-amber-400 text-amber-950">
+              <Avatar  className="mt-0.5 bg-amber-400 text-amber-950">
                 <AvatarFallback className="bg-amber-400 text-[10px] font-semibold text-amber-950">
                   {initials(latestCommentAuthor ?? undefined)}
                 </AvatarFallback>

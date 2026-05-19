@@ -130,7 +130,7 @@ export function CompanyProfileForm({ company, isPending, canDelete, onEdit, onDe
 
       <CardContent className="p-5">
         <Tabs defaultValue="visao-geral" className="gap-4">
-          <TabsList variant="line" className="w-full justify-start">
+          <TabsList  className="w-full justify-start">
             <TabsTrigger value="visao-geral">Visão Geral</TabsTrigger>
             <TabsTrigger value="atividade">Atividade Econômica</TabsTrigger>
             <TabsTrigger value="endereco">Endereço</TabsTrigger>

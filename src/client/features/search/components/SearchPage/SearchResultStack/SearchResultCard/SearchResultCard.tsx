@@ -1,93 +1,109 @@
 "use client"
 
-import { useState } from "react"
-import { MapPin, Copy, Check, ChevronDown, Loader2, Package, Info, CalendarClock } from "lucide-react"
-import { useCoreApi } from "@/client/hooks/use-core-api"
-import { formatCurrency } from "@/client/main/lib/utils/format"
-import { cn }             from "@/client/main/lib/utils"
+import { useState, type ElementType, type ReactNode } from "react"
+import {
+  Building2,
+  CalendarClock,
+  Check,
+  ChevronDown,
+  CircleDollarSign,
+  Copy,
+  ExternalLink,
+  Eye,
+  FileText,
+  Loader2,
+  MapPin,
+  Package,
+} from "lucide-react"
+import { Badge } from "@/client/components/ui/badge"
+import { Button } from "@/client/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/client/components/ui/collapsible"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/client/components/ui/tooltip"
+import { formatCurrency } from "@/client/main/lib/utils/format"
+import { cn } from "@/client/main/lib/utils"
 import type { LicitacaoItem } from "@/client/main/infra/apis/api-core/models/LicitacaoItem"
-import type { GetSegments }   from "../../../../services/search"
+import type { GetSegments } from "../../../../services/search"
+import { useCoreApi } from "@/client/hooks/use-core-api"
 import { useProcurementItemsService } from "../../../../services/procurement"
-import { useSearchResultCard } from "./hooks/useSearchResultCard"
-import { HighlightText }      from "./HighlightText"
-import { LicitacaoDetailSheet } from "../../../LicitacaoDetail"
+import { buildPncpUrl } from "../../../../utils/urls"
 import { ItemBadgesRow, SituacaoCell, CatmatCell, DescricaoCell } from "../../../ItemBadges"
+import { LicitacaoDetailSheet } from "../../../LicitacaoDetail"
+import { HighlightText } from "./HighlightText"
+import { useSearchResultCard } from "./hooks/useSearchResultCard"
 
 const MATERIAL_LABELS: Record<string, string> = { M: "Material", S: "Serviço" }
 
-
 const DOC_LABELS: Record<string, string> = {
-  edital:          "Edital",
-  aviso_licitacao: "Aviso de Licitação",
-  dispensa:        "Dispensa",
+  edital: "Edital",
+  aviso_licitacao: "Aviso",
+  dispensa: "Dispensa",
   inexigibilidade: "Inexigibilidade",
-  contrato:        "Contrato",
+  contrato: "Contrato",
 }
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
+
   return (
     <button
       type="button"
-      onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+      onClick={event => {
+        event.stopPropagation()
+        void navigator.clipboard.writeText(text)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      }}
+      className="text-muted-foreground hover:text-foreground"
       title="Copiar"
     >
-      {copied
-        ? <Check className="size-3 text-green-500" />
-        : <Copy className="size-3 text-muted-foreground/50 hover:text-muted-foreground transition-colors" />
-      }
+      {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
     </button>
   )
 }
 
-function DateInfoTip({ text }: { text: string }) {
+function MetaItem({
+  icon: Icon,
+  children,
+}: {
+  icon: ElementType
+  children: ReactNode
+}) {
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button type="button" className="text-muted-foreground/40 hover:text-muted-foreground" onClick={e => e.stopPropagation()}>
-            <Info className="size-3" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-[260px] text-xs leading-relaxed">
-          {text}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <span className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+      <Icon className="size-3.5 shrink-0" />
+      <span className="truncate">{children}</span>
+    </span>
   )
 }
 
-function ProposalDateField({
-  label,
-  value,
-  tooltip,
-  className,
-}: {
-  label: string
-  value: string | null
-  tooltip: string
-  className?: string
-}) {
-  return (
-    <div className={cn("min-w-[150px] rounded-md border border-border/50 bg-muted/10 px-3 py-2", className)}>
-      <div className="flex items-center gap-1.5">
-        <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/70">
-          {label}
-        </span>
-        <DateInfoTip text={tooltip} />
-      </div>
-      <div className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-foreground">
-        <CalendarClock className="size-3.5 text-muted-foreground/50" />
-        <span>{value ?? "Não informada"}</span>
-      </div>
-    </div>
-  )
+function getStatusLabel(item: LicitacaoItem) {
+  if (item.cancelado) return "Cancelada"
+  return item.situacao_nome ?? "Aberta"
+}
+
+function getStatusClass(item: LicitacaoItem) {
+  const label = getStatusLabel(item).toLowerCase()
+
+  if (item.cancelado || label.includes("cancel")) {
+    return "border-destructive/20 bg-destructive/10 text-destructive"
+  }
+
+  if (label.includes("receb") || label.includes("abert")) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700"
+  }
+
+  if (label.includes("julg") || label.includes("encerrada")) {
+    return "border-blue-200 bg-blue-50 text-blue-700"
+  }
+
+  if (label.includes("susp")) {
+    return "border-amber-200 bg-amber-50 text-amber-700"
+  }
+
+  return "border-border bg-muted text-muted-foreground"
 }
 
 interface Props {
-  item:         LicitacaoItem
+  item: LicitacaoItem
   getSegments?: GetSegments
 }
 
@@ -106,185 +122,229 @@ export function SearchResultCard({ item, getSegments }: Props) {
     aberturaDate,
     encerramentoDate,
     publicacaoDate,
-    openingUrgency,
-    urgency,
+    openingLevel,
+    closingLevel,
   } = useSearchResultCard(item, { procurementItemsService })
 
-  const seg = getSegments ?? ((_f: string, text: string) => [{ text, highlighted: false }])
+  const pncpUrl = buildPncpUrl(item)
+  const seg = getSegments ?? ((_field: string, text: string) => [{ text, highlighted: false }])
+  const primaryTitle = item.title || item.description || editTitle || "Oportunidade sem título"
+  const secondaryDescription = item.description && item.description !== item.title ? item.description : null
+  const documentLabel = item.document_type ? (DOC_LABELS[item.document_type] ?? docLabel ?? item.document_type) : docLabel
 
   return (
-    <div className={cn(
-      "flex flex-col bg-background border border-border/50 rounded-lg overflow-hidden",
-      "transition-colors hover:border-border cursor-pointer",
-      item.cancelado && "opacity-50"
-    )}
+    <article
+      className={cn(
+        "group rounded-lg border border-border/70 bg-card transition-colors hover:border-primary/30",
+        item.cancelado && "opacity-70"
+      )}
       onClick={() => setSheetOpen(true)}
     >
-      <div className="px-5 py-4 flex flex-col gap-2">
-
-        {/* Row 1 — meta: tipo · modalidade · status · localização */}
-        <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
-          <div className="flex items-center gap-2 min-w-0">
-            {docLabel && <span className="font-semibold text-foreground/70">{docLabel}</span>}
-            {docLabel && item.modalidade_licitacao_nome && <span className="opacity-30">·</span>}
-            {item.modalidade_licitacao_nome && <span>{item.modalidade_licitacao_nome}</span>}
-            {item.cancelado && <><span className="opacity-30">·</span><span className="text-destructive font-semibold">Cancelado</span></>}
+      <div className="flex flex-col gap-4 px-4 py-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {editTitle ? <span className="font-medium text-foreground/80">{editTitle}</span> : null}
+            {documentLabel ? <span>{documentLabel}</span> : null}
+            {item.modalidade_licitacao_nome ? <span>{item.modalidade_licitacao_nome}</span> : null}
+            {(() => {
+              const status = getStatusLabel(item)
+              // Oculta rótulos irrelevantes do tipo "Divulgada/Publicado no PNCP"
+              if (/pncp/i.test(status)) return null
+              return (
+                <Badge variant="outline" className={cn("h-6 rounded-full px-2 text-[11px] font-medium", getStatusClass(item))}>
+                  {status}
+                </Badge>
+              )
+            })()}
           </div>
-          {location && (
-            <span className="flex items-center gap-1 shrink-0">
-              <MapPin className="size-3 opacity-50" />
-              {location}
-            </span>
-          )}
+
+          {item.numero_controle_pncp ? (
+            <div className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
+              <span className="font-mono">{item.numero_controle_pncp}</span>
+              <CopyButton text={item.numero_controle_pncp} />
+            </div>
+          ) : null}
         </div>
 
-        {/* Row 2 — edital number title */}
-        <h3 className="text-sm font-semibold leading-snug text-foreground">
-          {editTitle ?? (item.document_type ? (DOC_LABELS[item.document_type] ?? item.document_type) : "Sem título")}
-        </h3>
+        <div className="flex flex-col gap-2">
+          <h3 className="text-sm font-semibold leading-6 text-foreground md:text-[15px]">
+            <HighlightText segments={seg("title", primaryTitle)} />
+          </h3>
+          {secondaryDescription ? (
+            <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+              <HighlightText segments={seg("description", secondaryDescription)} />
+            </p>
+          ) : null}
+        </div>
 
-        {/* Row 3 — objeto (title) */}
-        {item.title && (
-          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 border-l-2 border-border pl-3">
-            <HighlightText segments={seg("title", item.title)} />
-          </p>
-        )}
-
-        {/* Row 3b — description with highlights */}
-        {item.description && (
-          <p className="text-[11px] text-muted-foreground/60 leading-relaxed line-clamp-2 border-l-2 border-border/40 pl-3 italic">
-            <HighlightText segments={seg("description", item.description)} />
-          </p>
-        )}
-
-        {/* Row 4 — org + meta right */}
-        <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
-          <span className="truncate">
-            <HighlightText segments={seg("orgao_nome", item.orgao_nome ?? "—")} />
-          </span>
-          <div className="flex items-center gap-3 shrink-0">
-            {item.valor_global != null && (
-              <span className="font-semibold text-foreground/80">{formatCurrency(item.valor_global)}</span>
-            )}
-            {(aberturaDate || encerramentoDate || publicacaoDate) && (
-              <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-                {publicacaoDate && (
-                  <ProposalDateField
-                    label="Publicado no PNCP"
-                    value={publicacaoDate}
-                    tooltip="Data em que a contratação foi publicada ou disponibilizada no Portal Nacional de Contratações Públicas."
-                  />
+        <div className="grid gap-x-5 gap-y-2 md:grid-cols-[minmax(220px,1.3fr)_repeat(3,minmax(130px,auto))]">
+          {item.orgao_nome ? (
+            <MetaItem icon={Building2}>
+              <HighlightText segments={seg("orgao_nome", item.orgao_nome)} />
+            </MetaItem>
+          ) : null}
+          {location ? <MetaItem icon={MapPin}>{location}</MetaItem> : null}
+          {item.valor_global != null ? (
+            <MetaItem icon={CircleDollarSign}>{formatCurrency(item.valor_global)}</MetaItem>
+          ) : null}
+          {aberturaDate ? (
+            <MetaItem icon={CalendarClock}>
+              <span
+                className={cn(
+                  "text-[11px] font-medium",
+                  openingLevel === 2
+                    ? "text-emerald-700/80"
+                    : openingLevel === 1
+                      ? "text-emerald-600/70"
+                      : "text-muted-foreground"
                 )}
-                <ProposalDateField
-                  label="Abertura das propostas"
-                  value={aberturaDate}
-                  tooltip="Data prevista para início do período em que fornecedores podem enviar propostas para esta contratação no PNCP."
-                  className={openingUrgency ?? undefined}
-                />
-                <ProposalDateField
-                  label="Encerramento das propostas"
-                  value={encerramentoDate}
-                  tooltip="Data prevista para fim do recebimento de propostas. Após esse prazo, normalmente não é mais possível enviar proposta."
-                  className={urgency ?? undefined}
-                />
-              </div>
-            )}
-          </div>
+              >
+                {`Abre ${aberturaDate}`}
+              </span>
+            </MetaItem>
+          ) : null}
+          {encerramentoDate ? (
+            <MetaItem icon={CalendarClock}>
+              <span
+                className={cn(
+                  "text-[11px] font-medium",
+                  closingLevel === 2
+                    ? "text-red-700/80"
+                    : closingLevel === 1
+                      ? "text-red-600/70"
+                      : "text-muted-foreground"
+                )}
+              >
+                {`Encerra ${encerramentoDate}`}
+              </span>
+            </MetaItem>
+          ) : null}
         </div>
 
-        {/* Row 4 — PNCP ID */}
-        {item.numero_controle_pncp && (
-          <div className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground/50" onClick={e => e.stopPropagation()}>
-            <span>{item.numero_controle_pncp}</span>
-            <CopyButton text={item.numero_controle_pncp} />
+        <div className="flex flex-col gap-3 border-t border-border/60 pt-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+            {publicacaoDate ? <span>Publicado em {publicacaoDate}</span> : null}
+            {item.unidade_nome ? (
+              <span className="truncate">Unidade: {item.unidade_nome}</span>
+            ) : null}
           </div>
-        )}
 
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <Collapsible open={itemsExpanded} onOpenChange={setItemsExpanded}>
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={event => event.stopPropagation()}
+                >
+                  <Package data-icon="inline-start" />
+                  {itemsExpanded ? "Ocultar itens" : "Ver itens"}
+                  <ChevronDown
+                    data-icon="inline-end"
+                    className={cn("transition-transform", itemsExpanded && "rotate-180")}
+                  />
+                </Button>
+              </CollapsibleTrigger>
+            </Collapsible>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={event => {
+                event.stopPropagation()
+                setSheetOpen(true)
+              }}
+            >
+              <Eye data-icon="inline-start" />
+              Detalhes
+            </Button>
+            {pncpUrl ? (
+              <Button asChild size="sm">
+                <a
+                  href={pncpUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={event => event.stopPropagation()}
+                >
+                  <ExternalLink data-icon="inline-start" />
+                  Acessar edital
+                </a>
+              </Button>
+            ) : null}
+          </div>
+        </div>
       </div>
 
-      {/* ── Footer ──────────────────────────────────────────────────────── */}
-      <Collapsible open={itemsExpanded} onOpenChange={setItemsExpanded} className="w-full">
-        <div
-          className="px-5 py-2 flex items-center justify-between border-t border-border/30 bg-muted/20"
-          onClick={e => e.stopPropagation()}
-        >
-          <CollapsibleTrigger asChild>
-            <button
-              type="button"
-              className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Package className="size-3.5" />
-              {itemsExpanded ? "Ocultar itens" : "Ver itens"}
-              <ChevronDown className={cn("size-3.5 transition-transform duration-200", itemsExpanded && "-rotate-180")} />
-            </button>
-          </CollapsibleTrigger>
-        </div>
-
-        <CollapsibleContent>
+      <Collapsible open={itemsExpanded} onOpenChange={setItemsExpanded}>
+        <CollapsibleContent onClick={event => event.stopPropagation()}>
           <SearchCardItemsContent itemsQuery={itemsQuery} />
         </CollapsibleContent>
       </Collapsible>
 
       <LicitacaoDetailSheet item={item} open={sheetOpen} onClose={() => setSheetOpen(false)} />
-    </div>
+    </article>
   )
 }
 
 function SearchCardItemsContent({ itemsQuery }: { itemsQuery: ReturnType<typeof useSearchResultCard>["itemsQuery"] }) {
-
   return (
-    <div className="border-t border-border/20 bg-muted/10">
-      {itemsQuery.isLoading && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center py-5">
-          <Loader2 className="size-3.5 animate-spin" /> Carregando itens...
+    <div className="border-t border-border/60 bg-muted/20">
+      {itemsQuery.isLoading ? (
+        <div className="flex items-center justify-center gap-2 py-5 text-xs text-muted-foreground">
+          <Loader2 className="size-3.5 animate-spin" />
+          Carregando itens...
         </div>
-      )}
-      {itemsQuery.isError && (
-        <p className="text-xs text-destructive py-3 text-center">Erro ao carregar itens</p>
-      )}
-      {itemsQuery.data?.items.length === 0 && (
-        <p className="text-xs text-muted-foreground py-3 text-center">Nenhum item encontrado.</p>
-      )}
-      {itemsQuery.data && itemsQuery.data.items.length > 0 && (
-        <div className="overflow-x-auto max-h-[280px] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+      ) : null}
+      {itemsQuery.isError ? (
+        <p className="py-4 text-center text-xs text-destructive">Erro ao carregar itens</p>
+      ) : null}
+      {itemsQuery.data?.items.length === 0 ? (
+        <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
+          <FileText className="size-4" />
+          Nenhum item encontrado.
+        </div>
+      ) : null}
+      {itemsQuery.data && itemsQuery.data.items.length > 0 ? (
+        <div className="max-h-[280px] overflow-auto" style={{ scrollbarWidth: "thin" }}>
           <table className="w-full text-xs">
             <thead>
-              <tr className="bg-muted/40 text-muted-foreground border-b border-border/40">
-                <th className="text-left px-4 py-2 font-semibold w-8">#</th>
-                <th className="text-left px-4 py-2 font-semibold">Descrição</th>
-                <th className="text-left px-4 py-2 font-semibold whitespace-nowrap">Situação</th>
-                <th className="text-right px-4 py-2 font-semibold">Tipo</th>
-                <th className="text-left px-4 py-2 font-semibold whitespace-nowrap">CATMAT/CATSER</th>
-                <th className="text-right px-4 py-2 font-semibold">Qtd</th>
-                <th className="text-right px-4 py-2 font-semibold">Vl. Unit.</th>
-                <th className="text-right px-4 py-2 font-semibold">Total</th>
+              <tr className="border-b border-border/50 bg-muted/50 text-muted-foreground">
+                <th className="w-8 px-4 py-2 text-left font-semibold">#</th>
+                <th className="px-4 py-2 text-left font-semibold">Descrição</th>
+                <th className="px-4 py-2 text-left font-semibold">Situação</th>
+                <th className="px-4 py-2 text-right font-semibold">Tipo</th>
+                <th className="px-4 py-2 text-left font-semibold">CATMAT/CATSER</th>
+                <th className="px-4 py-2 text-right font-semibold">Qtd</th>
+                <th className="px-4 py-2 text-right font-semibold">Vl. Unit.</th>
+                <th className="px-4 py-2 text-right font-semibold">Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/20 bg-background">
-              {itemsQuery.data.items.map((it, i) => (
-                <tr key={it.numeroItem ?? i} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-2 text-muted-foreground">{it.numeroItem ?? i + 1}</td>
-                  <td className="px-4 py-2 max-w-xs">
+            <tbody className="divide-y divide-border/30 bg-card">
+              {itemsQuery.data.items.map((it, index) => (
+                <tr key={it.numeroItem ?? index} className="hover:bg-muted/30">
+                  <td className="px-4 py-2 text-muted-foreground">{it.numeroItem ?? index + 1}</td>
+                  <td className="max-w-xs px-4 py-2">
                     <ItemBadgesRow it={it} />
                     <DescricaoCell it={it} lineClamp={2} />
                   </td>
-                  <td className="px-4 py-2 whitespace-nowrap">
+                  <td className="px-4 py-2">
                     <SituacaoCell it={it} />
                   </td>
-                  <td className="px-4 py-2 text-right text-muted-foreground italic whitespace-nowrap">
+                  <td className="px-4 py-2 text-right italic text-muted-foreground">
                     {it.materialOuServicoNome ?? (it.materialOuServico ? (MATERIAL_LABELS[it.materialOuServico] ?? it.materialOuServico) : "—")}
                   </td>
                   <td className="px-4 py-2">
                     <CatmatCell it={it} />
                   </td>
-                  <td className="px-4 py-2 text-right font-semibold whitespace-nowrap">
+                  <td className="px-4 py-2 text-right font-semibold">
                     {it.quantidade != null ? it.quantidade.toLocaleString("pt-BR") : "—"}
-                    {it.unidadeMedida && <span className="text-muted-foreground font-normal ml-1">{it.unidadeMedida}</span>}
+                    {it.unidadeMedida ? <span className="ml-1 font-normal text-muted-foreground">{it.unidadeMedida}</span> : null}
                   </td>
-                  <td className="px-4 py-2 text-right text-muted-foreground whitespace-nowrap">
+                  <td className="px-4 py-2 text-right text-muted-foreground">
                     {it.valorUnitarioEstimado != null ? formatCurrency(it.valorUnitarioEstimado) : "—"}
                   </td>
-                  <td className="px-4 py-2 text-right font-bold text-primary whitespace-nowrap">
+                  <td className="px-4 py-2 text-right font-semibold text-primary">
                     {it.valorTotal != null ? formatCurrency(it.valorTotal) : "—"}
                   </td>
                 </tr>
@@ -292,7 +352,7 @@ function SearchCardItemsContent({ itemsQuery }: { itemsQuery: ReturnType<typeof 
             </tbody>
           </table>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }
