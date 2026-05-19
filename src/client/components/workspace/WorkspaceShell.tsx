@@ -18,8 +18,8 @@ export function WorkspaceShell({
 }: WorkspaceShellProps) {
   return (
     <div
-      className={cn(
-        "flex min-h-0 flex-col bg-slate-50/50",
+        className={cn(
+        "flex min-h-0 flex-col bg-white",
         variant === "page" ? "min-h-screen" : "h-full overflow-hidden border border-slate-200 bg-white",
         className,
       )}

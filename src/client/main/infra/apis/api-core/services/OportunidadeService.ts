@@ -4,10 +4,12 @@
 /* eslint-disable */
 import type { CreateCompanyWorkflowNodeResponse } from '../models/CreateCompanyWorkflowNodeResponse';
 import type { CreateCompanyWorkflowTransitionResponse } from '../models/CreateCompanyWorkflowTransitionResponse';
+import type { CreateOportunidadeItemResponse } from '../models/CreateOportunidadeItemResponse';
 import type { CreateOportunidadeNoteResponse } from '../models/CreateOportunidadeNoteResponse';
 import type { CreateOportunidadeTaskResponse } from '../models/CreateOportunidadeTaskResponse';
 import type { DeleteCompanyWorkflowNodeResponse } from '../models/DeleteCompanyWorkflowNodeResponse';
 import type { DeleteCompanyWorkflowTransitionResponse } from '../models/DeleteCompanyWorkflowTransitionResponse';
+import type { DeleteOportunidadeItemResponse } from '../models/DeleteOportunidadeItemResponse';
 import type { DeleteOportunidadeNoteResponse } from '../models/DeleteOportunidadeNoteResponse';
 import type { DeleteOportunidadeTaskResponse } from '../models/DeleteOportunidadeTaskResponse';
 import type { GetCompanyWorkflowResponse } from '../models/GetCompanyWorkflowResponse';
@@ -292,6 +294,84 @@ export class OportunidadeService {
     return this.httpRequest.request({
       method: 'POST',
       url: '/update-oportunidade-item',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * Cria um item na oportunidade
+   * Cria um novo item no edital e vincula à oportunidade.
+   * @returns CreateOportunidadeItemResponse Item criado com sucesso
+   * @throws ApiError
+   */
+  public createOportunidadeItem({
+    requestBody,
+  }: {
+    requestBody: {
+      /**
+       * ID da empresa dona da oportunidade.
+       */
+      companyId: string;
+      /**
+       * ID da oportunidade que receberá o item.
+       */
+      oportunidadeId: string;
+      /**
+       * Dados iniciais do item da oportunidade.
+       */
+      data: {
+        /**
+         * Número sequencial do item no edital.
+         */
+        numeroItem?: ((number | string) | null);
+        /**
+         * Descrição oficial do item.
+         */
+        descricao?: (string | null);
+        /**
+         * Quantidade total solicitada no edital.
+         */
+        quantidadeTotal?: ((number | string) | null);
+        /**
+         * Valor unitário estimado pelo edital.
+         */
+        valorUnitarioEstimado?: ((number | string) | null);
+        /**
+         * Valor total estimado pelo edital.
+         */
+        valorTotalEstimado?: ((number | string) | null);
+        /**
+         * Unidade de medida oficial do item.
+         */
+        unidadeMedida?: (string | null);
+      };
+    },
+  }): CancelablePromise<CreateOportunidadeItemResponse> {
+    return this.httpRequest.request({
+      method: 'POST',
+      url: '/create-oportunidade-item',
+      body: requestBody,
+      mediaType: 'application/json',
+    });
+  }
+  /**
+   * Deleta um item da oportunidade
+   * Remove um item associado a uma oportunidade.
+   * @returns DeleteOportunidadeItemResponse Item removido com sucesso
+   * @throws ApiError
+   */
+  public deleteOportunidadeItem({
+    requestBody,
+  }: {
+    requestBody: {
+      companyId: string;
+      oportunidadeId: string;
+      oportunidadeItemId: string;
+    },
+  }): CancelablePromise<DeleteOportunidadeItemResponse> {
+    return this.httpRequest.request({
+      method: 'POST',
+      url: '/delete-oportunidade-item',
       body: requestBody,
       mediaType: 'application/json',
     });

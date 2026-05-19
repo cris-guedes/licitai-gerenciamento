@@ -27,6 +27,9 @@ export class CreateContratoController implements Controller<CreateContratoContro
             return created(result);
         } catch (error: any) {
             if (error instanceof z.ZodError) return badRequest(new Error(error.message));
+            if (error.statusCode === 400) {
+                return badRequest(new Error(error.message));
+            }
             if (error.statusCode === 404) {
                 return { statusCode: 404, data: { message: error.message } as any };
             }

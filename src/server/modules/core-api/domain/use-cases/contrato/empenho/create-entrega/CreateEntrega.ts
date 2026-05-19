@@ -1,27 +1,54 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-namespace */
 import { PrismaEntregaRepository } from "@/server/shared/infra/repositories/entrega.repository";
 import { CreateEntregaDTO } from "./dtos/CreateEntregaDTOs";
+import { CreateEntregaMapper, type CreateEntregaView } from "./dtos/CreateEntregaView";
 
 export class CreateEntrega {
     constructor(private readonly entregaRepository: PrismaEntregaRepository) { }
 
     async execute(params: CreateEntrega.Params): Promise<CreateEntrega.Response> {
-        // Here we could add logic to verify if the sum of quantidades in 'entregas' 
-        // doesn't exceed the total quantidade of the empenhoItem. 
-        // We skip it for brevity but it's identical to the logic in create-empenho.
+        const itens = params.itens?.length
+            ? params.itens
+            : params.empenhoItemId && params.quantidade
+                ? [{ empenhoItemId: params.empenhoItemId, quantidade: params.quantidade }]
+                : [];
 
-        const entrega = await this.entregaRepository.create({
-            empenhoId: params.empenhoId,
-            empenhoItemId: params.empenhoItemId,
-            quantidade: params.quantidade,
-            dataPrevista: params.dataPrevista,
-            observacoes: params.observacoes,
-        });
+        if (itens.length === 0) {
+            const error = new Error("Informe ao menos um item para criar a entrega") as Error & { statusCode: number };
+            error.statusCode = 400;
+            throw error;
+        }
 
-        return entrega;
+        let entregas;
+
+        try {
+            entregas = await this.entregaRepository.createMany({
+                companyId: params.companyId,
+                contratoId: params.contratoId,
+                empenhoId: params.empenhoId,
+                localEntregaId: params.localEntregaId,
+                itens,
+                dataPrevista: params.dataPrevista,
+                observacoes: params.observacoes,
+            });
+        } catch (error: any) {
+            if (
+                error.message.includes("não pertence")
+                || error.message.includes("não encontrado")
+                || error.message.includes("Quantidade inválida")
+                || error.message.includes("excede o saldo")
+            ) {
+                error.statusCode = 400;
+            }
+
+            throw error;
+        }
+
+        return CreateEntregaMapper.toView(entregas);
     }
 }
 
 export namespace CreateEntrega {
     export type Params = CreateEntregaDTO;
-    export type Response = any;
+    export type Response = CreateEntregaView;
 }

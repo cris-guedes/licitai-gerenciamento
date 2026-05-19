@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-namespace */
 import { z } from "zod";
 
 export const CreateEmpenhoItemSchema = z.object({
@@ -10,9 +11,9 @@ export const CreateEmpenhoItemSchema = z.object({
 export const CreateEmpenhoInputSchema = z.object({
     companyId: z.string().describe("ID da empresa (passado pelo frontend)"),
     contratoId: z.string().describe("ID do Contrato"),
-    numeroEmpenho: z.string().describe("Número da nota de empenho"),
+    numeroEmpenho: z.string().optional().describe("Número da nota de empenho. Se vazio, será gerado automaticamente."),
     tipoEmpenho: z.string().optional().describe("Ex: ordinario, estimativo, global"),
-    valor: z.number().describe("Valor total do empenho"),
+    valor: z.number().optional().describe("Valor total do empenho. Se vazio, será calculado pelos itens."),
     dataEmissao: z.string().optional().describe("Data de emissão da nota de empenho"),
     
     orgaoCnpj: z.string().optional().describe("CNPJ do órgão emissor"),

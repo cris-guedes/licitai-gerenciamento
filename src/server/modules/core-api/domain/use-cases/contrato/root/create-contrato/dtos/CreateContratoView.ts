@@ -18,6 +18,7 @@ export type ContratoView = {
     dataVigenciaInicio: string | null;
     dataVigenciaFim: string | null;
     status: string;
+    orgaoContratante: ContratoOrgaoContratanteView | null;
     createdAt: string;
     updatedAt: string;
     itens?: unknown[];
@@ -32,6 +33,20 @@ export type ContratoView = {
 
 export type CreateContratoView = ContratoView;
 
+export type ContratoOrgaoContratanteView = {
+    editalOrgaoId?: string | null;
+    orgaoId?: string | null;
+    papel?: string | null;
+    cnpj?: string | null;
+    razaoSocial?: string | null;
+    codigoUnidade?: string | null;
+    nomeUnidade?: string | null;
+    municipio?: string | null;
+    uf?: string | null;
+    esfera?: string | null;
+    poder?: string | null;
+};
+
 function toIsoDate(value: unknown): string | null {
     if (!value) return null;
     if (value instanceof Date) return value.toISOString();
@@ -39,6 +54,35 @@ function toIsoDate(value: unknown): string | null {
 }
 
 function toDecimalString(value: unknown): string | null {
+    if (value === null || value === undefined) return null;
+    return String(value);
+}
+
+function toOrgaoContratanteView(metadata: unknown): ContratoOrgaoContratanteView | null {
+    const objectMetadata = metadata && typeof metadata === "object" && !Array.isArray(metadata)
+        ? metadata as Record<string, unknown>
+        : null;
+    const orgao = objectMetadata?.orgaoContratante;
+
+    if (!orgao || typeof orgao !== "object" || Array.isArray(orgao)) return null;
+
+    const source = orgao as Record<string, unknown>;
+    return {
+        editalOrgaoId: toNullableString(source.editalOrgaoId),
+        orgaoId: toNullableString(source.orgaoId),
+        papel: toNullableString(source.papel),
+        cnpj: toNullableString(source.cnpj),
+        razaoSocial: toNullableString(source.razaoSocial),
+        codigoUnidade: toNullableString(source.codigoUnidade),
+        nomeUnidade: toNullableString(source.nomeUnidade),
+        municipio: toNullableString(source.municipio),
+        uf: toNullableString(source.uf),
+        esfera: toNullableString(source.esfera),
+        poder: toNullableString(source.poder),
+    };
+}
+
+function toNullableString(value: unknown): string | null {
     if (value === null || value === undefined) return null;
     return String(value);
 }
@@ -82,6 +126,7 @@ export class ContratoMapper {
             dataVigenciaInicio: toIsoDate(data.dataVigenciaInicio),
             dataVigenciaFim: toIsoDate(data.dataVigenciaFim),
             status: data.status,
+            orgaoContratante: toOrgaoContratanteView(data.metadata),
             createdAt: toIsoDate(data.createdAt) ?? new Date().toISOString(),
             updatedAt: toIsoDate(data.updatedAt) ?? new Date().toISOString(),
             itens: data.itens ?? undefined,

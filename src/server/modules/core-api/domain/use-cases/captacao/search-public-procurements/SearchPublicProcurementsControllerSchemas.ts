@@ -170,6 +170,30 @@ const SearchPublicProcurementsInputSchema = z.object({
         .boolean()
         .optional()
         .describe("Se true, filtra apenas licitações que exigem conteúdo de produção nacional."),
+
+    dataAberturaInicio: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional()
+        .describe("Data inicial de abertura das propostas (YYYY-MM-DD). Usada via API PNCP Consulta com filtro local."),
+
+    dataAberturaFim: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional()
+        .describe("Data final de abertura das propostas (YYYY-MM-DD). Usada via API PNCP Consulta com filtro local."),
+
+    dataEncerramentoInicio: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional()
+        .describe("Data inicial de encerramento das propostas (YYYY-MM-DD). Usada via API PNCP Consulta com filtro local."),
+
+    dataEncerramentoFim: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional()
+        .describe("Data final de encerramento das propostas (YYYY-MM-DD). Usada via API PNCP Consulta com filtro local."),
 });
 
 export const LicitacaoItemSchema = z.object({

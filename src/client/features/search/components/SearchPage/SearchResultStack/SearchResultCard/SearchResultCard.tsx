@@ -1,11 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { MapPin, Clock, Copy, Check, ChevronDown, Loader2, Package } from "lucide-react"
+import { MapPin, Copy, Check, ChevronDown, Loader2, Package, Info, CalendarClock } from "lucide-react"
 import { useCoreApi } from "@/client/hooks/use-core-api"
 import { formatCurrency } from "@/client/main/lib/utils/format"
 import { cn }             from "@/client/main/lib/utils"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/client/components/ui/collapsible"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/client/components/ui/tooltip"
 import type { LicitacaoItem } from "@/client/main/infra/apis/api-core/models/LicitacaoItem"
 import type { GetSegments }   from "../../../../services/search"
 import { useProcurementItemsService } from "../../../../services/procurement"
@@ -41,6 +42,50 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
+function DateInfoTip({ text }: { text: string }) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" className="text-muted-foreground/40 hover:text-muted-foreground" onClick={e => e.stopPropagation()}>
+            <Info className="size-3" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[260px] text-xs leading-relaxed">
+          {text}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
+function ProposalDateField({
+  label,
+  value,
+  tooltip,
+  className,
+}: {
+  label: string
+  value: string | null
+  tooltip: string
+  className?: string
+}) {
+  return (
+    <div className={cn("min-w-[150px] rounded-md border border-border/50 bg-muted/10 px-3 py-2", className)}>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/70">
+          {label}
+        </span>
+        <DateInfoTip text={tooltip} />
+      </div>
+      <div className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+        <CalendarClock className="size-3.5 text-muted-foreground/50" />
+        <span>{value ?? "Não informada"}</span>
+      </div>
+    </div>
+  )
+}
+
 interface Props {
   item:         LicitacaoItem
   getSegments?: GetSegments
@@ -58,9 +103,11 @@ export function SearchResultCard({ item, getSegments }: Props) {
     docLabel,
     editTitle,
     location,
-    fimDate,
+    aberturaDate,
+    encerramentoDate,
+    publicacaoDate,
+    openingUrgency,
     urgency,
-    deadlineLabel,
   } = useSearchResultCard(item, { procurementItemsService })
 
   const seg = getSegments ?? ((_f: string, text: string) => [{ text, highlighted: false }])
@@ -119,14 +166,28 @@ export function SearchResultCard({ item, getSegments }: Props) {
             {item.valor_global != null && (
               <span className="font-semibold text-foreground/80">{formatCurrency(item.valor_global)}</span>
             )}
-            {fimDate && (
-              <span className={cn("flex items-center gap-1", urgency ?? "text-muted-foreground")}>
-                <Clock className="size-3 opacity-60" />
-                {fimDate}
-                {deadlineLabel && (
-                  <span className="font-semibold">({deadlineLabel})</span>
+            {(aberturaDate || encerramentoDate || publicacaoDate) && (
+              <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                {publicacaoDate && (
+                  <ProposalDateField
+                    label="Publicado no PNCP"
+                    value={publicacaoDate}
+                    tooltip="Data em que a contratação foi publicada ou disponibilizada no Portal Nacional de Contratações Públicas."
+                  />
                 )}
-              </span>
+                <ProposalDateField
+                  label="Abertura das propostas"
+                  value={aberturaDate}
+                  tooltip="Data prevista para início do período em que fornecedores podem enviar propostas para esta contratação no PNCP."
+                  className={openingUrgency ?? undefined}
+                />
+                <ProposalDateField
+                  label="Encerramento das propostas"
+                  value={encerramentoDate}
+                  tooltip="Data prevista para fim do recebimento de propostas. Após esse prazo, normalmente não é mais possível enviar proposta."
+                  className={urgency ?? undefined}
+                />
+              </div>
             )}
           </div>
         </div>

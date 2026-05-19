@@ -1,5 +1,12 @@
 import { PncpSearchProvider } from "@/server/shared/infra/providers/pnpc/busca/pncp-search-provider";
 import type { SearchPublicProcurementsControllerSchemas } from "./SearchPublicProcurementsControllerSchemas";
+import { filterSearchResponseByProposalDates, hasProposalDateFilters } from "./search-date-filters";
+
+export type SearchPublicProcurementsParams = SearchPublicProcurementsControllerSchemas.Input;
+export type SearchPublicProcurementsResponse = PncpSearchProvider.Response<"searchDocuments">;
+
+const DATE_FILTER_SEARCH_PAGE_SIZE = 500;
+const DATE_FILTER_MAX_SEARCH_PAGES = 6;
 
 /**
  * DESCOBERTAS EMPÍRICAS — PNCP Search API (/search/)
@@ -22,11 +29,40 @@ import type { SearchPublicProcurementsControllerSchemas } from "./SearchPublicPr
 export class SearchPublicProcurements {
     constructor(private readonly provider: typeof PncpSearchProvider) { }
 
-    async execute(params: SearchPublicProcurements.Params): Promise<SearchPublicProcurements.Response> {
+    async execute(params: SearchPublicProcurementsParams): Promise<SearchPublicProcurementsResponse> {
+        const shouldFilterByProposalDates = hasProposalDateFilters(params);
+
+        if (shouldFilterByProposalDates) {
+            const items: SearchPublicProcurementsResponse["items"] = [];
+
+            for (let pagina = 1; pagina <= DATE_FILTER_MAX_SEARCH_PAGES; pagina += 1) {
+                const response = await this.provider.searchDocuments(this.serializeParams(params, {
+                    pagina,
+                    tamPagina: DATE_FILTER_SEARCH_PAGE_SIZE,
+                }));
+
+                items.push(...response.items);
+
+                const fetchedCount = pagina * DATE_FILTER_SEARCH_PAGE_SIZE;
+                if (response.items.length === 0 || fetchedCount >= response.total) break;
+            }
+
+            return filterSearchResponseByProposalDates({ items, total: items.length }, params);
+        }
+
+        const response = await this.provider.searchDocuments(this.serializeParams(params));
+        return filterSearchResponseByProposalDates(response, params);
+    }
+
+    private serializeParams(
+        params: SearchPublicProcurementsParams,
+        pagination?: { pagina: number; tamPagina: number },
+    ): PncpSearchProvider.Params<"searchDocuments"> {
         // Arrays pré-unidos com "|" — ver descoberta #2.
         // tiposDocumento tem default obrigatório — ver descoberta #1.
-        const serialized: any = {
+        return {
             ...params,
+            ...pagination,
             tiposDocumento: (params.tiposDocumento ?? [
                 "edital",
                 "aviso_licitacao",
@@ -43,12 +79,10 @@ export class SearchPublicProcurements {
             tipos: params.tipos?.join("|"),
             fontesOrcamentarias: params.fontesOrcamentarias?.join("|"),
             tiposMargensPreferencia: params.tiposMargensPreferencia?.join("|"),
-        };
-        return this.provider.searchDocuments(serialized);
+            dataAberturaInicio: undefined,
+            dataAberturaFim: undefined,
+            dataEncerramentoInicio: undefined,
+            dataEncerramentoFim: undefined,
+        } as unknown as PncpSearchProvider.Params<"searchDocuments">;
     }
-}
-
-export namespace SearchPublicProcurements {
-    export type Params = SearchPublicProcurementsControllerSchemas.Input;
-    export type Response = PncpSearchProvider.Response<"searchDocuments">;
 }

@@ -19,7 +19,11 @@ function hasActiveFilter(filters: SearchFilters): boolean {
     filters.tipos.length > 0 ||
     filters.fontesOrcamentarias.length > 0 ||
     filters.tiposMargensPreferencia.length > 0 ||
-    filters.exigenciaConteudoNacional !== null
+    filters.exigenciaConteudoNacional !== null ||
+    !!filters.dataAberturaInicio ||
+    !!filters.dataAberturaFim ||
+    !!filters.dataEncerramentoInicio ||
+    !!filters.dataEncerramentoFim
   )
 }
 
@@ -29,7 +33,8 @@ type SearchPageDeps = {
 
 export function useSearchPage(deps?: SearchPageDeps) {
   const api = useCoreApi()
-  const searchService = deps?.searchService ?? useSearchService(api)
+  const defaultSearchService = useSearchService(api)
+  const searchService = deps?.searchService ?? defaultSearchService
 
   const [filters, setFilters] = useState<SearchFilters>(SEARCH_FILTERS_DEFAULT)
   const [submitted, setSubmitted] = useState(false)
@@ -47,6 +52,10 @@ export function useSearchPage(deps?: SearchPageDeps) {
       fontesOrcamentarias: filters.fontesOrcamentarias.length ? filters.fontesOrcamentarias : undefined,
       tiposMargensPreferencia: filters.tiposMargensPreferencia.length ? filters.tiposMargensPreferencia : undefined,
       exigenciaConteudoNacional: filters.exigenciaConteudoNacional ?? undefined,
+      dataAberturaInicio: filters.dataAberturaInicio || undefined,
+      dataAberturaFim: filters.dataAberturaFim || undefined,
+      dataEncerramentoInicio: filters.dataEncerramentoInicio || undefined,
+      dataEncerramentoFim: filters.dataEncerramentoFim || undefined,
       ordenacao: filters.ordenacao === "relevancia" ? undefined : filters.ordenacao,
       pagina: filters.pagina,
       tamPagina: PAGE_SIZE,

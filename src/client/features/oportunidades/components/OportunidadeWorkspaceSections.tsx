@@ -229,6 +229,7 @@ export function OportunidadeWorkspaceSections({
             <OportunidadeExecutionModule
               companyId={companyId}
               oportunidadeId={oportunidadeId}
+              workspace={workspace}
             />
           ) : null}
         </div>

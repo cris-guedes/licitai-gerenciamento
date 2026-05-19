@@ -45,6 +45,10 @@ export class SearchService {
     fontesOrcamentarias,
     tiposMargensPreferencia,
     exigenciaConteudoNacional,
+    dataAberturaInicio,
+    dataAberturaFim,
+    dataEncerramentoInicio,
+    dataEncerramentoFim,
   }: {
     q?: string,
     tiposDocumento?: Array<'edital' | 'aviso_licitacao' | 'contrato' | 'ata_registro_preco' | 'resultado' | 'homologacao' | 'adjudicacao' | 'dispensa' | 'inexigibilidade'>,
@@ -63,6 +67,10 @@ export class SearchService {
     fontesOrcamentarias?: Array<'estadual' | 'federal' | 'municipal' | 'nao_se_aplica' | 'organismo_internacional'>,
     tiposMargensPreferencia?: Array<'resolucao_cics' | 'resolucao_ciia_pac'>,
     exigenciaConteudoNacional?: boolean,
+    dataAberturaInicio?: string,
+    dataAberturaFim?: string,
+    dataEncerramentoInicio?: string,
+    dataEncerramentoFim?: string,
   }): CancelablePromise<SearchPublicProcurementsResponse> {
     return this.httpRequest.request({
       method: 'GET',
@@ -85,6 +93,10 @@ export class SearchService {
         'fontesOrcamentarias': fontesOrcamentarias,
         'tiposMargensPreferencia': tiposMargensPreferencia,
         'exigenciaConteudoNacional': exigenciaConteudoNacional,
+        'dataAberturaInicio': dataAberturaInicio,
+        'dataAberturaFim': dataAberturaFim,
+        'dataEncerramentoInicio': dataEncerramentoInicio,
+        'dataEncerramentoFim': dataEncerramentoFim,
       },
     });
   }

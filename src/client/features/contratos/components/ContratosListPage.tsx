@@ -185,7 +185,7 @@ export default function ContratosListPage() {
                                                 {contrato.oportunidade?.title || contrato.objetoContrato || "Oportunidade vinculada"}
                                             </p>
                                             <p className="truncate text-xs text-slate-500">
-                                                {contrato.oportunidade?.orgaoNome || "Órgão não informado"}
+                                                {contrato.orgaoContratante?.razaoSocial || contrato.oportunidade?.orgaoNome || "Órgão não informado"}
                                             </p>
                                         </div>
                                     </td>

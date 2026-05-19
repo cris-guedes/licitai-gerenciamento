@@ -7,6 +7,20 @@ export const CreateContratoItemSchema = z.object({
     valorTotal: z.coerce.number().optional().describe("Valor total do item"),
 });
 
+export const CreateContratoOrgaoContratanteSchema = z.object({
+    editalOrgaoId: z.string().optional(),
+    orgaoId: z.string().optional(),
+    papel: z.string().optional(),
+    cnpj: z.string().nullable().optional(),
+    razaoSocial: z.string().nullable().optional(),
+    codigoUnidade: z.string().nullable().optional(),
+    nomeUnidade: z.string().nullable().optional(),
+    municipio: z.string().nullable().optional(),
+    uf: z.string().nullable().optional(),
+    esfera: z.string().nullable().optional(),
+    poder: z.string().nullable().optional(),
+}).describe("Órgão contratante selecionado a partir dos órgãos vinculados à oportunidade.");
+
 export const CreateContratoInputSchema = z.object({
     companyId: z.string().describe("ID da empresa (passado pelo frontend)"),
     oportunidadeId: z.string().min(1).describe("ID da Oportunidade de origem"),
@@ -28,8 +42,14 @@ export const CreateContratoInputSchema = z.object({
     valorGlobal: z.coerce.number().optional().describe("Valor global do contrato"),
     valorTotal: z.coerce.number().optional().describe("Valor total (alias para global)"),
     status: z.enum(["RASCUNHO", "VIGENTE", "ENCERRADO", "RESCINDIDO", "CANCELADO"]).optional().describe("Status do contrato"),
+    orgaoContratante: CreateContratoOrgaoContratanteSchema.optional(),
 
     itens: z.array(CreateContratoItemSchema).describe("Lista de itens vinculados a este contrato"),
+});
+
+const OrgaoContratanteResponseSchema = CreateContratoOrgaoContratanteSchema.extend({
+    editalOrgaoId: z.string().nullable().optional(),
+    orgaoId: z.string().nullable().optional(),
 });
 
 export const ContratoResponseSchema = z.object({
@@ -50,6 +70,7 @@ export const ContratoResponseSchema = z.object({
     dataVigenciaInicio: z.string().nullable().optional(),
     dataVigenciaFim: z.string().nullable().optional(),
     status: z.string().describe("Status do contrato"),
+    orgaoContratante: OrgaoContratanteResponseSchema.nullable().optional(),
     createdAt: z.string().optional(),
     updatedAt: z.string().optional(),
     oportunidade: z.any().optional(),

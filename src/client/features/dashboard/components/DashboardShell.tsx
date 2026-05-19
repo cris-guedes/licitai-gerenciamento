@@ -445,6 +445,10 @@ function resolvePageMeta(pathname: string, base: string) {
     return null
   }
 
+  if (pathname.startsWith(`${base}/contratos/`)) {
+    return null
+  }
+
   if (pathname === base || pathname === `${base}/`) {
     return { title: "Dashboard", subtitle: "Panorama estratégico da operação." }
   }
@@ -472,6 +476,7 @@ function DashboardShellFrame({ children }: Pick<Props, "children">) {
   const { orgId, companyId } = useDashboard()
   const base = `/org/${orgId}/${companyId}`
   const pageMeta = resolvePageMeta(pathname, base)
+  const isContratoWorkspace = pathname.startsWith(`${base}/contratos/`)
   const [headerActionsTarget, setHeaderActionsTarget] = React.useState<HTMLDivElement | null>(null)
 
   return (
@@ -504,8 +509,8 @@ function DashboardShellFrame({ children }: Pick<Props, "children">) {
           </div>
         </Sidebar>
 
-        <SidebarInset>
-          <div className="flex min-h-svh min-w-0 max-w-full flex-col gap-4 overflow-x-hidden px-4 py-4 md:px-6 md:py-4">
+        <SidebarInset className="bg-white">
+          <div className={`flex min-h-svh min-w-0 max-w-full flex-col overflow-x-hidden bg-white ${isContratoWorkspace ? "gap-0 px-0 py-0 md:px-0 md:py-0" : "gap-4 px-4 py-4 md:px-6 md:py-4"}`}>
             {pageMeta ? (
               <header className="flex items-start justify-between gap-4 bg-transparent px-1 py-1">
                 <div className="flex items-start gap-3">

@@ -19,6 +19,19 @@ export interface CreateContratoDTO {
     valorGlobal?: number;
     valorTotal?: number;
     status?: "RASCUNHO" | "VIGENTE" | "ENCERRADO" | "RESCINDIDO" | "CANCELADO";
+    orgaoContratante?: {
+        editalOrgaoId?: string;
+        orgaoId?: string;
+        papel?: string;
+        cnpj?: string | null;
+        razaoSocial?: string | null;
+        codigoUnidade?: string | null;
+        nomeUnidade?: string | null;
+        municipio?: string | null;
+        uf?: string | null;
+        esfera?: string | null;
+        poder?: string | null;
+    };
 
     itens: Array<{
         oportunidadeItemId: string;
